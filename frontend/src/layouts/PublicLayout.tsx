@@ -1,14 +1,20 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 
+import RouteScrollManager from "../components/RouteScrollManager";
 import SiteFooter from "../components/SiteFooter";
 import SiteHeader from "../components/SiteHeader";
 
 export default function PublicLayout() {
+  const location = useLocation();
+
   return (
     <div className="app-shell">
       <SiteHeader />
       <main className="app-main">
-        <Outlet />
+        <RouteScrollManager />
+        <div className="app-main__transition" key={location.pathname}>
+          <Outlet />
+        </div>
       </main>
       <SiteFooter />
     </div>
