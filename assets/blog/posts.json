@@ -1,0 +1,103 @@
+[
+  {
+    "id": "devenir-graphiste-freelance",
+    "title": "Les 5 étapes clés pour devenir graphiste freelance en Afrique",
+    "date": "27 août 2025",
+    "author": "Francis Kenne",
+    "category": "Freelance",
+    "excerpt": "Se lancer en freelance peut sembler intimidant, mais avec la bonne méthode...",
+    "coverImage": "images-blog/img-couleur.jpg",
+    "isFeatured": true,
+    "isPopular": true
+  },
+  {
+    "id": "typo-2025",
+    "title": "Voici 10 typo les plus utilisées en 2025 au Cameroun par les graphistes",
+    "date": "22 août 2025",
+    "author": "Francis Kenne",
+    "category": "Design Graphique",
+    "excerpt": "Les polices d'écriture peuvent être classées en plusieurs catégories, dans cet article...",
+    "coverImage": "images-blog/typo-2025/typo-2025.jpg",
+    "isFeatured": false,
+    "isPopular": true
+    
+  },
+
+  {
+    "id": "confidence-graphiste",
+    "title": "Les réalités du design graphique en Afrique",
+    "date": "31 août 2025",
+    "author": "Francis Kenne",
+    "category": "Freelance",
+    "excerpt": "Les réalités du design graphique en Afrique - Témoignagne poignant d'un graphiste professionnel",
+    "coverImage": "images-blog/confidence-graphiste.jpg",
+    "isFeatured": false, 
+    "isPopular": true
+    
+  },
+
+  {
+    "id": "oscar",
+    "title": "Voici pourquoi plusieurs récompenses pour la plupart des graphistes vivants...",
+    "date": "22 août 2025",
+    "author": "Bihee Alex",
+    "category": "Freelance",
+    "excerpt": "Depuis plusieurs jours sur internet, on rencontre une vague de mécontentements...",
+    "coverImage": "images-blog/oscar.jpg",
+    "isFeatured": false,
+    "isPopular": false
+  },
+
+  {
+    "id": "mindset-du-graphique",
+    "title": "Le Mindset du graphiste businessman - un livre vraiment éfficace ?",
+    "date": "25 Novembre 2025",
+    "author": "Natchi Dylan",
+    "category": "Découverte",
+    "excerpt": "A la découverte du livre qui secoue l'univers des graphistes partout en...",
+    "coverImage": "images-blog/Mockup-Livre.jpg",
+    "isFeatured": false,
+    "isPopular": false
+  },
+
+
+  {
+    "id": "zone-critique",
+    "title": "Voici comment le design graphique a failli m'envoyer en prison ?",
+    "date": "24 Avril 2025",
+    "author": "Francis Kenne",
+    "category": "Freelance",
+    "excerpt": "Découvrez comment mon histoire pourrait te sauver la vie, jeune graphiste....",
+    "coverImage": "images-blog/zone.jpg",
+    "isFeatured": false,
+    "isPopular": true
+  },
+  {
+    "id": "temoignage-face",
+    "title": "Il facture un projet graphique à 200 000f à 17ans mais à peur de la somme",
+    "date": "22 May 2025",
+    "author": "Francis Kenne",
+    "category": "Design Graphique",
+    "excerpt": "à 17ans, Nadine jeune graphiste facture son premier gros contrat grâce à ses idées de facturation venue d'inter...",
+    "coverImage": "images-blog/img-graphiste.webp",
+    "isFeatured": false,
+    "isPopular": true
+  },
+
+ {
+    "id": "coupe-des-creatifs",
+    "title": "Qu'est-ce-que la coupe des créatifs - Le Esport des graphistes ?",
+    "date": "03 septembre 2025",
+    "author": "Massuh Nadia",
+    "category": "Découverte",
+    "excerpt": "La compétition qui regroupe les meilleurs jeunes graphistes de la communauté créative",
+    "coverImage": "images-blog/coupe-des-creatifs",
+    "isFeatured": true,
+    "isPopular": true
+  }
+
+
+
+
+
+]
