@@ -1,47 +1,22 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from app.db.session import get_db
+from app.schemas.catalog import FormationCatalogItem
+from app.services.catalog import get_catalog_item, list_catalog_items
 
 router = APIRouter(prefix="/formations", tags=["formations"])
 
-FORMATIONS_SEED = [
-  {
-    "id": 1,
-    "slug": "design-graphique-fondamental",
-    "title": "Design Graphique Fondamental",
-    "delivery_mode": "online",
-    "price_amount": 60000,
-    "price_currency": "XAF",
-    "allow_installments": False,
-  },
-  {
-    "id": 2,
-    "slug": "brand-identity-intensive",
-    "title": "Brand Identity Intensive",
-    "delivery_mode": "onsite",
-    "price_amount": 120000,
-    "price_currency": "XAF",
-    "allow_installments": True,
-  },
-  {
-    "id": 3,
-    "slug": "motion-design-bootcamp",
-    "title": "Motion Design Bootcamp",
-    "delivery_mode": "onsite",
-    "price_amount": 150000,
-    "price_currency": "XAF",
-    "allow_installments": True,
-  },
-]
+
+@router.get("", response_model=list[FormationCatalogItem])
+def list_formations(db: Session = Depends(get_db)) -> list[FormationCatalogItem]:
+    return list_catalog_items(db)
 
 
-@router.get("")
-def list_formations() -> list[dict[str, object]]:
-    return FORMATIONS_SEED
-
-
-@router.get("/{slug}")
-def get_formation(slug: str) -> dict[str, object]:
-    for formation in FORMATIONS_SEED:
-        if formation["slug"] == slug:
-            return formation
+@router.get("/{slug}", response_model=FormationCatalogItem)
+def get_formation(slug: str, db: Session = Depends(get_db)) -> FormationCatalogItem:
+    formation = get_catalog_item(db, slug)
+    if formation is not None:
+        return formation
 
     raise HTTPException(status_code=404, detail="Formation introuvable.")

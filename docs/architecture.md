@@ -2,12 +2,12 @@
 
 ## Vue d'ensemble
 
-La plateforme doit être découpée en domaines métiers cohérents plutôt qu'en simples pages frontend :
+La plateforme est decoupee en domaines metier coherents :
 
 - `catalog-commerce`
 - `identity-access`
-- `learning-online`
-- `school-onsite`
+- `learning-classic`
+- `learning-guided`
 - `billing-payments`
 - `badges-progression`
 - `notifications`
@@ -20,107 +20,106 @@ La plateforme doit être découpée en domaines métiers cohérents plutôt qu'e
 Une seule application React avec plusieurs zones fonctionnelles :
 
 - routes publiques pour le site e-commerce ;
-- routes privées pour les dashboards ;
-- composants partagés pour layout, tables, cartes, formulaires et navigation ;
-- guards d'accès par rôle et par type d'inscription.
+- routes privees pour les dashboards ;
+- composants partages pour layout, cartes, formulaires et navigation ;
+- guards d'acces par role et par contexte d'achat.
 
 ### Backend
 
 Une API FastAPI modulaire avec :
 
-- endpoints REST versionnés ;
-- services métier par domaine ;
-- schémas Pydantic pour validation d'entrée et de sortie ;
-- couche d'accès aux données isolée de la logique métier ;
+- endpoints REST versionnes ;
+- services metier par domaine ;
+- schemas Pydantic pour validation d'entree et de sortie ;
+- couche d'acces aux donnees isolee de la logique metier ;
 - jobs asynchrones pour facturation, notifications et webhooks de paiement.
 
-### Données
+### Donnees
 
 Une base PostgreSQL centralise :
 
-- utilisateurs et rôles ;
-- catalogue et contenus pédagogiques ;
+- utilisateurs et roles ;
+- catalogue et contenus pedagogiques ;
 - inscriptions, progression, badges ;
-- notes, exercices, évaluations ;
-- transactions, échéanciers, factures ;
+- notes, exercices, evaluations ;
+- transactions, echeanciers, factures ;
 - notifications et historique.
 
 ### Stockage fichier
 
-Le code ne doit pas stocker vidéos et PDF directement dans le serveur d'application. Prévoir :
+Le code ne doit pas stocker videos et PDF directement dans le serveur d'application. Prevoir :
 
-- stockage objet pour vidéos et pièces jointes ;
-- génération de liens signés pour la lecture ;
+- stockage objet pour videos et pieces jointes ;
+- generation de liens signes pour la lecture ;
 - stockage des factures PDF et exports.
 
-## Modules métier
+## Modules metier
 
 ### 1. Catalog Commerce
 
-Responsabilités :
+Responsabilites :
 
 - catalogue de formations ;
-- pages détail ;
+- pages detail ;
 - panier ;
 - checkout ;
 - commandes et historique d'achat.
 
 ### 2. Identity Access
 
-Responsabilités :
+Responsabilites :
 
 - inscription ;
 - connexion ;
-- gestion des rôles ;
-- récupération de mot de passe ;
-- règles d'accès aux dashboards.
+- gestion des roles ;
+- regles d'acces aux dashboards.
 
-### 3. Learning Online
+### 3. Learning Classic
 
-Responsabilités :
+Responsabilites :
 
 - modules ;
 - chapitres ;
-- leçons ;
-- lecture vidéo ;
+- lecons ;
+- lecture video ;
 - quiz ;
 - calcul de progression.
 
-### 4. School Onsite
+### 4. Learning Guided
 
-Responsabilités :
+Responsabilites :
 
-- inscription présentielle ;
-- code étudiant ;
-- cours ;
-- exercices ;
-- notes ;
-- rappels de scolarité ;
-- suivi pédagogique par cohorte.
+- parcours `live` ;
+- parcours `presentiel` ;
+- suivi pedagogique ;
+- notes et exercices ;
+- code etudiant pour le presentiel ;
+- rappels de scolarite.
 
 ### 5. Billing Payments
 
-Responsabilités :
+Responsabilites :
 
 - paiement initial ;
 - webhooks ;
 - paiements en tranches ;
-- échéances ;
+- echeances ;
 - factures partielles et finales ;
-- statut de règlement.
+- statut de reglement.
 
 ### 6. Badges Progression
 
-Responsabilités :
+Responsabilites :
 
-- référentiel de badges ;
-- règles d'attribution ;
+- referentiel de badges ;
+- regles d'attribution ;
 - historique des changements de niveau ;
-- affichage dashboard.
+- affichage dashboard ;
+- badges marketing derives pour le catalogue.
 
 ### 7. Notifications
 
-Responsabilités :
+Responsabilites :
 
 - notifications dashboard ;
 - envois email ;
@@ -129,7 +128,7 @@ Responsabilités :
 
 ### 8. Admin Reporting
 
-Responsabilités :
+Responsabilites :
 
 - gestion formations ;
 - gestion utilisateurs ;
@@ -137,20 +136,21 @@ Responsabilités :
 - supervision inscriptions ;
 - statistiques de base.
 
-## Décisions techniques recommandées
+## Decisions techniques recommandees
 
-- adopter `Vite` comme base frontend et supprimer les reliquats `Create React App` ;
-- structurer le backend par modules métier, pas par fichier unique ;
-- centraliser les règles métier côté backend ;
-- ne jamais dériver le rôle utilisateur uniquement depuis le frontend ;
-- isoler le fournisseur de paiement derrière une couche d'adaptation ;
-- prévoir l'asynchrone dès le début pour factures, emails et rappels.
+- structurer le backend par modules metier, pas par fichier unique ;
+- centraliser les regles metier cote backend ;
+- ne jamais deriver le role utilisateur uniquement depuis le frontend ;
+- deriver `dashboard_type` a partir de `format_type` ;
+- deriver `promo` a partir du prix barre ;
+- isoler le fournisseur de paiement derriere une couche d'adaptation ;
+- prevoir l'asynchrone des le debut pour factures, emails et rappels.
 
-## Hors périmètre MVP
+## Hors perimetre MVP
 
-- live streaming ;
+- live streaming temps reel ;
 - forum communautaire ;
 - mobile native app ;
-- analytics avancés ;
+- analytics avances ;
 - moteur de recommandation ;
 - multi-tenant.

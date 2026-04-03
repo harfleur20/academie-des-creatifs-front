@@ -2,85 +2,70 @@
 
 ## Routes publiques
 
-- `/` : page d'accueil orientée conversion
-- `/formations` : catalogue unifié avec filtres `online` et `onsite`
-- `/formations/:slug` : détail d'une formation
-- `/panier` : résumé commande
-- `/checkout` : paiement
+- `/` : page d'accueil orientee conversion
+- `/formations` : catalogue unifie avec filtres `live`, `ligne`, `presentiel`
+- `/formations/:slug` : detail d'une formation
+- `/panier` : panier protege si connecte
+- `/checkout` : checkout protege
 - `/login` : connexion
 - `/register` : inscription
-- `/forgot-password` : récupération d'accès
-- `/factures` : historique utilisateur simple si connecté
 
-## Routes privées étudiant
+## Routes privees utilisateur
 
-- `/dashboard` : redirection contextuelle selon les inscriptions
-- `/dashboard/online` : vue globale des formations online
-- `/dashboard/online/:enrollmentId` : player, modules, progression, quiz
-- `/dashboard/onsite` : vue globale des inscriptions présentielles
-- `/dashboard/onsite/:enrollmentId` : notes, exercices, rappels, échéancier, badge
-- `/dashboard/profile` : profil utilisateur
-- `/dashboard/billing` : paiements et factures
+- `/espace` : redirection contextuelle selon le role
+- `/espace/etudiant` : dashboard etudiant unifie
+- `/espace/enseignant` : dashboard enseignant
+- `/favoris`
+- `/notifications`
 
-## Routes privées enseignant
+Le dashboard etudiant est pilote par `dashboard_type` :
 
-- `/teacher`
-- `/teacher/sessions`
-- `/teacher/sessions/:sessionId`
-- `/teacher/assignments`
-- `/teacher/grades`
+- `classic` pour les formations `ligne`
+- `guided` pour les formations `live` et `presentiel`
 
-## Routes privées admin
+## Routes privees admin
 
 - `/admin`
-- `/admin/formations`
-- `/admin/users`
-- `/admin/orders`
-- `/admin/payment-plans`
-- `/admin/invoices`
-- `/admin/analytics`
+
+Navigation interne actuelle :
+
+- `#admin-overview`
+- `#admin-catalogue`
+- `#admin-sessions`
+- `#admin-users`
+- `#admin-orders`
+- `#admin-payments`
 
 ## Layouts principaux
 
 - `PublicLayout`
-- `StudentLayout`
-- `TeacherLayout`
 - `AdminLayout`
-- `AuthLayout`
 
 ## Modules UI publics
 
-- `Header`
-- `Footer`
+- `SiteHeader`
+- `SiteFooter`
 - `Hero`
 - `FormationCard`
-- `FormationGrid`
 - `FormationFilters`
+- `CheckoutSummary`
 - `TestimonialsSection`
 - `BadgesShowcase`
-- `CheckoutSummary`
-- `PaymentMethodSelector`
 
-## Modules UI dashboard online
+## Modules UI dashboard etudiant classique
 
-- `EnrollmentSidebar`
-- `CoursePlayer`
 - `LessonList`
 - `LessonContent`
 - `ProgressBar`
 - `QuizPanel`
-- `CourseCompletionCard`
 - `BadgePanel`
 
-## Modules UI dashboard présentiel
+## Modules UI dashboard guide
 
 - `StudentIdentityCard`
 - `StudentCodeCard`
-- `TuitionStatusCard`
-- `InstallmentTimeline`
 - `GradesTable`
 - `AssignmentsList`
-- `PedagogicSchedule`
 - `ReminderList`
 - `BadgeProgressCard`
 
@@ -90,34 +75,28 @@
 - `TeacherSessionOverview`
 - `AssignmentEditor`
 - `GradeEntryTable`
-- `StudentFollowUpCard`
 
 ## Modules UI admin
 
 - `AdminStatsCards`
-- `FormationTable`
+- `FormationEditor`
+- `FormationCreateCard`
+- `SessionOverviewCards`
 - `UserTable`
 - `OrderTable`
-- `InvoiceTable`
-- `ReminderTriggerForm`
-- `PaymentPlanEditor`
+- `PaymentCards`
 
 ## Composants transverses
 
 - `ProtectedRoute`
-- `RoleGuard`
-- `AppBreadcrumbs`
+- `AccountRedirectPage`
 - `EmptyState`
-- `DataTable`
 - `StatusBadge`
 - `NotificationCenter`
-- `ConfirmDialog`
-- `FileDownloadButton`
 
-## État frontend recommandé
+## Etat frontend recommande
 
-- `React Query` pour la donnée serveur ;
 - `React Router` pour le routage ;
-- `Zod` pour la validation de formulaires côté client ;
-- un state local léger pour l'UI ;
-- aucune logique métier sensible calculée uniquement dans le navigateur.
+- `Context` pour l'auth et le panier ;
+- validation de formulaires cote client + validation serveur ;
+- aucune logique metier sensible calculee uniquement dans le navigateur.

@@ -12,6 +12,7 @@ import {
   FaQuoteLeft,
   FaRegStar,
   FaRocket,
+  FaShoppingCart,
   FaStar,
   FaTags,
 } from "react-icons/fa";
@@ -28,6 +29,10 @@ import {
   videos,
   type CourseBadge,
 } from "../data/ecommerceHomeData";
+import {
+  fetchPublicFormations,
+  mapCatalogFormationToCourse,
+} from "../lib/catalogApi";
 
 function getCounterTarget(value: string) {
   const digits = value.replace(/[^\d]/g, "");
@@ -113,33 +118,34 @@ function renderStars(rating: number) {
 function badgeContent(badge: CourseBadge) {
   if (badge === "premium") {
     return (
-      <div className="special-badge badge-premium">
+      <span className="catalogue-product-card__badge catalogue-product-card__badge--premium home-course-badge">
         <FaCrown />
         Premium
-      </div>
+      </span>
     );
   }
 
   if (badge === "populaire") {
     return (
-      <div className="special-badge badge-populaire">
+      <span className="catalogue-product-card__badge catalogue-product-card__badge--populaire home-course-badge">
         <FaFire />
         Populaire
-      </div>
+      </span>
     );
   }
 
   return (
-    <div className="special-badge badge-promo">
+    <span className="catalogue-product-card__badge catalogue-product-card__badge--promo home-course-badge">
       <FaTags />
       Promo
-    </div>
+    </span>
   );
 }
 
 export default function HomePage() {
   const statsRef = useRef<HTMLDivElement | null>(null);
   const [statsVisible, setStatsVisible] = useState(false);
+  const [courses, setCourses] = useState(onlineCourses);
 
   useEffect(() => {
     const node = statsRef.current;
@@ -169,6 +175,32 @@ export default function HomePage() {
       observer.disconnect();
     };
   }, [statsVisible]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchPublicFormations()
+      .then((formations) => {
+        if (!isMounted) {
+          return;
+        }
+
+        const mapped = formations
+          .filter((formation) => formation.format_type !== "presentiel")
+          .map(mapCatalogFormationToCourse);
+
+        if (mapped.length > 0) {
+          setCourses(mapped);
+        }
+      })
+      .catch(() => {
+        // Keep static fallback when the API is unavailable.
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <div className="ecommerce-home">
@@ -287,7 +319,7 @@ export default function HomePage() {
           </div>
 
           <div className="bloc-list-card">
-            {onlineCourses.map((course) => {
+            {courses.map((course) => {
               const hasPromo =
                 Boolean(course.originalPrice) &&
                 course.originalPrice !== course.currentPrice;
@@ -341,12 +373,18 @@ export default function HomePage() {
                           {course.currentPrice}
                         </span>
                       </div>
-                      <Link
-                        className="btn-card-action"
-                        to={getFormationPath(course.slug)}
-                      >
-                        Voir
-                      </Link>
+                      <div className="card-footer-actions">
+                        <Link
+                          aria-label={`Ajouter ${course.title} au panier`}
+                          className="btn-card-icon"
+                          to={`/panier?add=${course.slug}`}
+                        >
+                          <FaShoppingCart />
+                        </Link>
+                        <Link className="btn-card-action" to={getFormationPath(course.slug)}>
+                          Voir
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 </article>
@@ -407,6 +445,71 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* revert temporary album editorial variant
+        <div className="album-container">
+          <div className="album-editorial-head">
+            <div className="album-editorial-copy">
+              <span className="album-editorial-eyebrow">Galerie immersive</span>
+              <h2>L'AcadÃ©mie des CrÃ©atifs en image</h2>
+              <p>
+                Ateliers, travaux pratiques, coaching et soutenances: une lecture
+                plus Ã©ditoriale de la vie Ã  l'AcadÃ©mie, pensÃ©e comme un carnet
+                visuel plutÃ´t qu'une simple galerie de photos.
+              </p>
+            </div>
+
+            <div className="album-editorial-note">
+              <span>90% pratique</span>
+              <p>
+                Une formation oÃ¹ les projets, les restitutions et les temps
+                d'atelier occupent le coeur de l'expÃ©rience.
+              </p>
+            </div>
+          </div>
+
+          <div className="album-editorial-layout">
+            {albumFeature ? (
+              <article className="album-editorial-feature">
+                <img src={albumFeature.image} alt={albumFeature.title} />
+                <div className="album-editorial-feature__overlay" />
+                <div className="album-editorial-feature__content">
+                  <span className="album-editorial-chip">Temps fort</span>
+                  <h3>{albumFeature.title}</h3>
+                  <p>
+                    Un aperÃ§u des moments qui donnent du relief Ã 
+                    l'apprentissage: accompagnement, immersion et restitution.
+                  </p>
+                </div>
+              </article>
+            ) : null}
+
+            <div className="album-editorial-grid">
+              {albumGridItems.map((item) => (
+                <article className="album-editorial-card" key={item.title}>
+                  <img src={item.image} alt={item.title} />
+                  <div className="album-editorial-card__overlay" />
+                  <div className="album-editorial-card__content">
+                    <h3>{item.title}</h3>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div className="album-editorial-strip">
+            {albumStripItems.map((item) => (
+              <article className="album-editorial-strip__item" key={item.title}>
+                <img src={item.image} alt={item.title} />
+                <div className="album-editorial-strip__overlay" />
+                <div className="album-editorial-strip__content">
+                  <h3>{item.title}</h3>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section> */}
 
       <section id="album">
         <div className="album-container">

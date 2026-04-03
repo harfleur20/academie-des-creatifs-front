@@ -1,148 +1,160 @@
-# Règles métier
+# Regles metier
 
 ## Types de formation
 
-Une formation possède un `delivery_mode` :
+Une formation possede maintenant un `format_type` :
 
-- `online`
-- `onsite`
+- `live`
+- `ligne`
+- `presentiel`
 
-Ce mode conditionne :
+Chaque format derive automatiquement un `dashboard_type` :
 
-- le type de dashboard accessible ;
-- les règles de progression ;
-- l'éligibilité au paiement en tranches ;
-- la présence ou non d'un code étudiant.
+- `ligne` -> `classic`
+- `live` -> `guided`
+- `presentiel` -> `guided`
 
-## Rôles
+Ce couple conditionne :
 
-Le système gère trois rôles applicatifs principaux :
+- le type de dashboard accessible apres achat ;
+- les regles de progression ;
+- l'eligibilite au paiement en tranches ;
+- la presence ou non d'un code etudiant.
+
+## Roles
+
+Le systeme gere trois roles applicatifs principaux :
 
 - `student`
 - `teacher`
 - `admin`
 
-Règles :
+Regles :
 
-- un utilisateur peut cumuler plusieurs rôles ;
-- un enseignant connecté doit accéder à son dashboard enseignant ;
-- un admin conserve un accès global ;
-- un utilisateur ayant acheté une formation online reste `student` mais n'obtient pas automatiquement un code étudiant ;
-- le code étudiant est généré pour les inscriptions présentielles.
+- l'inscription publique cree un compte `student` uniquement ;
+- `teacher` et `admin` sont attribues par l'administration ;
+- un utilisateur peut cumuler plusieurs roles ;
+- un enseignant connecte accede a son espace enseignant ;
+- un admin conserve un acces global ;
+- un achat `ligne` n'attribue pas de code etudiant ;
+- un achat `presentiel` attribue un code etudiant ;
+- un achat `live` utilise le dashboard guide, mais sans code etudiant.
 
-## Code étudiant
+## Code etudiant
 
 Format :
 
 - `AC25-002E`
 
-Règles :
+Regles :
 
-- `AC` = Académie ;
-- `25` = année sur deux chiffres ;
-- `002` = séquence ordonnée dans l'année ;
-- `E` = étudiant ;
-- la séquence est unique par année ;
-- le code est généré au moment de la validation de l'inscription présentielle ;
-- le code ne doit jamais être réutilisé, même si une inscription est annulée.
+- `AC` = Academie ;
+- `25` = annee sur deux chiffres ;
+- `002` = sequence ordonnee dans l'annee ;
+- `E` = etudiant ;
+- la sequence est unique par annee ;
+- le code est genere a la validation d'une inscription `presentiel` ;
+- le code ne doit jamais etre reutilise.
 
-Exemple de masque :
+Masque :
 
 - `AC{yy}-{sequence:03d}E`
 
 ## Paiement en tranches
 
-Éligibilité initiale proposée :
+Eligibilite :
 
-- uniquement pour les formations `onsite` ;
-- uniquement si le prix est strictement supérieur à `90 000 FCFA`.
+- uniquement pour les formations `presentiel` ;
+- uniquement si le prix actuel est strictement superieur a `90 000 FCFA`.
 
-Règles :
+Regles :
 
-- le plan de paiement doit être défini par l'admin ;
-- l'accès au dashboard présentiel est activé à la confirmation du premier paiement ;
-- chaque échéance possède un montant, une date limite et un statut ;
-- les statuts d'échéance sont `pending`, `paid`, `late`, `cancelled` ;
-- le statut global de la scolarité est calculé depuis les échéances ;
-- une échéance en retard déclenche des rappels automatiques.
+- l'eligibilite est derivee automatiquement du format et du prix ;
+- le plan de paiement est pilote par l'admin ;
+- le dashboard guide presentiel est active a la confirmation du premier paiement ;
+- chaque echeance possede un montant, une date limite et un statut ;
+- les statuts d'echeance sont `pending`, `paid`, `late`, `cancelled` ;
+- une echeance en retard declenche des rappels automatiques.
 
-## Badges
+## Badges marketing du catalogue
 
-Référentiel badges :
+Badges actuellement supportes :
+
+- `premium`
+- `populaire`
+- `promo`
+
+Regles :
+
+- `premium` est manuel ;
+- `populaire` est manuel ;
+- `promo` est automatique des que `original_price_amount > current_price_amount` ;
+- `promo` ne doit pas etre saisi manuellement dans l'admin.
+
+## Badges pedagogiques
+
+Referentiel badges :
 
 - `aventurier`
-- `débutant`
-- `intermédiaire`
+- `debutant`
+- `intermediaire`
 - `semi-pro`
 - `professionnel`
 
 Principe :
 
-- chaque inscription possède un niveau de badge courant ;
-- le niveau dépend de validations pédagogiques réelles ;
-- le calcul doit être centralisé côté backend.
-
-Proposition de règles initiales à valider :
-
-- `aventurier` : inscription active, progression insuffisante pour un niveau supérieur ;
-- `débutant` : premières validations obtenues ;
-- `intermédiaire` : progression cohérente avec plusieurs modules ou évaluations validés ;
-- `semi-pro` : majorité du parcours validée ;
-- `professionnel` : parcours terminé avec validation finale.
-
-Règle importante :
-
-- la logique badge doit être paramétrable, pas codée en dur dans le frontend.
+- chaque inscription possede un niveau de badge courant ;
+- le niveau depend de validations pedagogiques reelles ;
+- le calcul doit rester centralise cote backend.
 
 ## Progression
 
-### Online
+### Dashboard classique
 
-La progression online se calcule à partir de :
+La progression `classic` se calcule a partir de :
 
-- leçons vues ;
-- chapitres terminés ;
-- quiz réussis ;
+- lecons vues ;
+- chapitres termines ;
+- quiz reussis ;
 - validations de modules.
 
-### Onsite
+### Dashboard guide
 
-La progression présentielle se calcule à partir de :
+La progression `guided` se calcule a partir de :
 
-- présence ou suivi pédagogique ;
+- presence ou suivi pedagogique ;
 - notes ;
 - exercices rendus ;
-- évaluations validées ;
-- jalons administratifs si nécessaire.
+- evaluations validees ;
+- jalons pedagogiques et administratifs.
 
 ## Factures
 
-Règles :
+Regles :
 
-- une facture est générée après chaque paiement confirmé ;
-- pour un paiement fractionné, chaque échéance payée génère une facture partielle ;
-- une facture de clôture peut être générée quand le plan est intégralement réglé ;
-- l'utilisateur doit retrouver tout son historique depuis son dashboard ;
-- les factures doivent être exportables en PDF.
+- une facture est generee apres chaque paiement confirme ;
+- pour un paiement fractionne, chaque echeance payee genere une facture partielle ;
+- une facture finale peut etre generee quand le plan est integralement regle ;
+- l'utilisateur doit retrouver son historique depuis son espace.
 
 ## Rappels de paiement
 
-Canaux prévus :
+Canaux prevus :
 
 - notification in-app ;
 - email ;
-- SMS en option future.
+- SMS plus tard.
 
-Cadence initiale proposée :
+Cadence initiale :
 
-- rappel avant échéance ;
-- rappel le jour de l'échéance ;
-- rappel après retard si non payé ;
+- rappel avant echeance ;
+- rappel le jour de l'echeance ;
+- rappel apres retard si non paye ;
 - relance manuelle possible par un admin.
 
 ## Permissions minimales
 
-- `student` : consulter ses données uniquement ;
-- `teacher` : gérer les cohortes et évaluations qui lui sont affectées ;
-- `admin` : accès complet aux modules d'administration ;
-- aucune action sensible ne doit dépendre d'un contrôle frontend seul.
+- `student` : consulter uniquement ses donnees et inscriptions ;
+- `teacher` : gerer les cohortes et evaluations qui lui sont affectees ;
+- `admin` : acces complet aux modules d'administration ;
+- aucune action sensible ne doit dependre d'un controle frontend seul.

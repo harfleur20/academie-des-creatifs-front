@@ -1,11 +1,15 @@
 import {
+  useEffect,
   useState,
   type ChangeEvent,
   type FormEvent,
 } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FaEye, FaEyeSlash, FaGoogle } from "react-icons/fa";
 import { isValidPhoneNumber } from "libphonenumber-js";
+
+import { useAuth } from "../auth/AuthContext";
+import { ApiRequestError } from "../lib/authApi";
 
 type AuthPageProps = {
   mode: "login" | "register";
@@ -87,16 +91,8 @@ function validateAuth(values: AuthValues, isLogin: boolean): AuthErrors {
 
   if (!values.password) {
     errors.password = "Le mot de passe est requis.";
-  } else {
-    if (values.password.length < 8) {
-      errors.password = "Le mot de passe doit contenir au moins 8 caracteres.";
-    } else if (!/[A-Z]/.test(values.password)) {
-      errors.password = "Ajoutez au moins une lettre majuscule.";
-    } else if (!/[a-z]/.test(values.password)) {
-      errors.password = "Ajoutez au moins une lettre minuscule.";
-    } else if (!/\d/.test(values.password)) {
-      errors.password = "Ajoutez au moins un chiffre.";
-    }
+  } else if (values.password.length < 8) {
+    errors.password = "Le mot de passe doit contenir au moins 8 caracteres.";
   }
 
   if (!isLogin && !values.policy) {
@@ -106,27 +102,67 @@ function validateAuth(values: AuthValues, isLogin: boolean): AuthErrors {
   return errors;
 }
 
+function getRedirectTarget(locationState: unknown) {
+  if (
+    locationState &&
+    typeof locationState === "object" &&
+    "from" in locationState &&
+    typeof locationState.from === "string"
+  ) {
+    return locationState.from;
+  }
+
+  return "/";
+}
+
 export default function AuthPage({ mode }: AuthPageProps) {
   const isLogin = mode === "login";
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isLoading, login, register, user } = useAuth();
+
   const [values, setValues] = useState<AuthValues>(initialValues);
   const [touched, setTouched] = useState<Partial<Record<AuthFieldName, boolean>>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [submitMessage, setSubmitMessage] = useState("");
   const [submitAttempted, setSubmitAttempted] = useState(false);
-  const errors = validateAuth(values, isLogin);
+  const [serverErrors, setServerErrors] = useState<AuthErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const redirectTarget = getRedirectTarget(location.state);
+  const errors = { ...validateAuth(values, isLogin), ...serverErrors };
   const activeFields: AuthFieldName[] = isLogin
     ? ["email", "password"]
     : ["name", "email", "phone", "password", "policy"];
   const isFormValid = activeFields.every((field) => !errors[field]);
 
+  useEffect(() => {
+    if (!isLoading && user) {
+      navigate(redirectTarget, { replace: true });
+    }
+  }, [isLoading, navigate, redirectTarget, user]);
+
   const setFieldTouched = (field: AuthFieldName) => {
     setTouched((current) => ({ ...current, [field]: true }));
+  };
+
+  const clearServerError = (field: AuthFieldName) => {
+    setServerErrors((current) => {
+      if (!current[field]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
   };
 
   const handleInputChange =
     (field: Exclude<AuthFieldName, "policy">) =>
     (event: ChangeEvent<HTMLInputElement>) => {
       setSubmitMessage("");
+      clearServerError(field);
 
       const nextValue = sanitizeValue(field, event.target.value);
 
@@ -138,6 +174,7 @@ export default function AuthPage({ mode }: AuthPageProps) {
 
   const handleCheckboxChange = (event: ChangeEvent<HTMLInputElement>) => {
     setSubmitMessage("");
+    clearServerError("policy");
     setValues((current) => ({ ...current, policy: event.target.checked }));
   };
 
@@ -162,7 +199,7 @@ export default function AuthPage({ mode }: AuthPageProps) {
     return "";
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitAttempted(true);
     setTouched((current) => {
@@ -174,17 +211,61 @@ export default function AuthPage({ mode }: AuthPageProps) {
 
       return nextTouched;
     });
+    setSubmitMessage("");
+    setServerErrors({});
 
     if (!isFormValid) {
       setSubmitMessage("Corrigez les champs signales avant de continuer.");
       return;
     }
 
-    setSubmitMessage(
-      isLogin
-        ? "Les informations de connexion sont valides."
-        : "Les informations d'inscription sont valides."
-    );
+    setIsSubmitting(true);
+
+    try {
+      if (isLogin) {
+        await login({
+          email: values.email.trim().toLowerCase(),
+          password: values.password,
+          remember_me: values.policy,
+        });
+      } else {
+        await register({
+          full_name: values.name.trim(),
+          email: values.email.trim().toLowerCase(),
+          phone: values.phone.trim(),
+          password: values.password,
+        });
+      }
+
+      navigate(redirectTarget, { replace: true });
+    } catch (error) {
+      if (error instanceof ApiRequestError) {
+        const detail = error.detail;
+
+        if (
+          detail &&
+          typeof detail === "object" &&
+          "detail" in detail &&
+          typeof detail.detail === "object" &&
+          detail.detail &&
+          "field" in detail.detail &&
+          "message" in detail.detail &&
+          typeof detail.detail.field === "string" &&
+          typeof detail.detail.message === "string"
+        ) {
+          const field = detail.detail.field as AuthFieldName;
+          setServerErrors({ [field]: detail.detail.message });
+          return;
+        }
+
+        setSubmitMessage(error.message);
+        return;
+      }
+
+      setSubmitMessage("Une erreur inattendue est survenue.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const policyState =
@@ -221,11 +302,17 @@ export default function AuthPage({ mode }: AuthPageProps) {
             <p className="auth-panel__meta">
               {isLogin ? (
                 <>
-                  Vous n'avez pas de compte ? <Link to="/register">Creer votre compte</Link>
+                  Vous n'avez pas de compte ?{" "}
+                  <Link state={location.state} to="/register">
+                    Creer votre compte
+                  </Link>
                 </>
               ) : (
                 <>
-                  Vous avez deja un compte ? <Link to="/login">Se connecter</Link>
+                  Vous avez deja un compte ?{" "}
+                  <Link state={location.state} to="/login">
+                    Se connecter
+                  </Link>
                 </>
               )}
             </p>
@@ -372,15 +459,16 @@ export default function AuthPage({ mode }: AuthPageProps) {
               </p>
             ) : null}
 
-            <button className="auth-panel__cta" type="submit">
-              {isLogin ? "SE CONNECTER" : "S'INSCRIRE"}
+            <button className="auth-panel__cta" disabled={isSubmitting} type="submit">
+              {isSubmitting
+                ? "Chargement..."
+                : isLogin
+                  ? "SE CONNECTER"
+                  : "S'INSCRIRE"}
             </button>
 
             {submitMessage ? (
-              <p
-                aria-live="polite"
-                className={`auth-form__notice ${isFormValid ? "auth-form__notice--success" : "auth-form__notice--error"}`}
-              >
+              <p aria-live="polite" className="auth-form__notice auth-form__notice--error">
                 {submitMessage}
               </p>
             ) : null}

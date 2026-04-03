@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   FaArrowLeft,
   FaCheckCircle,
@@ -20,9 +20,16 @@ import {
 
 import {
   getFormationDetailBySlug,
+  type FormationDetail,
   type FormationFaq,
   type FormationModule,
 } from "../data/formationDetailsData";
+import { useAuth } from "../auth/AuthContext";
+import { useCart } from "../cart/CartContext";
+import {
+  fetchPublicFormation,
+  mapCatalogFormationToCourse,
+} from "../lib/catalogApi";
 
 type AccordionItem = FormationModule | FormationFaq;
 
@@ -125,9 +132,54 @@ function DetailAccordion({
 
 export default function FormationDetailPage() {
   const { slug = "" } = useParams();
-  const formation = getFormationDetailBySlug(slug);
+  const { user } = useAuth();
+  const { addToCart } = useCart();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const staticFormation = useMemo(() => getFormationDetailBySlug(slug), [slug]);
+  const [formation, setFormation] = useState<FormationDetail | null>(
+    staticFormation ?? null,
+  );
   const [openModuleIndex, setOpenModuleIndex] = useState<number | null>(0);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isPreparingCheckout, setIsPreparingCheckout] = useState(false);
+  const [actionMessage, setActionMessage] = useState("");
+
+  useEffect(() => {
+    setFormation(staticFormation ?? null);
+
+    if (!staticFormation) {
+      return;
+    }
+
+    let isMounted = true;
+
+    fetchPublicFormation(slug)
+      .then((remoteFormation) => {
+        if (!isMounted) {
+          return;
+        }
+
+        const mapped = mapCatalogFormationToCourse(remoteFormation);
+
+        setFormation({
+          ...staticFormation,
+          ...mapped,
+          category: remoteFormation.category,
+          heroImage: mapped.image,
+        });
+      })
+      .catch(() => {
+        if (isMounted) {
+          setFormation(staticFormation);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [slug, staticFormation]);
 
   if (!formation) {
     return (
@@ -146,6 +198,48 @@ export default function FormationDetailPage() {
       </div>
     );
   }
+
+  const handleEnrollmentAction = async (target: "cart" | "checkout") => {
+    setActionMessage("");
+
+    if (!user) {
+      const destination =
+        target === "checkout"
+          ? `/checkout?add=${formation.slug}`
+          : `/panier?add=${formation.slug}`;
+
+      navigate("/login", {
+        state: {
+          from: destination,
+          fallbackFrom: `${location.pathname}${location.search}${location.hash}`,
+        },
+      });
+      return;
+    }
+
+    if (target === "cart") {
+      setIsAddingToCart(true);
+    } else {
+      setIsPreparingCheckout(true);
+    }
+
+    try {
+      await addToCart(formation.slug);
+      navigate(target === "checkout" ? "/checkout" : "/panier");
+    } catch (error) {
+      setActionMessage(
+        error instanceof Error
+          ? error.message
+          : "Impossible d'ajouter cette formation au panier.",
+      );
+    } finally {
+      if (target === "cart") {
+        setIsAddingToCart(false);
+      } else {
+        setIsPreparingCheckout(false);
+      }
+    }
+  };
 
   return (
     <div className="formation-detail-page">
@@ -237,14 +331,34 @@ export default function FormationDetailPage() {
               </div>
 
               <div className="formation-detail-card__actions">
-                <Link className="formation-detail-card__primary" to="/register">
+                <button
+                  className="formation-detail-card__primary"
+                  disabled={isAddingToCart || isPreparingCheckout}
+                  type="button"
+                  onClick={() => {
+                    void handleEnrollmentAction("cart");
+                  }}
+                >
                   <FaShoppingCart />
-                  Ajouter au panier
-                </Link>
-                <Link className="formation-detail-card__secondary" to="/register">
-                  S'inscrire a cette formation
-                </Link>
+                  {isAddingToCart ? "Ajout en cours..." : "Ajouter au panier"}
+                </button>
+                <button
+                  className="formation-detail-card__secondary"
+                  disabled={isAddingToCart || isPreparingCheckout}
+                  type="button"
+                  onClick={() => {
+                    void handleEnrollmentAction("checkout");
+                  }}
+                >
+                  {isPreparingCheckout
+                    ? "Preparation du checkout..."
+                    : "S'inscrire a cette formation"}
+                </button>
               </div>
+
+              {actionMessage ? (
+                <p className="formation-detail-card__notice">{actionMessage}</p>
+              ) : null}
 
               <div className="formation-detail-card__share">
                 <span>Partager</span>

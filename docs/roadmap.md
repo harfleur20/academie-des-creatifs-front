@@ -1,77 +1,79 @@
-# Roadmap d'implémentation
+# Roadmap d'implementation
 
 ## Phase 0. Cadrage
 
 Objectif :
 
-- figer le périmètre MVP ;
-- valider les règles métier ;
+- figer le perimetre MVP ;
+- valider les regles metier ;
 - valider l'architecture.
 
 Livrables :
 
 - documentation produit ;
-- schéma de données cible ;
+- schema de donnees cible ;
 - contrat d'API ;
-- stratégie assets et branding.
+- strategie assets et branding.
 
 ## Phase 1. Socle technique
 
 Objectif :
 
 - rendre le projet buildable et maintenable ;
-- supprimer les incohérences CRA/Vite ;
-- poser la structure backend.
+- poser la structure frontend/backend ;
+- installer la base auth.
 
 Livrables :
 
 - frontend Vite propre ;
 - backend FastAPI modulaire ;
-- configuration environnement ;
-- conventions shared.
+- migrations Alembic ;
+- authentification et roles.
 
 ## Phase 2. E-commerce central
 
 Objectif :
 
-- permettre la vente des deux types de formation.
+- permettre la vente des trois formats de formation.
 
 Livrables :
 
 - home ;
 - catalogue ;
-- détail formation ;
+- detail formation ;
 - panier ;
 - checkout ;
-- création de commande ;
-- initialisation paiement ;
-- première facture.
+- creation de commande ;
+- premier paiement mock ;
+- premiere facture.
 
-## Phase 3. Dashboard online
+## Phase 3. Dashboard classic
 
 Objectif :
 
-- fournir le parcours d'apprentissage digital.
+- fournir le parcours d'apprentissage digital pour les formations `ligne`.
 
 Livrables :
 
-- liste des formations achetées ;
-- modules, chapitres, leçons ;
-- player vidéo ;
+- liste des formations achetees ;
+- modules, chapitres, lecons ;
+- player video ;
 - quiz ;
 - progression ;
 - badges.
 
-## Phase 4. Dashboard présentiel
+## Phase 4. Dashboard guided
 
 Objectif :
 
-- fournir le parcours administratif et pédagogique du présentiel.
+- fournir le parcours guide pour `live` et `presentiel`.
 
 Livrables :
 
-- code étudiant ;
-- échéancier ;
+- acces par cohorte ou session ;
+- suivi pedagogique ;
+- code etudiant pour le presentiel ;
+- echeancier ;
 - notes ;
 - exercices ;
 - rappels ;
@@ -82,7 +84,7 @@ Livrables :
 
 Objectif :
 
-- permettre le pilotage pédagogique de base.
+- permettre le pilotage pedagogique de base.
 
 Livrables :
 
@@ -90,38 +92,39 @@ Livrables :
 - affectation cours ;
 - publication exercices ;
 - saisie des notes ;
-- suivi étudiant minimal.
+- suivi etudiant minimal.
 
 ## Phase 6. Back-office admin
 
 Objectif :
 
-- centraliser le pilotage du système.
+- centraliser le pilotage du systeme.
 
 Livrables :
 
 - gestion formations ;
-- gestion utilisateurs et rôles ;
+- gestion utilisateurs et roles ;
 - supervision paiements ;
+- supervision commandes ;
 - relances manuelles ;
 - statistiques de base.
 
-## Ordre recommandé de développement
+## Ordre recommande de developpement
 
 1. socle technique
-2. auth + rôles
-3. catalogue + checkout
+2. auth + roles
+3. catalogue + panier + checkout
 4. paiements + factures
-5. dashboard online
-6. dashboard présentiel
+5. dashboard classic
+6. dashboard guided
 7. enseignant
 8. admin
 
-## Critères de fiabilité avant production
+## Criteres de fiabilite avant production
 
 - build frontend reproductible ;
 - tests API critiques ;
 - webhooks paiement idempotents ;
-- génération code étudiant sans collision ;
-- facturation cohérente avec les paiements ;
+- generation code etudiant sans collision ;
+- facturation coherente avec les paiements ;
 - audit minimal des actions admin.

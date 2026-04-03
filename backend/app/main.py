@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
+from app.db.seed import seed_database
+from app.db.session import SessionLocal, database_has_schema
 
 
 def create_app() -> FastAPI:
@@ -10,10 +12,21 @@ def create_app() -> FastAPI:
         title=settings.app_name,
         version=settings.app_version,
         description=(
-            "API socle pour la plateforme hybride Académie des Créatifs : "
-            "catalogue, dashboards, paiements et gestion pédagogique."
+            "API socle pour la plateforme hybride Academie des Creatifs : "
+            "catalogue, dashboards, paiements et gestion pedagogique."
         ),
     )
+
+    @app.on_event("startup")
+    def startup_event() -> None:
+        if not database_has_schema():
+            return
+
+        db = SessionLocal()
+        try:
+            seed_database(db)
+        finally:
+            db.close()
 
     app.add_middleware(
         CORSMiddleware,
@@ -26,7 +39,7 @@ def create_app() -> FastAPI:
     @app.get("/", tags=["meta"])
     def read_root() -> dict[str, str]:
         return {
-            "message": "Bienvenue sur l'API de l'Académie des Créatifs.",
+            "message": "Bienvenue sur l'API de l'Academie des Creatifs.",
             "api_prefix": settings.api_prefix,
             "environment": settings.environment,
         }

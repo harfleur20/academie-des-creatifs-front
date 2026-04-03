@@ -1,53 +1,42 @@
-# Schéma de données cible
+# Schema de donnees cible
 
 ## Principes
 
 - une seule base pour commerce, apprentissage et gestion scolaire ;
-- les tables doivent distinguer clairement `catalogue`, `inscription`, `paiement`, `progression` et `évaluation` ;
-- les règles métier sensibles doivent pouvoir être auditées ;
-- le modèle doit accepter plusieurs rôles par utilisateur.
+- les tables doivent distinguer `catalogue`, `achat`, `inscription`, `paiement`, `progression` et `evaluation` ;
+- les regles metier sensibles doivent rester auditables ;
+- le modele doit accepter plusieurs roles par utilisateur ;
+- le catalogue doit distinguer le format pedagogique et le type de dashboard.
 
-## Utilisateurs et accès
+## Utilisateurs et acces
 
 ### users
 
 - id (PK)
+- full_name
 - email (unique)
-- password_hash
-- first_name
-- last_name
 - phone
+- password_hash
+- role principal (`student`, `teacher`, `admin`)
 - status
+- student_code (nullable, unique)
 - created_at
 - updated_at
 
-### roles
-
-- id (PK)
-- code (`student`, `teacher`, `admin`)
-- label
-
-### user_roles
+### auth_sessions
 
 - id (PK)
 - user_id (FK -> users.id)
-- role_id (FK -> roles.id)
-- assigned_at
-
-### student_profiles
-
-- id (PK)
-- user_id (FK -> users.id, unique)
-- student_code (unique, nullable si pas de présentiel)
-- onboarding_status
+- token_hash
+- expires_at
+- revoked_at
 - created_at
 
-### teacher_profiles
+### student_code_counters
 
 - id (PK)
-- user_id (FK -> users.id, unique)
-- bio
-- specialty
+- year (unique)
+- last_sequence
 
 ## Catalogue
 
@@ -56,41 +45,45 @@
 - id (PK)
 - slug (unique)
 - title
-- short_description
-- long_description
-- delivery_mode (`online`, `onsite`)
-- price_amount
+- category
+- level
+- image
+- format_type (`live`, `ligne`, `presentiel`)
+- dashboard_type (`classic`, `guided`)
+- session_label
+- current_price_amount
+- original_price_amount (nullable)
 - price_currency
 - allow_installments (bool)
-- status (`draft`, `published`, `archived`)
-- cover_asset_path
+- rating
+- reviews
+- badges (JSON: `premium`, `populaire`; `promo` derive)
 - created_at
 - updated_at
 
-### formation_categories
+Regles de derivation :
 
-- id (PK)
-- name
-- slug
-
-### formation_category_links
-
-- id (PK)
-- formation_id (FK -> formations.id)
-- category_id (FK -> formation_categories.id)
+- `ligne` -> `dashboard_type = classic`
+- `live` -> `dashboard_type = guided`
+- `presentiel` -> `dashboard_type = guided`
+- `allow_installments = true` seulement pour `presentiel` au-dessus de `90 000 FCFA`
+- `promo` est derive si `original_price_amount > current_price_amount`
 
 ### onsite_sessions
 
 - id (PK)
-- formation_id (FK -> formations.id)
+- formation_title
 - label
 - start_date
-- end_date
-- seat_capacity
 - campus_label
-- teacher_id (FK -> users.id, nullable)
+- seat_capacity
+- enrolled_count
+- teacher_name
+- status
+- created_at
+- updated_at
 
-## Contenu pédagogique online
+## Contenu pedagogique classique
 
 ### course_modules
 
@@ -110,14 +103,6 @@
 - duration_seconds
 - is_preview
 
-### lesson_assets
-
-- id (PK)
-- lesson_id (FK -> course_lessons.id)
-- asset_type
-- storage_path
-- mime_type
-
 ### quizzes
 
 - id (PK)
@@ -126,14 +111,6 @@
 - title
 - passing_score
 
-### quiz_questions
-
-- id (PK)
-- quiz_id (FK -> quizzes.id)
-- prompt
-- question_type
-- position
-
 ## Inscriptions et progression
 
 ### enrollments
@@ -141,12 +118,12 @@
 - id (PK)
 - user_id (FK -> users.id)
 - formation_id (FK -> formations.id)
-- onsite_session_id (FK -> onsite_sessions.id, nullable)
-- enrollment_type (`online`, `onsite`)
+- order_reference
+- format_type (`live`, `ligne`, `presentiel`)
+- dashboard_type (`classic`, `guided`)
 - status (`pending`, `active`, `suspended`, `completed`, `cancelled`)
-- access_granted_at
-- completed_at
 - created_at
+- updated_at
 
 ### lesson_progress
 
@@ -173,9 +150,9 @@
 - progress_percent
 - badge_id (FK -> badges.id, nullable)
 - computed_at
-- source (`online`, `onsite`, `manual`)
+- source (`classic`, `guided`, `manual`)
 
-## Gestion scolaire présentielle
+## Gestion guidee et presentielle
 
 ### courses
 
@@ -194,15 +171,6 @@
 - description
 - due_at
 - max_score
-
-### assignment_submissions
-
-- id (PK)
-- assignment_id (FK -> assignments.id)
-- enrollment_id (FK -> enrollments.id)
-- submitted_at
-- storage_path
-- status
 
 ### gradebook_entries
 
@@ -244,115 +212,40 @@
 - awarded_at
 - reason
 
-## Commerce, paiement et facturation
+## Commerce, panier, paiement et facturation
+
+### cart_items
+
+- id (PK)
+- user_id (FK -> users.id)
+- formation_id (FK -> formations.id)
+- created_at
 
 ### orders
 
 - id (PK)
-- user_id (FK -> users.id)
 - reference (unique)
-- status (`pending`, `paid`, `partially_paid`, `failed`, `cancelled`)
+- user_id (FK -> users.id, nullable)
+- formation_id (FK -> formations.id, nullable)
+- customer_name
+- formation_title
+- format_type (`live`, `ligne`, `presentiel`)
+- dashboard_type (`classic`, `guided`)
 - total_amount
 - currency
+- status (`pending`, `paid`, `partially_paid`, `failed`, `cancelled`)
 - created_at
-
-### order_items
-
-- id (PK)
-- order_id (FK -> orders.id)
-- formation_id (FK -> formations.id)
-- unit_price
-- quantity
-
-### payment_plans
-
-- id (PK)
-- order_id (FK -> orders.id)
-- enrollment_id (FK -> enrollments.id)
-- status (`pending`, `active`, `completed`, `defaulted`, `cancelled`)
-- total_amount
-- installments_count
-- started_at
-
-### payment_installments
-
-- id (PK)
-- payment_plan_id (FK -> payment_plans.id)
-- installment_number
-- due_date
-- amount
-- status (`pending`, `paid`, `late`, `cancelled`)
-- paid_at
+- updated_at
 
 ### payments
 
 - id (PK)
-- order_id (FK -> orders.id)
-- payment_plan_id (FK -> payment_plans.id, nullable)
-- installment_id (FK -> payment_installments.id, nullable)
-- provider_code
-- provider_reference
+- order_reference
+- payer_name
 - amount
 - currency
-- status (`pending`, `confirmed`, `failed`, `refunded`)
+- provider_code
+- status (`pending`, `confirmed`, `failed`)
 - paid_at
-- raw_payload_json
-
-### invoices
-
-- id (PK)
-- user_id (FK -> users.id)
-- order_id (FK -> orders.id)
-- payment_id (FK -> payments.id, nullable)
-- payment_plan_id (FK -> payment_plans.id, nullable)
-- invoice_number (unique)
-- invoice_type (`purchase`, `installment`, `final`)
-- status (`issued`, `paid`, `cancelled`)
-- amount
-- pdf_path
-- issued_at
-
-## Notifications et rappels
-
-### notifications
-
-- id (PK)
-- user_id (FK -> users.id)
-- channel (`in_app`, `email`, `sms`)
-- category (`payment`, `pedagogy`, `system`)
-- title
-- body
-- status (`pending`, `sent`, `read`, `failed`)
-- scheduled_for
-- sent_at
-
-### reminder_logs
-
-- id (PK)
-- user_id (FK -> users.id)
-- payment_plan_id (FK -> payment_plans.id, nullable)
-- installment_id (FK -> payment_installments.id, nullable)
-- notification_id (FK -> notifications.id, nullable)
-- reminder_type
-- triggered_by (`system`, `admin`)
-- triggered_at
-
-## Administration et audit
-
-### audit_logs
-
-- id (PK)
-- actor_user_id (FK -> users.id)
-- action
-- entity_type
-- entity_id
-- payload_json
 - created_at
-
-## Notes de modélisation
-
-- `student_code` ne doit pas être recalculé depuis le frontend ;
-- `orders`, `payments`, `payment_plans` et `invoices` doivent rester séparés ;
-- `enrollments` est la vraie porte d'entrée des dashboards ;
-- `progress_snapshots` permet de figer l'état métier au fil du temps ;
-- les badges restent configurables grâce à `badge_rules`.
+- updated_at

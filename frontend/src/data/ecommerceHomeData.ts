@@ -1,4 +1,5 @@
 export type CourseBadge = "premium" | "populaire" | "promo";
+export type FormationFormat = "live" | "ligne" | "presentiel";
 
 export type EcommerceCourse = {
   id: number;
@@ -12,6 +13,7 @@ export type EcommerceCourse = {
   originalPrice?: string;
   badges?: CourseBadge[];
   sessionLabel: string;
+  formatType?: FormationFormat;
 };
 
 export const stats = [
@@ -40,6 +42,7 @@ export const onlineCourses: EcommerceCourse[] = [
     image: "/Flyers/packaging.jpg",
     currentPrice: "50 000 FCFA",
     sessionLabel: "Prochaine session : 15 avril 2026",
+    formatType: "ligne",
   },
   {
     id: 2,
@@ -52,6 +55,7 @@ export const onlineCourses: EcommerceCourse[] = [
     currentPrice: "65 000 FCFA",
     badges: ["premium"],
     sessionLabel: "Prochaine session : 06 mai 2026",
+    formatType: "live",
   },
   {
     id: 3,
@@ -65,6 +69,7 @@ export const onlineCourses: EcommerceCourse[] = [
     originalPrice: "95 000 FCFA",
     badges: ["populaire", "promo"],
     sessionLabel: "Prochaine session : 17 avril 2026",
+    formatType: "live",
   },
   {
     id: 4,
@@ -77,6 +82,7 @@ export const onlineCourses: EcommerceCourse[] = [
     currentPrice: "50 000 FCFA",
     badges: ["premium"],
     sessionLabel: "Prochaine session : 09 mai 2026",
+    formatType: "ligne",
   },
 ];
 

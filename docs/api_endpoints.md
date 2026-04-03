@@ -1,116 +1,91 @@
 # API cible
 
-Base recommandée :
+Base :
 
 - `/api/v1`
 
 Principes :
 
-- endpoints versionnés ;
-- auth par bearer token ;
-- contrôle des rôles côté backend ;
-- routes séparées par domaine métier ;
-- webhooks de paiement isolés.
+- endpoints versionnes ;
+- authentification par session HTTPOnly ;
+- controle des roles cote backend ;
+- routes separees par domaine metier.
 
 ## Authentification
 
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
-- `POST /api/v1/auth/forgot-password`
-- `POST /api/v1/auth/reset-password`
-
-## Profil utilisateur
-
-- `GET /api/v1/me`
-- `PATCH /api/v1/me`
-- `GET /api/v1/me/roles`
-- `GET /api/v1/me/notifications`
-- `PATCH /api/v1/me/notifications/{notification_id}/read`
+- `GET /api/v1/auth/me`
 
 ## Catalogue public
 
 - `GET /api/v1/formations`
 - `GET /api/v1/formations/{slug}`
-- `GET /api/v1/formations/{id}/related`
-- `GET /api/v1/categories`
+
+Chaque formation expose :
+
+- `format_type` (`live`, `ligne`, `presentiel`)
+- `dashboard_type` (`classic`, `guided`)
+- `current_price_amount`
+- `original_price_amount`
+- `badges`
 
 ## Commerce
 
-- `POST /api/v1/cart/items`
 - `GET /api/v1/cart`
-- `DELETE /api/v1/cart/items/{item_id}`
-- `POST /api/v1/checkout/orders`
-- `GET /api/v1/orders`
-- `GET /api/v1/orders/{order_id}`
+- `POST /api/v1/cart/items`
+- `DELETE /api/v1/cart/items/{formation_slug}`
+- `POST /api/v1/cart/checkout`
 
-## Paiement et facturation
+Le checkout cree :
 
-- `POST /api/v1/payments/initialize`
-- `POST /api/v1/payments/webhooks/{provider_code}`
-- `GET /api/v1/payments/{payment_id}`
-- `GET /api/v1/payment-plans/{plan_id}`
-- `GET /api/v1/payment-plans/{plan_id}/installments`
-- `POST /api/v1/payment-plans/{plan_id}/installments/{installment_id}/pay`
-- `GET /api/v1/invoices`
-- `GET /api/v1/invoices/{invoice_id}`
-- `GET /api/v1/invoices/{invoice_id}/download`
+- une commande ;
+- un paiement mock ;
+- une ou plusieurs inscriptions ;
+- un `student_code` si le format est `presentiel`.
 
-## Dashboard étudiant online
+## Profil connecte
 
-- `GET /api/v1/student/online/formations`
-- `GET /api/v1/student/online/enrollments/{enrollment_id}`
-- `GET /api/v1/student/online/enrollments/{enrollment_id}/modules`
-- `GET /api/v1/student/online/lessons/{lesson_id}`
-- `POST /api/v1/student/online/lessons/{lesson_id}/progress`
-- `POST /api/v1/student/online/quizzes/{quiz_id}/attempts`
-- `GET /api/v1/student/online/enrollments/{enrollment_id}/progress`
+- `GET /api/v1/me/dashboard`
+- `GET /api/v1/me/enrollments`
 
-## Dashboard étudiant présentiel
+Le dashboard retourne :
 
-- `GET /api/v1/student/onsite/enrollments`
-- `GET /api/v1/student/onsite/enrollments/{enrollment_id}`
-- `GET /api/v1/student/onsite/enrollments/{enrollment_id}/courses`
-- `GET /api/v1/student/onsite/enrollments/{enrollment_id}/assignments`
-- `GET /api/v1/student/onsite/enrollments/{enrollment_id}/grades`
-- `GET /api/v1/student/onsite/enrollments/{enrollment_id}/payment-status`
-- `GET /api/v1/student/onsite/enrollments/{enrollment_id}/student-code`
-
-## Badges et progression
-
-- `GET /api/v1/badges`
-- `GET /api/v1/student/enrollments/{enrollment_id}/badges`
-- `GET /api/v1/student/enrollments/{enrollment_id}/progress`
-- `POST /api/v1/admin/enrollments/{enrollment_id}/recompute-progress`
+- comptes par format `live`, `ligne`, `presentiel`
+- comptes par dashboard `classic`, `guided`
+- listes `classic_enrollments` et `guided_enrollments`
 
 ## Dashboard enseignant
 
 - `GET /api/v1/teacher/sessions`
 - `GET /api/v1/teacher/sessions/{session_id}/students`
 - `POST /api/v1/teacher/sessions/{session_id}/assignments`
-- `PATCH /api/v1/teacher/assignments/{assignment_id}`
 - `POST /api/v1/teacher/assignments/{assignment_id}/grades`
-- `GET /api/v1/teacher/courses`
-- `POST /api/v1/teacher/courses`
 
 ## Administration
 
-- `GET /api/v1/admin/users`
-- `GET /api/v1/admin/users/{user_id}`
-- `PATCH /api/v1/admin/users/{user_id}/roles`
+- `GET /api/v1/admin/stats/overview`
 - `GET /api/v1/admin/formations`
 - `POST /api/v1/admin/formations`
-- `PATCH /api/v1/admin/formations/{formation_id}`
-- `POST /api/v1/admin/onsite-sessions`
-- `PATCH /api/v1/admin/payment-plans/{plan_id}`
-- `POST /api/v1/admin/payment-plans/{plan_id}/reminders`
-- `GET /api/v1/admin/stats/overview`
+- `PATCH /api/v1/admin/formations/{slug}`
+- `GET /api/v1/admin/onsite-sessions`
+- `GET /api/v1/admin/users`
+- `GET /api/v1/admin/orders`
+- `GET /api/v1/admin/payments`
 
-## Conventions d'accès
+Regles admin sur les formations :
 
-- `public` : catalogue et authentification ;
-- `student` : dashboards personnels ;
-- `teacher` : ressources pédagogiques affectées ;
-- `admin` : administration globale ;
-- les routes admin ne doivent jamais être exposées selon une logique purement frontend.
+- `premium` et `populaire` sont manuels ;
+- `promo` est derive automatiquement du prix barre ;
+- `format_type` pilote automatiquement `dashboard_type` ;
+- `presentiel` + prix > `90 000 FCFA` active les tranches.
+
+## Conventions d'acces
+
+- `public` : catalogue
+- `authenticated` : panier, checkout, espace personnel
+- `teacher` : ressources pedagogiques affectees
+- `admin` : administration globale
+
+Les routes admin ne doivent jamais dependre d'un controle frontend seul.
