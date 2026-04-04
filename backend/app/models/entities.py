@@ -11,6 +11,7 @@ from sqlalchemy import (
     Integer,
     JSON,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
@@ -40,6 +41,18 @@ class FormationRecord(TimestampMixin, Base):
     category: Mapped[str] = mapped_column(String(120), nullable=False)
     level: Mapped[str] = mapped_column(String(120), nullable=False)
     image: Mapped[str] = mapped_column(String(255), nullable=False)
+    intro: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    mentor_name: Mapped[str] = mapped_column(String(180), nullable=False, default="")
+    mentor_label: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    mentor_image: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    included_items: Mapped[list[object]] = mapped_column(JSON, nullable=False, default=list)
+    objective_items: Mapped[list[object]] = mapped_column(JSON, nullable=False, default=list)
+    project_items: Mapped[list[object]] = mapped_column(JSON, nullable=False, default=list)
+    audience_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    certificate_copy: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    certificate_image: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    module_items: Mapped[list[object]] = mapped_column(JSON, nullable=False, default=list)
+    faq_items: Mapped[list[object]] = mapped_column(JSON, nullable=False, default=list)
     format_type: Mapped[str] = mapped_column(String(32), nullable=False)
     dashboard_type: Mapped[str] = mapped_column(String(32), nullable=False)
     session_label: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -70,6 +83,25 @@ class UserRecord(TimestampMixin, Base):
     )
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+
+
+class FormationSessionRecord(TimestampMixin, Base):
+    __tablename__ = "formation_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    formation_id: Mapped[int] = mapped_column(
+        ForeignKey("formations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    label: Mapped[str] = mapped_column(String(180), nullable=False)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    campus_label: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    seat_capacity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    enrolled_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    teacher_name: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="planned")
 
 
 class OnsiteSessionRecord(TimestampMixin, Base):

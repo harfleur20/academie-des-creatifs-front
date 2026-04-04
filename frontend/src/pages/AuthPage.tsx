@@ -10,6 +10,11 @@ import { isValidPhoneNumber } from "libphonenumber-js";
 
 import { useAuth } from "../auth/AuthContext";
 import { ApiRequestError } from "../lib/authApi";
+import {
+  getUserActionErrorMessage,
+  USER_MESSAGES,
+} from "../lib/userMessages";
+import { useToast } from "../toast/ToastContext";
 
 type AuthPageProps = {
   mode: "login" | "register";
@@ -120,6 +125,7 @@ export default function AuthPage({ mode }: AuthPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isLoading, login, register, user } = useAuth();
+  const { success, error: showErrorToast } = useToast();
 
   const [values, setValues] = useState<AuthValues>(initialValues);
   const [touched, setTouched] = useState<Partial<Record<AuthFieldName, boolean>>>({});
@@ -228,6 +234,7 @@ export default function AuthPage({ mode }: AuthPageProps) {
           password: values.password,
           remember_me: values.policy,
         });
+        success(USER_MESSAGES.loginSuccess);
       } else {
         await register({
           full_name: values.name.trim(),
@@ -235,6 +242,7 @@ export default function AuthPage({ mode }: AuthPageProps) {
           phone: values.phone.trim(),
           password: values.password,
         });
+        success(USER_MESSAGES.registerSuccess);
       }
 
       navigate(redirectTarget, { replace: true });
@@ -255,14 +263,25 @@ export default function AuthPage({ mode }: AuthPageProps) {
         ) {
           const field = detail.detail.field as AuthFieldName;
           setServerErrors({ [field]: detail.detail.message });
+          showErrorToast(detail.detail.message);
           return;
         }
 
-        setSubmitMessage(error.message);
+        const message = getUserActionErrorMessage(
+          error,
+          isLogin ? "auth.login" : "auth.register",
+        );
+        setSubmitMessage(message);
+        showErrorToast(message);
         return;
       }
 
-      setSubmitMessage("Une erreur inattendue est survenue.");
+      const message = getUserActionErrorMessage(
+        error,
+        isLogin ? "auth.login" : "auth.register",
+      );
+      setSubmitMessage(message);
+      showErrorToast(message);
     } finally {
       setIsSubmitting(false);
     }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   FaArrowLeft,
@@ -9,7 +9,9 @@ import {
   FaFacebookF,
   FaFire,
   FaGraduationCap,
+  FaLink,
   FaInstagram,
+  FaRegHeart,
   FaRegStar,
   FaShoppingCart,
   FaStar,
@@ -19,19 +21,88 @@ import {
 } from "react-icons/fa";
 
 import {
-  getFormationDetailBySlug,
-  type FormationDetail,
+  fetchPublicFormation,
+  type FormationDetailItem,
   type FormationFaq,
   type FormationModule,
-} from "../data/formationDetailsData";
-import { useAuth } from "../auth/AuthContext";
-import { useCart } from "../cart/CartContext";
-import {
-  fetchPublicFormation,
+  type FormationProject,
   mapCatalogFormationToCourse,
 } from "../lib/catalogApi";
+import { useAuth } from "../auth/AuthContext";
+import { useCart } from "../cart/CartContext";
+import { useFavorites } from "../favorites/FavoritesContext";
+import { ApiRequestError } from "../lib/apiClient";
+import {
+  getUserActionErrorMessage,
+  USER_MESSAGES,
+} from "../lib/userMessages";
+import { useToast } from "../toast/ToastContext";
 
 type AccordionItem = FormationModule | FormationFaq;
+
+type FormationDetailView = {
+  slug: string;
+  title: string;
+  category: string;
+  level: string;
+  badges: string[];
+  currentPrice: string;
+  originalPrice?: string;
+  rating: number;
+  reviews: number;
+  sessionLabel: string;
+  heroImage: string;
+  canPurchase: boolean;
+  purchaseMessage: string | null;
+  sessionState: FormationDetailItem["session_state"];
+  intro: string;
+  mentor: string;
+  mentorLabel: string;
+  mentorImage: string;
+  included: string[];
+  objectives: string[];
+  projects: FormationProject[];
+  audienceText: string;
+  certificateCopy: string;
+  certificateImage: string;
+  modules: FormationModule[];
+  faqs: FormationFaq[];
+};
+
+function mapFormationDetailToView(
+  formation: FormationDetailItem,
+): FormationDetailView {
+  const mapped = mapCatalogFormationToCourse(formation);
+
+  return {
+    slug: formation.slug,
+    title: formation.title,
+    category: formation.category,
+    level: formation.level,
+    badges: formation.badges,
+    currentPrice: mapped.currentPrice,
+    originalPrice: mapped.originalPrice,
+    rating: formation.rating,
+    reviews: formation.reviews,
+    sessionLabel: formation.session_label ?? formation.card_session_label ?? "",
+    heroImage: formation.image,
+    canPurchase: formation.can_purchase,
+    purchaseMessage: formation.purchase_message,
+    sessionState: formation.session_state,
+    intro: formation.intro,
+    mentor: formation.mentor_name,
+    mentorLabel: formation.mentor_label,
+    mentorImage: formation.mentor_image,
+    included: formation.included,
+    objectives: formation.objectives,
+    projects: formation.projects,
+    audienceText: formation.audience_text,
+    certificateCopy: formation.certificate_copy,
+    certificateImage: formation.certificate_image,
+    modules: formation.modules,
+    faqs: formation.faqs,
+  };
+}
 
 function renderStars(rating: number) {
   return Array.from({ length: 5 }, (_, index) => {
@@ -86,7 +157,7 @@ function DetailAccordion({
     <div className="detail-accordion">
       {items.map((item, index) => {
         const isOpen = openIndex === index;
-        const body = "summary" in item ? item.summary : item.answer;
+        const body = "question" in item ? item.answer : item.summary;
         const lessons = "lessons" in item ? item.lessons : null;
         const label =
           "question" in item ? item.question : item.title.replace(" - ", " : ");
@@ -130,30 +201,90 @@ function DetailAccordion({
   );
 }
 
+function FormationDetailSkeleton() {
+  return (
+    <div className="formation-detail-page">
+      <section className="formation-detail-hero formation-detail-hero--loading" aria-busy="true">
+        <div className="formation-detail-main">
+          <div className="formation-detail-intro formation-detail-skeleton">
+            <span className="formation-detail-skeleton__line formation-detail-skeleton__line--back" />
+            <span className="formation-detail-skeleton__line formation-detail-skeleton__line--category" />
+            <span className="formation-detail-skeleton__line formation-detail-skeleton__line--title" />
+            <span className="formation-detail-skeleton__line formation-detail-skeleton__line--title formation-detail-skeleton__line--title-short" />
+            <span className="formation-detail-skeleton__line formation-detail-skeleton__line--lead" />
+            <span className="formation-detail-skeleton__line formation-detail-skeleton__line--lead formation-detail-skeleton__line--lead-short" />
+
+            <div className="formation-detail-skeleton__meta">
+              <span className="formation-detail-skeleton__chip" />
+              <span className="formation-detail-skeleton__chip formation-detail-skeleton__chip--wide" />
+            </div>
+
+            <div className="formation-detail-skeleton__cover" />
+
+            <div className="formation-detail-skeleton__mentor">
+              <span className="formation-detail-skeleton__line formation-detail-skeleton__line--mentor-eyebrow" />
+              <div className="formation-detail-skeleton__mentor-row">
+                <div className="formation-detail-skeleton__mentor-card">
+                  <span className="formation-detail-skeleton__avatar" />
+                  <div className="formation-detail-skeleton__mentor-copy">
+                    <span className="formation-detail-skeleton__line formation-detail-skeleton__line--mentor-name" />
+                    <span className="formation-detail-skeleton__line formation-detail-skeleton__line--mentor-role" />
+                  </div>
+                </div>
+
+                <div className="formation-detail-skeleton__mentor-actions">
+                  <div className="formation-detail-skeleton__favorite" />
+                  <div className="formation-detail-skeleton__share" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <aside className="formation-detail-card">
+            <div className="formation-detail-card__panel formation-detail-card__panel--skeleton">
+              <span className="formation-detail-skeleton__line formation-detail-skeleton__line--panel-title" />
+              <div className="formation-detail-skeleton__list">
+                <span className="formation-detail-skeleton__line formation-detail-skeleton__line--list-item" />
+                <span className="formation-detail-skeleton__line formation-detail-skeleton__line--list-item" />
+                <span className="formation-detail-skeleton__line formation-detail-skeleton__line--list-item formation-detail-skeleton__line--list-item-short" />
+              </div>
+              <div className="formation-detail-skeleton__price" />
+              <div className="formation-detail-skeleton__rating" />
+              <div className="formation-detail-skeleton__buttons">
+                <span className="formation-detail-skeleton__button" />
+                <span className="formation-detail-skeleton__button formation-detail-skeleton__button--secondary" />
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function FormationDetailPage() {
   const { slug = "" } = useParams();
   const { user } = useAuth();
-  const { addToCart } = useCart();
+  const { cart, addToCart } = useCart();
+  const { toggleFavorite, hasFavorite } = useFavorites();
+  const { success, error: showErrorToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
-  const staticFormation = useMemo(() => getFormationDetailBySlug(slug), [slug]);
-  const [formation, setFormation] = useState<FormationDetail | null>(
-    staticFormation ?? null,
+  const [formation, setFormation] = useState<FormationDetailView | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "not_found" | "unavailable">(
+    "loading",
   );
   const [openModuleIndex, setOpenModuleIndex] = useState<number | null>(0);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isPreparingCheckout, setIsPreparingCheckout] = useState(false);
+  const [isUpdatingFavorite, setIsUpdatingFavorite] = useState(false);
   const [actionMessage, setActionMessage] = useState("");
 
   useEffect(() => {
-    setFormation(staticFormation ?? null);
-
-    if (!staticFormation) {
-      return;
-    }
-
     let isMounted = true;
+    setLoadState("loading");
+    setFormation(null);
 
     fetchPublicFormation(slug)
       .then((remoteFormation) => {
@@ -161,27 +292,50 @@ export default function FormationDetailPage() {
           return;
         }
 
-        const mapped = mapCatalogFormationToCourse(remoteFormation);
-
-        setFormation({
-          ...staticFormation,
-          ...mapped,
-          category: remoteFormation.category,
-          heroImage: mapped.image,
-        });
+        setFormation(mapFormationDetailToView(remoteFormation));
+        setLoadState("ready");
       })
-      .catch(() => {
-        if (isMounted) {
-          setFormation(staticFormation);
+      .catch((requestError) => {
+        if (!isMounted) {
+          return;
         }
+
+        if (requestError instanceof ApiRequestError && requestError.status === 404) {
+          setLoadState("not_found");
+          return;
+        }
+
+        setLoadState("unavailable");
       });
 
     return () => {
       isMounted = false;
     };
-  }, [slug, staticFormation]);
+  }, [slug]);
 
-  if (!formation) {
+  if (loadState === "loading") {
+    return <FormationDetailSkeleton />;
+  }
+
+  if (loadState === "unavailable") {
+    return (
+      <div className="formation-detail-page">
+        <section className="formation-detail-empty">
+          <p className="formation-detail-empty__eyebrow">Catalogue indisponible</p>
+          <h1>Impossible de charger cette fiche pour le moment.</h1>
+          <p>
+            Verifiez que le catalogue est bien disponible puis reessayez dans un
+            instant.
+          </p>
+          <Link className="button button--primary" to="/formations">
+            Revenir au catalogue
+          </Link>
+        </section>
+      </div>
+    );
+  }
+
+  if (loadState === "not_found" || !formation) {
     return (
       <div className="formation-detail-page">
         <section className="formation-detail-empty">
@@ -199,6 +353,30 @@ export default function FormationDetailPage() {
     );
   }
 
+  if (!formation) {
+    return null;
+  }
+
+  const isAlreadyInCart = cart.items.some(
+    (item) => item.formation_slug === formation.slug,
+  );
+  const isFavorite = hasFavorite(formation.slug);
+  const shareUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/formations/${formation.slug}`
+      : `/formations/${formation.slug}`;
+  const shareText = `${formation.title} - ${shareUrl}`;
+
+  const redirectToLogin = (destination?: string) => {
+    showErrorToast(USER_MESSAGES.authRequired);
+    navigate("/login", {
+      state: {
+        from: destination ?? `${location.pathname}${location.search}${location.hash}`,
+        fallbackFrom: `${location.pathname}${location.search}${location.hash}`,
+      },
+    });
+  };
+
   const handleEnrollmentAction = async (target: "cart" | "checkout") => {
     setActionMessage("");
 
@@ -208,12 +386,20 @@ export default function FormationDetailPage() {
           ? `/checkout?add=${formation.slug}`
           : `/panier?add=${formation.slug}`;
 
-      navigate("/login", {
-        state: {
-          from: destination,
-          fallbackFrom: `${location.pathname}${location.search}${location.hash}`,
-        },
-      });
+      redirectToLogin(destination);
+      return;
+    }
+
+    if (target === "cart" && isAlreadyInCart) {
+      navigate("/panier");
+      return;
+    }
+
+    if (formation.canPurchase === false) {
+      const message =
+        formation.purchaseMessage ?? "Inscriptions closes pour cette formation.";
+      setActionMessage(message);
+      showErrorToast(message);
       return;
     }
 
@@ -225,13 +411,19 @@ export default function FormationDetailPage() {
 
     try {
       await addToCart(formation.slug);
+      success(
+        target === "checkout"
+          ? "Formation prete pour le paiement."
+          : USER_MESSAGES.cartAdded,
+      );
       navigate(target === "checkout" ? "/checkout" : "/panier");
     } catch (error) {
-      setActionMessage(
-        error instanceof Error
-          ? error.message
-          : "Impossible d'ajouter cette formation au panier.",
+      const message = getUserActionErrorMessage(
+        error,
+        target === "checkout" ? "checkout.prepare" : "cart.add",
       );
+      setActionMessage(message);
+      showErrorToast(message);
     } finally {
       if (target === "cart") {
         setIsAddingToCart(false);
@@ -239,6 +431,69 @@ export default function FormationDetailPage() {
         setIsPreparingCheckout(false);
       }
     }
+  };
+
+  const handleFavoriteToggle = async () => {
+    setActionMessage("");
+
+    if (!user) {
+      redirectToLogin();
+      return;
+    }
+
+    setIsUpdatingFavorite(true);
+
+    try {
+      const wasFavorite = hasFavorite(formation.slug);
+      await toggleFavorite(formation.slug);
+      success(
+        wasFavorite
+          ? USER_MESSAGES.favoriteRemoved
+          : USER_MESSAGES.favoriteAdded,
+      );
+    } catch (error) {
+      const message = getUserActionErrorMessage(error, "favorites.toggle");
+      setActionMessage(message);
+      showErrorToast(message);
+    } finally {
+      setIsUpdatingFavorite(false);
+    }
+  };
+
+  const handleCopyLink = async (message: string = USER_MESSAGES.linkCopied) => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      success(message);
+    } catch {
+      showErrorToast(getUserActionErrorMessage(null, "share.copy"));
+    }
+  };
+
+  const handleShareAction = (platform: "facebook" | "whatsapp" | "instagram" | "copy") => {
+    if (platform === "copy") {
+      void handleCopyLink();
+      return;
+    }
+
+    if (platform === "facebook") {
+      window.open(
+        `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+        "_blank",
+        "noopener,noreferrer,width=640,height=600",
+      );
+      return;
+    }
+
+    if (platform === "whatsapp") {
+      window.open(
+        `https://wa.me/?text=${encodeURIComponent(shareText)}`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+      return;
+    }
+
+    void handleCopyLink(USER_MESSAGES.instagramLinkCopied);
   };
 
   return (
@@ -276,10 +531,12 @@ export default function FormationDetailPage() {
                 <FaGraduationCap />
                 {formation.level}
               </span>
-              <span>
-                <FaClock />
-                {formation.sessionLabel}
-              </span>
+              {formation.sessionLabel ? (
+                <span>
+                  <FaClock />
+                  {formation.sessionLabel}
+                </span>
+              ) : null}
             </div>
 
             <div className="formation-detail-cover">
@@ -290,11 +547,74 @@ export default function FormationDetailPage() {
               <p className="formation-detail-mentor__eyebrow">
                 Sous la supervision de
               </p>
-              <div className="formation-detail-mentor__card">
-                <img src={formation.mentorImage} alt={formation.mentor} />
-                <div className="formation-detail-mentor__body">
-                  <strong>{formation.mentor}</strong>
-                  <span>{formation.mentorLabel}</span>
+              <div className="formation-detail-mentor__row">
+                <div className="formation-detail-mentor__card">
+                  <img src={formation.mentorImage} alt={formation.mentor} />
+                  <div className="formation-detail-mentor__body">
+                    <strong>{formation.mentor}</strong>
+                    <span>{formation.mentorLabel}</span>
+                  </div>
+                  <Link className="formation-detail-mentor__cta" to="/#notre-equipe">
+                    Consulter
+                  </Link>
+                </div>
+
+                <div className="formation-detail-mentor__actions">
+                  <button
+                    className={`formation-detail-mentor__favorite ${
+                      isFavorite ? "is-active" : ""
+                    }`}
+                    disabled={isUpdatingFavorite}
+                    type="button"
+                    onClick={() => {
+                      void handleFavoriteToggle();
+                    }}
+                  >
+                    <FaRegHeart />
+                    <span>
+                      {isUpdatingFavorite
+                        ? "Mise a jour..."
+                        : isFavorite
+                          ? "Ajoute aux favoris"
+                          : "Ajouter aux favoris"}
+                    </span>
+                  </button>
+
+                  <div className="formation-detail-mentor__share-row">
+                    <span className="formation-detail-mentor__share-label">
+                      Partager :
+                    </span>
+                    <div className="formation-detail-mentor__socials">
+                      <button
+                        type="button"
+                        aria-label="Partager sur Facebook"
+                        onClick={() => handleShareAction("facebook")}
+                      >
+                        <FaFacebookF />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Partager sur WhatsApp"
+                        onClick={() => handleShareAction("whatsapp")}
+                      >
+                        <FaWhatsapp />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Partager sur Instagram"
+                        onClick={() => handleShareAction("instagram")}
+                      >
+                        <FaInstagram />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Copier le lien"
+                        onClick={() => handleShareAction("copy")}
+                      >
+                        <FaLink />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -333,18 +653,31 @@ export default function FormationDetailPage() {
               <div className="formation-detail-card__actions">
                 <button
                   className="formation-detail-card__primary"
-                  disabled={isAddingToCart || isPreparingCheckout}
+                  disabled={
+                    formation.canPurchase === false ||
+                    isAddingToCart ||
+                    isPreparingCheckout ||
+                    isAlreadyInCart
+                  }
                   type="button"
                   onClick={() => {
                     void handleEnrollmentAction("cart");
                   }}
                 >
                   <FaShoppingCart />
-                  {isAddingToCart ? "Ajout en cours..." : "Ajouter au panier"}
+                  {isAlreadyInCart
+                    ? "Deja dans le panier"
+                    : isAddingToCart
+                      ? "Ajout en cours..."
+                      : "Ajouter au panier"}
                 </button>
                 <button
                   className="formation-detail-card__secondary"
-                  disabled={isAddingToCart || isPreparingCheckout}
+                  disabled={
+                    formation.canPurchase === false ||
+                    isAddingToCart ||
+                    isPreparingCheckout
+                  }
                   type="button"
                   onClick={() => {
                     void handleEnrollmentAction("checkout");
@@ -356,24 +689,11 @@ export default function FormationDetailPage() {
                 </button>
               </div>
 
-              {actionMessage ? (
-                <p className="formation-detail-card__notice">{actionMessage}</p>
+              {actionMessage || formation.purchaseMessage ? (
+                <p className="formation-detail-card__notice">
+                  {actionMessage || formation.purchaseMessage}
+                </p>
               ) : null}
-
-              <div className="formation-detail-card__share">
-                <span>Partager</span>
-                <div className="formation-detail-card__socials">
-                  <button type="button" aria-label="Partager sur Facebook">
-                    <FaFacebookF />
-                  </button>
-                  <button type="button" aria-label="Partager sur WhatsApp">
-                    <FaWhatsapp />
-                  </button>
-                  <button type="button" aria-label="Partager sur Instagram">
-                    <FaInstagram />
-                  </button>
-                </div>
-              </div>
             </div>
           </aside>
         </div>
@@ -407,7 +727,7 @@ export default function FormationDetailPage() {
                     loop
                     muted
                     playsInline
-                    poster={project.poster}
+                    poster={project.poster ?? undefined}
                     preload="metadata"
                   >
                     <source src={project.image} />

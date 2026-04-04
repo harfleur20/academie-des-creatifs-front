@@ -16,6 +16,8 @@ depends_on = None
 
 
 def upgrade() -> None:
+    dialect_name = op.get_bind().dialect.name
+
     op.add_column(
         "formations",
         sa.Column(
@@ -59,8 +61,9 @@ def upgrade() -> None:
         )
     )
 
-    op.alter_column("formations", "is_featured_home", server_default=None)
-    op.alter_column("formations", "home_feature_rank", server_default=None)
+    if dialect_name != "sqlite":
+        op.alter_column("formations", "is_featured_home", server_default=None)
+        op.alter_column("formations", "home_feature_rank", server_default=None)
 
 
 def downgrade() -> None:

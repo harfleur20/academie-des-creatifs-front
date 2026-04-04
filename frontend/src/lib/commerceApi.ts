@@ -1,5 +1,4 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
+import { apiRequest } from "./apiClient";
 
 export type FormationFormat = "live" | "ligne" | "presentiel";
 export type DashboardType = "classic" | "guided";
@@ -13,6 +12,7 @@ export type CartItem = {
   format_type: FormationFormat;
   dashboard_type: DashboardType;
   session_label: string;
+  level: string;
   current_price_amount: number;
   current_price_label: string;
   original_price_label: string | null;
@@ -28,6 +28,30 @@ export type CartSnapshot = {
   presentiel_items_count: number;
   classic_items_count: number;
   guided_items_count: number;
+};
+
+export type FavoriteItem = {
+  id: number;
+  formation_id: number;
+  formation_slug: string;
+  title: string;
+  image: string;
+  format_type: FormationFormat;
+  dashboard_type: DashboardType;
+  session_label: string;
+  level: string;
+  current_price_amount: number;
+  current_price_label: string;
+  original_price_label: string | null;
+  allow_installments: boolean;
+  rating: number;
+  reviews: number;
+  badges: string[];
+};
+
+export type FavoriteSnapshot = {
+  items: FavoriteItem[];
+  total_count: number;
 };
 
 export type CheckoutResult = {
@@ -63,65 +87,79 @@ export type StudentDashboardSummary = {
   guided_enrollments: Enrollment[];
 };
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    credentials: "include",
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
+export type NotificationTone = "info" | "success" | "warning";
+export type NotificationCategory =
+  | "payment"
+  | "enrollment"
+  | "session"
+  | "admin"
+  | "system";
 
-  if (!response.ok) {
-    let detail: unknown;
-    try {
-      detail = await response.json();
-    } catch {
-      detail = await response.text();
-    }
-
-    const message =
-      typeof detail === "object" &&
-      detail !== null &&
-      "detail" in detail &&
-      typeof detail.detail === "string"
-        ? detail.detail
-        : `HTTP ${response.status}`;
-
-    throw new Error(message);
-  }
-
-  return (await response.json()) as T;
-}
+export type NotificationItem = {
+  id: string;
+  title: string;
+  message: string;
+  tone: NotificationTone;
+  category: NotificationCategory;
+  created_at: string;
+  action_label: string | null;
+  action_path: string | null;
+};
 
 export async function fetchCart(): Promise<CartSnapshot> {
-  return request<CartSnapshot>("/cart");
+  return apiRequest<CartSnapshot>("/cart");
 }
 
 export async function addToCart(formationSlug: string): Promise<CartSnapshot> {
-  return request<CartSnapshot>("/cart/items", {
+  return apiRequest<CartSnapshot>("/cart/items", {
     method: "POST",
     body: JSON.stringify({ formation_slug: formationSlug }),
   });
 }
 
-export async function removeFromCart(formationSlug: string): Promise<CartSnapshot> {
-  return request<CartSnapshot>(`/cart/items/${formationSlug}`, {
+export async function removeFromCart(
+  formationSlug: string,
+): Promise<CartSnapshot> {
+  return apiRequest<CartSnapshot>(`/cart/items/${formationSlug}`, {
     method: "DELETE",
   });
 }
 
 export async function checkoutCart(): Promise<CheckoutResult> {
-  return request<CheckoutResult>("/cart/checkout", {
+  return apiRequest<CheckoutResult>("/cart/checkout", {
     method: "POST",
   });
 }
 
+export async function fetchFavorites(): Promise<FavoriteSnapshot> {
+  return apiRequest<FavoriteSnapshot>("/favorites");
+}
+
+export async function addToFavorites(
+  formationSlug: string,
+): Promise<FavoriteSnapshot> {
+  return apiRequest<FavoriteSnapshot>("/favorites/items", {
+    method: "POST",
+    body: JSON.stringify({ formation_slug: formationSlug }),
+  });
+}
+
+export async function removeFromFavorites(
+  formationSlug: string,
+): Promise<FavoriteSnapshot> {
+  return apiRequest<FavoriteSnapshot>(`/favorites/items/${formationSlug}`, {
+    method: "DELETE",
+  });
+}
+
 export async function fetchStudentDashboardSummary(): Promise<StudentDashboardSummary> {
-  return request<StudentDashboardSummary>("/me/dashboard");
+  return apiRequest<StudentDashboardSummary>("/me/dashboard");
 }
 
 export async function fetchStudentEnrollments(): Promise<Enrollment[]> {
-  return request<Enrollment[]>("/me/enrollments");
+  return apiRequest<Enrollment[]>("/me/enrollments");
+}
+
+export async function fetchNotifications(): Promise<NotificationItem[]> {
+  return apiRequest<NotificationItem[]>("/me/notifications");
 }

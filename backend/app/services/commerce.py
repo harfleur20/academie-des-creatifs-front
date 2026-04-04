@@ -11,7 +11,7 @@ from app.models.entities import (
     EnrollmentRecord,
     FavoriteItemRecord,
     FormationRecord,
-    OnsiteSessionRecord,
+    FormationSessionRecord,
     OrderRecord,
     PaymentRecord,
     StudentCodeCounterRecord,
@@ -29,6 +29,7 @@ from app.schemas.commerce import (
 )
 from app.services.auth import get_dashboard_path
 from app.services.catalog import format_fcfa
+from app.services.formation_sessions import get_session_presentation
 
 
 def utc_now() -> datetime:
@@ -45,7 +46,32 @@ def combine_date_to_utc(value: datetime | None = None, *, day: date | None = Non
     return utc_now()
 
 
-def serialize_cart_item(item: CartItemRecord, formation: FormationRecord) -> CartItemView:
+def get_session_display_label(db: Session, formation: FormationRecord) -> str:
+    presentation = get_session_presentation(
+        db,
+        formation_id=formation.id,
+        format_type=formation.format_type,
+    )
+    return presentation.session_label or "Acces immediat"
+
+
+def ensure_can_purchase(db: Session, formation: FormationRecord) -> None:
+    presentation = get_session_presentation(
+        db,
+        formation_id=formation.id,
+        format_type=formation.format_type,
+    )
+    if presentation.can_purchase:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=presentation.purchase_message
+        or "Cette formation n'est pas disponible a l'achat pour le moment.",
+    )
+
+
+def serialize_cart_item(db: Session, item: CartItemRecord, formation: FormationRecord) -> CartItemView:
     return CartItemView(
         id=item.id,
         formation_id=formation.id,
@@ -54,7 +80,7 @@ def serialize_cart_item(item: CartItemRecord, formation: FormationRecord) -> Car
         image=formation.image,
         format_type=formation.format_type,  # type: ignore[arg-type]
         dashboard_type=formation.dashboard_type,  # type: ignore[arg-type]
-        session_label=formation.session_label,
+        session_label=get_session_display_label(db, formation),
         level=formation.level,
         current_price_amount=formation.current_price_amount,
         current_price_label=format_fcfa(formation.current_price_amount) or "",
@@ -63,8 +89,8 @@ def serialize_cart_item(item: CartItemRecord, formation: FormationRecord) -> Car
     )
 
 
-def build_cart_snapshot(rows: list[tuple[CartItemRecord, FormationRecord]]) -> CartSnapshot:
-    items = [serialize_cart_item(item, formation) for item, formation in rows]
+def build_cart_snapshot(db: Session, rows: list[tuple[CartItemRecord, FormationRecord]]) -> CartSnapshot:
+    items = [serialize_cart_item(db, item, formation) for item, formation in rows]
     total_amount = sum(item.current_price_amount for item in items)
     live_items_count = sum(1 for item in items if item.format_type == "live")
     ligne_items_count = sum(1 for item in items if item.format_type == "ligne")
@@ -83,7 +109,11 @@ def build_cart_snapshot(rows: list[tuple[CartItemRecord, FormationRecord]]) -> C
     )
 
 
-def serialize_favorite_item(item: FavoriteItemRecord, formation: FormationRecord) -> FavoriteItemView:
+def serialize_favorite_item(
+    db: Session,
+    item: FavoriteItemRecord,
+    formation: FormationRecord,
+) -> FavoriteItemView:
     return FavoriteItemView(
         id=item.id,
         formation_id=formation.id,
@@ -92,7 +122,7 @@ def serialize_favorite_item(item: FavoriteItemRecord, formation: FormationRecord
         image=formation.image,
         format_type=formation.format_type,  # type: ignore[arg-type]
         dashboard_type=formation.dashboard_type,  # type: ignore[arg-type]
-        session_label=formation.session_label,
+        session_label=get_session_display_label(db, formation),
         level=formation.level,
         current_price_amount=formation.current_price_amount,
         current_price_label=format_fcfa(formation.current_price_amount) or "",
@@ -104,8 +134,11 @@ def serialize_favorite_item(item: FavoriteItemRecord, formation: FormationRecord
     )
 
 
-def build_favorite_snapshot(rows: list[tuple[FavoriteItemRecord, FormationRecord]]) -> FavoriteSnapshot:
-    items = [serialize_favorite_item(item, formation) for item, formation in rows]
+def build_favorite_snapshot(
+    db: Session,
+    rows: list[tuple[FavoriteItemRecord, FormationRecord]],
+) -> FavoriteSnapshot:
+    items = [serialize_favorite_item(db, item, formation) for item, formation in rows]
     return FavoriteSnapshot(items=items, total_count=len(items))
 
 
@@ -116,7 +149,7 @@ def list_cart_snapshot(db: Session, user: UserRecord) -> CartSnapshot:
         .where(CartItemRecord.user_id == user.id)
         .order_by(CartItemRecord.created_at.desc())
     ).all()
-    return build_cart_snapshot(rows)
+    return build_cart_snapshot(db, rows)
 
 
 def list_favorite_snapshot(db: Session, user: UserRecord) -> FavoriteSnapshot:
@@ -126,13 +159,15 @@ def list_favorite_snapshot(db: Session, user: UserRecord) -> FavoriteSnapshot:
         .where(FavoriteItemRecord.user_id == user.id)
         .order_by(FavoriteItemRecord.created_at.desc())
     ).all()
-    return build_favorite_snapshot(rows)
+    return build_favorite_snapshot(db, rows)
 
 
 def add_item_to_cart(db: Session, user: UserRecord, formation_slug: str) -> CartSnapshot:
     formation = db.scalar(select(FormationRecord).where(FormationRecord.slug == formation_slug))
     if formation is None:
         raise HTTPException(status_code=404, detail="Formation introuvable.")
+
+    ensure_can_purchase(db, formation)
 
     existing = db.scalar(
         select(CartItemRecord).where(
@@ -232,6 +267,7 @@ def _get_or_create_student_code(db: Session, user: UserRecord) -> str:
 
 
 def _serialize_enrollment(
+    db: Session,
     enrollment: EnrollmentRecord,
     formation: FormationRecord,
     student_code: str | None,
@@ -247,7 +283,7 @@ def _serialize_enrollment(
         order_reference=enrollment.order_reference,
         status=enrollment.status,
         student_code=student_code,
-        session_label=formation.session_label,
+        session_label=get_session_display_label(db, formation),
         created_at=enrollment.created_at,
     )
 
@@ -271,6 +307,8 @@ def checkout_cart(db: Session, user: UserRecord) -> CheckoutResponse:
     now = utc_now()
 
     for index, (cart_item, formation) in enumerate(rows):
+        ensure_can_purchase(db, formation)
+
         order_reference = _build_order_reference(db, now.year, index)
         order_references.append(order_reference)
         dashboard_types.add(formation.dashboard_type)
@@ -349,7 +387,7 @@ def list_user_enrollments(db: Session, user: UserRecord) -> list[EnrollmentView]
         .order_by(EnrollmentRecord.created_at.desc())
     ).all()
     return [
-        _serialize_enrollment(enrollment, formation, user.student_code)
+        _serialize_enrollment(db, enrollment, formation, user.student_code)
         for enrollment, formation in rows
     ]
 
@@ -489,18 +527,21 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
 
     elif user.role == "teacher":
         sessions = db.scalars(
-            select(OnsiteSessionRecord)
-            .where(OnsiteSessionRecord.teacher_name == user.full_name)
-            .order_by(OnsiteSessionRecord.start_date.asc())
+            select(FormationSessionRecord)
+            .where(FormationSessionRecord.teacher_name == user.full_name)
+            .order_by(FormationSessionRecord.start_date.asc())
         ).all()
 
         for session in sessions:
+            formation = db.get(FormationRecord, session.formation_id)
+            if formation is None:
+                continue
             notifications.append(
                 NotificationView(
                     id=f"teacher-session-{session.id}",
                     title=f"Session {session.label}",
                     message=(
-                        f"{session.formation_title} demarre le "
+                        f"{formation.title} demarre le "
                         f"{session.start_date.strftime('%d/%m/%Y')} a {session.campus_label}. "
                         f"Places occupees: {session.enrolled_count}/{session.seat_capacity}."
                     ),

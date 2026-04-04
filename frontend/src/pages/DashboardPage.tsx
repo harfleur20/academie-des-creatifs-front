@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FaCalendarAlt,
   FaCheckCircle,
@@ -17,6 +17,8 @@ import {
 } from "react-icons/fa";
 
 import {
+  type AdminFormation,
+  createAdminOnsiteSession,
   createAdminFormation,
   fetchAdminFormations,
   fetchAdminOnsiteSessions,
@@ -29,6 +31,7 @@ import {
   updateAdminPayment,
   updateAdminUser,
   updateAdminFormation,
+  type AdminFormationSessionCreatePayload,
   type AdminFormationCreatePayload,
   type AdminOnsiteSession,
   type AdminOnsiteSessionUpdatePayload,
@@ -39,8 +42,10 @@ import {
   type AdminPaymentUpdatePayload,
   type AdminUser,
   type AdminUserUpdatePayload,
-  type CatalogFormation,
+  type FormationFaq,
   type FormationFormat,
+  type FormationModule,
+  type FormationProject,
   type MarketingBadge,
   type OrderStatus,
   type PaymentStatus,
@@ -59,8 +64,21 @@ type DraftValues = {
   reviews: string;
   currentPrice: string;
   originalPrice: string;
-  sessionLabel: string;
+  isFeaturedHome: boolean;
+  homeFeatureRank: string;
   badges: MarketingBadge[];
+  intro: string;
+  mentorName: string;
+  mentorLabel: string;
+  mentorImage: string;
+  includedText: string;
+  objectivesText: string;
+  projectsText: string;
+  audienceText: string;
+  certificateCopy: string;
+  certificateImage: string;
+  modulesText: string;
+  faqsText: string;
 };
 
 type Feedback = {
@@ -76,6 +94,18 @@ type UserDraft = {
 type SessionDraft = {
   label: string;
   startDate: string;
+  endDate: string;
+  campusLabel: string;
+  seatCapacity: string;
+  teacherName: string;
+  status: SessionStatus;
+};
+
+type SessionCreateDraft = {
+  formationId: string;
+  label: string;
+  startDate: string;
+  endDate: string;
   campusLabel: string;
   seatCapacity: string;
   teacherName: string;
@@ -90,6 +120,8 @@ type PaymentDraft = {
   providerCode: string;
   status: PaymentStatus;
 };
+
+type CatalogDisplayFilter = "all" | "featured";
 
 const marketingBadges: MarketingBadge[] = ["premium", "populaire"];
 const userRoles: UserRole[] = ["student", "teacher", "admin"];
@@ -169,7 +201,113 @@ function slugify(value: string) {
     .slice(0, 255);
 }
 
-function buildDraftFromFormation(formation: CatalogFormation): DraftValues {
+function joinTextLines(items: string[]) {
+  return items.join("\n");
+}
+
+function serializeProjects(projects: FormationProject[]) {
+  return projects
+    .map((project) =>
+      [
+        project.title,
+        project.image,
+        project.kind === "video" ? "video" : "image",
+        project.poster ?? "",
+      ]
+        .filter((part, index) => index < 2 || part)
+        .join(" || "),
+    )
+    .join("\n");
+}
+
+function serializeModules(modules: FormationModule[]) {
+  return modules
+    .map((module) => [module.title, ...(module.lessons ?? [])].join("\n"))
+    .join("\n\n");
+}
+
+function serializeFaqs(faqs: FormationFaq[]) {
+  return faqs
+    .map((faq) => [faq.question, faq.answer].join("\n"))
+    .join("\n\n");
+}
+
+function parseLineList(value: string) {
+  return value
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseProjects(value: string): FormationProject[] {
+  const lines = parseLineList(value);
+  return lines.map((line) => {
+    const [title = "", image = "", kindRaw = "", poster = ""] = line
+      .split("||")
+      .map((part) => part.trim());
+
+    if (!title || !image) {
+      throw new Error(
+        "Chaque projet doit suivre le format : titre || media || type optionnel || poster optionnel.",
+      );
+    }
+
+    return {
+      title,
+      image,
+      kind: kindRaw === "video" ? "video" : "image",
+      poster: poster || undefined,
+    };
+  });
+}
+
+function parseModules(value: string): FormationModule[] {
+  const blocks = value
+    .split(/\r?\n\s*\r?\n/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  return blocks.map((block) => {
+    const [title = "", ...lessons] = block
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (!title) {
+      throw new Error("Chaque module doit avoir un titre.");
+    }
+
+    return {
+      title,
+      lessons,
+      summary: "",
+      duration: "",
+    };
+  });
+}
+
+function parseFaqs(value: string): FormationFaq[] {
+  const blocks = value
+    .split(/\r?\n\s*\r?\n/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  return blocks.map((block) => {
+    const [question = "", ...answerLines] = block
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const answer = answerLines.join(" ");
+
+    if (!question || !answer) {
+      throw new Error("Chaque FAQ doit contenir une question puis une reponse.");
+    }
+
+    return { question, answer };
+  });
+}
+
+function buildDraftFromFormation(formation: AdminFormation): DraftValues {
   return {
     title: formation.title,
     category: formation.category,
@@ -180,10 +318,23 @@ function buildDraftFromFormation(formation: CatalogFormation): DraftValues {
     reviews: formation.reviews.toString(),
     currentPrice: formation.current_price_amount.toString(),
     originalPrice: formation.original_price_amount?.toString() ?? "",
-    sessionLabel: formation.session_label,
+    isFeaturedHome: formation.is_featured_home,
+    homeFeatureRank: formation.home_feature_rank.toString(),
     badges: formation.badges.filter(
       (badge): badge is MarketingBadge => badge === "premium" || badge === "populaire",
     ),
+    intro: formation.intro,
+    mentorName: formation.mentor_name,
+    mentorLabel: formation.mentor_label,
+    mentorImage: formation.mentor_image,
+    includedText: joinTextLines(formation.included),
+    objectivesText: joinTextLines(formation.objectives),
+    projectsText: serializeProjects(formation.projects),
+    audienceText: formation.audience_text,
+    certificateCopy: formation.certificate_copy,
+    certificateImage: formation.certificate_image,
+    modulesText: serializeModules(formation.modules),
+    faqsText: serializeFaqs(formation.faqs),
   };
 }
 
@@ -198,8 +349,34 @@ function emptyCreateDraft(): DraftValues {
     reviews: "0",
     currentPrice: "",
     originalPrice: "",
-    sessionLabel: "",
+    isFeaturedHome: false,
+    homeFeatureRank: "100",
     badges: [],
+    intro: "",
+    mentorName: "",
+    mentorLabel: "",
+    mentorImage: "",
+    includedText: "",
+    objectivesText: "",
+    projectsText: "",
+    audienceText: "",
+    certificateCopy: "",
+    certificateImage: "",
+    modulesText: "",
+    faqsText: "",
+  };
+}
+
+function emptySessionCreateDraft(): SessionCreateDraft {
+  return {
+    formationId: "",
+    label: "",
+    startDate: "",
+    endDate: "",
+    campusLabel: "",
+    seatCapacity: "0",
+    teacherName: "",
+    status: "planned",
   };
 }
 
@@ -212,6 +389,7 @@ function buildPayloadFromDraft(
   const originalPrice = draft.originalPrice.trim()
     ? Number.parseInt(draft.originalPrice, 10)
     : null;
+  const homeFeatureRank = Number.parseInt(draft.homeFeatureRank, 10);
 
   if (!draft.title.trim()) {
     throw new Error("Le titre ne peut pas etre vide.");
@@ -227,10 +405,6 @@ function buildPayloadFromDraft(
 
   if (!draft.image.trim()) {
     throw new Error("L'image ne peut pas etre vide.");
-  }
-
-  if (!draft.sessionLabel.trim()) {
-    throw new Error("Le libelle de session ne peut pas etre vide.");
   }
 
   if (!Number.isFinite(rating) || !isValidRating(rating)) {
@@ -249,6 +423,10 @@ function buildPayloadFromDraft(
     throw new Error("Le prix barre doit etre vide ou superieur ou egal au prix actuel.");
   }
 
+  if (!Number.isInteger(homeFeatureRank) || homeFeatureRank < 0) {
+    throw new Error("L'ordre d'affichage accueil doit etre un entier positif ou nul.");
+  }
+
   return {
     currentPrice,
     payload: {
@@ -261,8 +439,21 @@ function buildPayloadFromDraft(
       reviews,
       current_price_amount: currentPrice,
       original_price_amount: originalPrice,
-      session_label: draft.sessionLabel.trim(),
+      is_featured_home: draft.isFeaturedHome,
+      home_feature_rank: homeFeatureRank,
       badges: draft.badges,
+      intro: draft.intro.trim(),
+      mentor_name: draft.mentorName.trim(),
+      mentor_label: draft.mentorLabel.trim(),
+      mentor_image: draft.mentorImage.trim(),
+      included: parseLineList(draft.includedText),
+      objectives: parseLineList(draft.objectivesText),
+      projects: parseProjects(draft.projectsText),
+      audience_text: draft.audienceText.trim(),
+      certificate_copy: draft.certificateCopy.trim(),
+      certificate_image: draft.certificateImage.trim(),
+      modules: parseModules(draft.modulesText),
+      faqs: parseFaqs(draft.faqsText),
     },
   };
 }
@@ -278,6 +469,7 @@ function buildSessionDraft(session: AdminOnsiteSession): SessionDraft {
   return {
     label: session.label,
     startDate: session.start_date,
+    endDate: session.end_date,
     campusLabel: session.campus_label,
     seatCapacity: session.seat_capacity.toString(),
     teacherName: session.teacher_name,
@@ -298,9 +490,132 @@ function buildPaymentDraft(payment: AdminPayment): PaymentDraft {
   };
 }
 
+function FormationDetailFields({
+  draft,
+  onChange,
+}: {
+  draft: DraftValues;
+  onChange: (field: keyof DraftValues, value: string) => void;
+}) {
+  return (
+    <div className="admin-detail-editor">
+      <div className="admin-detail-editor__heading">
+        <h4>Fiche detail</h4>
+        <p>
+          Ces contenus alimentent directement la page description. Une ligne =
+          un point. Un bloc vide entre deux elements separe une FAQ ou un
+          module.
+        </p>
+      </div>
+
+      <div className="admin-formation-form admin-formation-form--details">
+        <label className="admin-field admin-field--span-4">
+          <span>Introduction</span>
+          <textarea
+            value={draft.intro}
+            onChange={(event) => onChange("intro", event.target.value)}
+          />
+        </label>
+
+        <label className="admin-field">
+          <span>Mentor</span>
+          <input
+            type="text"
+            value={draft.mentorName}
+            onChange={(event) => onChange("mentorName", event.target.value)}
+          />
+        </label>
+
+        <label className="admin-field">
+          <span>Poste mentor</span>
+          <input
+            type="text"
+            value={draft.mentorLabel}
+            onChange={(event) => onChange("mentorLabel", event.target.value)}
+          />
+        </label>
+
+        <label className="admin-field admin-field--span-2">
+          <span>Image mentor</span>
+          <input
+            type="text"
+            value={draft.mentorImage}
+            onChange={(event) => onChange("mentorImage", event.target.value)}
+          />
+        </label>
+
+        <label className="admin-field admin-field--span-2">
+          <span>Inclus dans la formation</span>
+          <textarea
+            value={draft.includedText}
+            onChange={(event) => onChange("includedText", event.target.value)}
+          />
+        </label>
+
+        <label className="admin-field admin-field--span-2">
+          <span>Objectifs</span>
+          <textarea
+            value={draft.objectivesText}
+            onChange={(event) => onChange("objectivesText", event.target.value)}
+          />
+        </label>
+
+        <label className="admin-field admin-field--span-4">
+          <span>Projets (titre || media || type optionnel || poster optionnel)</span>
+          <textarea
+            value={draft.projectsText}
+            onChange={(event) => onChange("projectsText", event.target.value)}
+          />
+        </label>
+
+        <label className="admin-field admin-field--span-4">
+          <span>Public vise</span>
+          <textarea
+            value={draft.audienceText}
+            onChange={(event) => onChange("audienceText", event.target.value)}
+          />
+        </label>
+
+        <label className="admin-field admin-field--span-2">
+          <span>Texte certificat</span>
+          <textarea
+            value={draft.certificateCopy}
+            onChange={(event) => onChange("certificateCopy", event.target.value)}
+          />
+        </label>
+
+        <label className="admin-field admin-field--span-2">
+          <span>Image certificat</span>
+          <input
+            type="text"
+            value={draft.certificateImage}
+            onChange={(event) => onChange("certificateImage", event.target.value)}
+          />
+        </label>
+
+        <label className="admin-field admin-field--span-2">
+          <span>Modules (1 bloc = 1 module, 1re ligne = titre, lignes suivantes = lecons)</span>
+          <textarea
+            value={draft.modulesText}
+            onChange={(event) => onChange("modulesText", event.target.value)}
+          />
+        </label>
+
+        <label className="admin-field admin-field--span-2">
+          <span>FAQ (1 bloc = question puis reponse)</span>
+          <textarea
+            value={draft.faqsText}
+            onChange={(event) => onChange("faqsText", event.target.value)}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
-  const [formations, setFormations] = useState<CatalogFormation[]>([]);
+  const [formations, setFormations] = useState<AdminFormation[]>([]);
   const [sessions, setSessions] = useState<AdminOnsiteSession[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
@@ -311,12 +626,16 @@ export default function DashboardPage() {
   const [orderDrafts, setOrderDrafts] = useState<Record<number, OrderDraft>>({});
   const [paymentDrafts, setPaymentDrafts] = useState<Record<number, PaymentDraft>>({});
   const [createDraft, setCreateDraft] = useState<DraftValues>(emptyCreateDraft);
+  const [createSessionDraft, setCreateSessionDraft] = useState<SessionCreateDraft>(
+    emptySessionCreateDraft,
+  );
   const [feedbackBySlug, setFeedbackBySlug] = useState<Record<string, Feedback>>({});
   const [userFeedbackById, setUserFeedbackById] = useState<Record<number, Feedback>>({});
   const [sessionFeedbackById, setSessionFeedbackById] = useState<Record<number, Feedback>>({});
   const [orderFeedbackById, setOrderFeedbackById] = useState<Record<number, Feedback>>({});
   const [paymentFeedbackById, setPaymentFeedbackById] = useState<Record<number, Feedback>>({});
   const [createFeedback, setCreateFeedback] = useState<Feedback | null>(null);
+  const [createSessionFeedback, setCreateSessionFeedback] = useState<Feedback | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingError, setLoadingError] = useState("");
   const [savingSlug, setSavingSlug] = useState<string | null>(null);
@@ -325,6 +644,35 @@ export default function DashboardPage() {
   const [savingOrderId, setSavingOrderId] = useState<number | null>(null);
   const [savingPaymentId, setSavingPaymentId] = useState<number | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [catalogDisplayFilter, setCatalogDisplayFilter] =
+    useState<CatalogDisplayFilter>("all");
+
+  const featuredFormationsCount = useMemo(
+    () => formations.filter((formation) => formation.is_featured_home).length,
+    [formations],
+  );
+
+  const visibleFormations = useMemo(() => {
+    if (catalogDisplayFilter === "featured") {
+      return formations.filter((formation) => formation.is_featured_home);
+    }
+
+    return formations;
+  }, [catalogDisplayFilter, formations]);
+
+  const sessionCapableFormations = useMemo(
+    () => formations.filter((formation) => formation.format_type !== "ligne"),
+    [formations],
+  );
+  const availableSessionCreateFormations = useMemo(
+    () =>
+      sessionCapableFormations.filter(
+        (formation) =>
+          formation.session_state === "unscheduled" || formation.session_state === "ended",
+      ),
+    [sessionCapableFormations],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -390,7 +738,11 @@ export default function DashboardPage() {
     };
   }, []);
 
-  const syncDraft = (slug: string, field: keyof DraftValues, value: string | MarketingBadge[] | FormationFormat) => {
+  const syncDraft = (
+    slug: string,
+    field: keyof DraftValues,
+    value: string | boolean | MarketingBadge[] | FormationFormat,
+  ) => {
     setDrafts((current) => ({
       ...current,
       [slug]: {
@@ -410,12 +762,26 @@ export default function DashboardPage() {
     });
   };
 
-  const syncCreateDraft = (field: keyof DraftValues, value: string | MarketingBadge[] | FormationFormat) => {
+  const syncCreateDraft = (
+    field: keyof DraftValues,
+    value: string | boolean | MarketingBadge[] | FormationFormat,
+  ) => {
     setCreateDraft((current) => ({
       ...current,
       [field]: value,
     }));
     setCreateFeedback(null);
+  };
+
+  const syncCreateSessionDraft = (
+    field: keyof SessionCreateDraft,
+    value: string | SessionStatus,
+  ) => {
+    setCreateSessionDraft((current) => ({
+      ...current,
+      [field]: value,
+    }));
+    setCreateSessionFeedback(null);
   };
 
   const syncUserDraft = (
@@ -519,7 +885,25 @@ export default function DashboardPage() {
     setOverview(nextOverview);
   };
 
-  const handleSave = async (formation: CatalogFormation) => {
+  const refreshFormationsAndSessions = async () => {
+    const [nextFormations, nextSessions] = await Promise.all([
+      fetchAdminFormations(),
+      fetchAdminOnsiteSessions(),
+    ]);
+
+    setFormations(nextFormations);
+    setSessions(nextSessions);
+    setDrafts(
+      Object.fromEntries(
+        nextFormations.map((formation) => [formation.slug, buildDraftFromFormation(formation)]),
+      ),
+    );
+    setSessionDrafts(
+      Object.fromEntries(nextSessions.map((session) => [session.id, buildSessionDraft(session)])),
+    );
+  };
+
+  const handleSave = async (formation: AdminFormation) => {
     const draft = drafts[formation.slug];
 
     try {
@@ -668,6 +1052,9 @@ export default function DashboardPage() {
     if (draft.startDate !== session.start_date) {
       payload.start_date = draft.startDate;
     }
+    if (draft.endDate !== session.end_date) {
+      payload.end_date = draft.endDate;
+    }
     if (draft.campusLabel !== session.campus_label) {
       payload.campus_label = draft.campusLabel.trim();
     }
@@ -697,6 +1084,7 @@ export default function DashboardPage() {
         ...current,
         [updated.id]: buildSessionDraft(updated),
       }));
+      await refreshFormationsAndSessions();
       await refreshOverview();
       setSessionFeedbackById((current) => ({
         ...current,
@@ -712,6 +1100,72 @@ export default function DashboardPage() {
       }));
     } finally {
       setSavingSessionId(null);
+    }
+  };
+
+  const handleCreateSession = async () => {
+    const formationId = Number.parseInt(createSessionDraft.formationId, 10);
+    const seatCapacity = Number.parseInt(createSessionDraft.seatCapacity, 10);
+
+    try {
+      if (!Number.isInteger(formationId) || formationId <= 0) {
+        throw new Error("Selectionnez d'abord une formation live ou presentiel.");
+      }
+      if (!createSessionDraft.label.trim()) {
+        throw new Error("Le libelle de session ne peut pas etre vide.");
+      }
+      if (!createSessionDraft.startDate) {
+        throw new Error("La date de debut est obligatoire.");
+      }
+      if (!createSessionDraft.endDate) {
+        throw new Error("La date de fin est obligatoire.");
+      }
+      if (createSessionDraft.endDate < createSessionDraft.startDate) {
+        throw new Error("La date de fin doit etre posterieure ou egale a la date de debut.");
+      }
+      if (!Number.isInteger(seatCapacity) || seatCapacity < 0) {
+        throw new Error("La capacite doit etre un entier positif ou nul.");
+      }
+
+      const payload: AdminFormationSessionCreatePayload = {
+        formation_id: formationId,
+        label: createSessionDraft.label.trim(),
+        start_date: createSessionDraft.startDate,
+        end_date: createSessionDraft.endDate,
+        campus_label: createSessionDraft.campusLabel.trim() || null,
+        seat_capacity: seatCapacity,
+        teacher_name: createSessionDraft.teacherName.trim() || null,
+        status: createSessionDraft.status,
+      };
+
+      setIsCreatingSession(true);
+      const created = await createAdminOnsiteSession(payload);
+      setSessions((current) =>
+        [...current, created].sort((left, right) =>
+          left.start_date.localeCompare(right.start_date),
+        ),
+      );
+      setSessionDrafts((current) => ({
+        ...current,
+        [created.id]: buildSessionDraft(created),
+      }));
+      setCreateSessionDraft(emptySessionCreateDraft());
+      setCreateSessionFeedback({
+        type: "success",
+        message: "Nouvelle session creee avec succes.",
+      });
+      await refreshFormationsAndSessions();
+      await refreshOverview();
+    } catch (error) {
+      setCreateSessionFeedback({
+        type: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Impossible de creer la session pour le moment.",
+      });
+    } finally {
+      setIsCreatingSession(false);
     }
   };
 
@@ -846,7 +1300,7 @@ export default function DashboardPage() {
               <strong>{overview.presentiel_formations_count}</strong>
             </article>
             <article className="admin-summary-card">
-              <span>Sessions presentiel</span>
+              <span>Sessions live / presentiel</span>
               <strong>{overview.presentiel_sessions_count}</strong>
             </article>
             <article className="admin-summary-card">
@@ -869,17 +1323,48 @@ export default function DashboardPage() {
               `premium` et `populaire` restent marketing et modifiables par
               l'admin. `promo` est maintenant derive du couple prix actuel /
               prix barre. `live` et `presentiel` pointent vers un dashboard
-              guide, `ligne` vers un dashboard classique.
+              guide, `ligne` vers un dashboard classique. Une formation ne peut
+              avoir qu'une seule session non terminee a la fois.
             </p>
           </div>
 
           <section className="admin-section" id="admin-catalogue">
             <div className="admin-section__heading">
-              <h2>Catalogue e-commerce</h2>
-              <p>
-                Cree ici une nouvelle formation, puis ajuste ses donnees
-                marketing et son format metier.
-              </p>
+              <div>
+                <h2>Catalogue e-commerce</h2>
+                <p>
+                  Cree ici une nouvelle formation, puis ajuste ses donnees
+                  marketing et son format metier.
+                </p>
+              </div>
+
+              <div className="admin-section__controls">
+                <div
+                  className="admin-filter-toggle"
+                  aria-label="Filtrer les formations du catalogue"
+                >
+                  <button
+                    className={catalogDisplayFilter === "all" ? "is-active" : ""}
+                    type="button"
+                    onClick={() => {
+                      setCatalogDisplayFilter("all");
+                    }}
+                  >
+                    Toutes
+                    <strong>{formations.length}</strong>
+                  </button>
+                  <button
+                    className={catalogDisplayFilter === "featured" ? "is-active" : ""}
+                    type="button"
+                    onClick={() => {
+                      setCatalogDisplayFilter("featured");
+                    }}
+                  >
+                    Vedettes accueil
+                    <strong>{featuredFormationsCount}</strong>
+                  </button>
+                </div>
+              </div>
             </div>
 
             <article className="admin-create-card">
@@ -961,12 +1446,27 @@ export default function DashboardPage() {
                   />
                 </label>
 
-                <label className="admin-field admin-field--span-2">
-                  <span>Session / cohorte</span>
+                <label className="admin-field">
+                  <span>Produit vedette accueil</span>
+                  <select
+                    value={createDraft.isFeaturedHome ? "oui" : "non"}
+                    onChange={(event) =>
+                      syncCreateDraft("isFeaturedHome", event.target.value === "oui")
+                    }
+                  >
+                    <option value="non">Non</option>
+                    <option value="oui">Oui</option>
+                  </select>
+                </label>
+
+                <label className="admin-field">
+                  <span>Ordre accueil</span>
                   <input
-                    type="text"
-                    value={createDraft.sessionLabel}
-                    onChange={(event) => syncCreateDraft("sessionLabel", event.target.value)}
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={createDraft.homeFeatureRank}
+                    onChange={(event) => syncCreateDraft("homeFeatureRank", event.target.value)}
                   />
                 </label>
 
@@ -1044,6 +1544,11 @@ export default function DashboardPage() {
                 </p>
               </div>
 
+              <FormationDetailFields
+                draft={createDraft}
+                onChange={(field, value) => syncCreateDraft(field, value)}
+              />
+
               {createFeedback ? (
                 <p className={`admin-feedback admin-feedback--${createFeedback.type}`}>
                   {createFeedback.message}
@@ -1052,7 +1557,8 @@ export default function DashboardPage() {
             </article>
 
             <div className="admin-formation-list">
-              {formations.map((formation) => {
+              {visibleFormations.length > 0 ? (
+                visibleFormations.map((formation) => {
                 const draft = drafts[formation.slug];
                 const feedback = feedbackBySlug[formation.slug];
                 const isSaving = savingSlug === formation.slug;
@@ -1071,7 +1577,8 @@ export default function DashboardPage() {
                           </p>
                           <h2>{formation.title}</h2>
                           <p className="admin-formation-card__meta">
-                            {formation.level} · {formation.session_label}
+                            {formation.level} · {formatTypeLabel(formation.format_type)} ·{" "}
+                            {formation.session_label ?? "Pas de session planifiee"}
                           </p>
                         </div>
 
@@ -1098,6 +1605,14 @@ export default function DashboardPage() {
                           <strong>{dashboardTypeLabel(formation.format_type)}</strong>
                         </div>
                         <div>
+                          <span>Etat session</span>
+                          <strong>{statusLabel(formation.session_state)}</strong>
+                        </div>
+                        <div>
+                          <span>Achat</span>
+                          <strong>{formation.can_purchase ? "Ouvert" : "Ferme"}</strong>
+                        </div>
+                        <div>
                           <span>Tranches</span>
                           <strong>{formation.allow_installments ? "Actives" : "Non"}</strong>
                         </div>
@@ -1112,6 +1627,12 @@ export default function DashboardPage() {
                         <div>
                           <span>Prix actuel</span>
                           <strong>{formation.current_price_label}</strong>
+                        </div>
+                        <div>
+                          <span>Accueil</span>
+                          <strong>
+                            {formation.is_featured_home ? "Vedette" : "Catalogue seul"}
+                          </strong>
                         </div>
                       </div>
 
@@ -1187,13 +1708,32 @@ export default function DashboardPage() {
                           />
                         </label>
 
-                        <label className="admin-field admin-field--span-2">
-                          <span>Libelle de session</span>
-                          <input
-                            type="text"
-                            value={draft?.sessionLabel ?? ""}
+                        <label className="admin-field">
+                          <span>Produit vedette accueil</span>
+                          <select
+                            value={(draft?.isFeaturedHome ?? false) ? "oui" : "non"}
                             onChange={(event) =>
-                              syncDraft(formation.slug, "sessionLabel", event.target.value)
+                              syncDraft(
+                                formation.slug,
+                                "isFeaturedHome",
+                                event.target.value === "oui",
+                              )
+                            }
+                          >
+                            <option value="non">Non</option>
+                            <option value="oui">Oui</option>
+                          </select>
+                        </label>
+
+                        <label className="admin-field">
+                          <span>Ordre accueil</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={draft?.homeFeatureRank ?? "100"}
+                            onChange={(event) =>
+                              syncDraft(formation.slug, "homeFeatureRank", event.target.value)
                             }
                           />
                         </label>
@@ -1280,6 +1820,15 @@ export default function DashboardPage() {
                         </p>
                       </div>
 
+                      {draft ? (
+                        <FormationDetailFields
+                          draft={draft}
+                          onChange={(field, value) =>
+                            syncDraft(formation.slug, field, value)
+                          }
+                        />
+                      ) : null}
+
                       <button
                         className="admin-save-button"
                         type="button"
@@ -1300,132 +1849,324 @@ export default function DashboardPage() {
                     </div>
                   </article>
                 );
-              })}
+                })
+              ) : (
+                <article className="admin-empty-state">
+                  <p className="admin-formation-card__category">Vitrine accueil</p>
+                  <h3>Aucune formation n'est encore marquee comme vedette.</h3>
+                  <p>
+                    Active `Produit vedette accueil` sur une ou plusieurs
+                    formations pour les faire remonter plus vite dans la vitrine
+                    du site.
+                  </p>
+                </article>
+              )}
             </div>
           </section>
 
           <section className="admin-section" id="admin-sessions">
             <div className="admin-section__heading">
-              <h2>Sessions presentiel</h2>
-              <p>Supervision et edition rapide des cohortes presencielles.</p>
+              <h2>Sessions live et presentiel</h2>
+              <p>
+                Creez et gerez les prochaines sessions. Tant qu'une session n'est
+                pas terminee pour une formation, aucune nouvelle session ne peut
+                etre ouverte pour cette meme offre.
+              </p>
             </div>
 
-            <div className="admin-grid-two">
-              {sessions.map((session) => (
-                <article className="admin-info-card" key={session.id}>
-                  <div className="admin-info-card__header">
-                    <h3>{session.label}</h3>
-                    <span className={statusClassName(session.status)}>
-                      {statusLabel(session.status)}
-                    </span>
-                  </div>
-                  <p>{session.formation_title}</p>
-                  <div className="admin-inline-form admin-inline-form--session">
-                    <label className="admin-field">
-                      <span>Libelle</span>
-                      <input
-                        type="text"
-                        value={sessionDrafts[session.id]?.label ?? session.label}
-                        onChange={(event) =>
-                          syncSessionDraft(session.id, "label", event.target.value)
-                        }
-                      />
-                    </label>
-                    <label className="admin-field">
-                      <span>Date</span>
-                      <input
-                        type="date"
-                        value={sessionDrafts[session.id]?.startDate ?? session.start_date}
-                        onChange={(event) =>
-                          syncSessionDraft(session.id, "startDate", event.target.value)
-                        }
-                      />
-                    </label>
-                    <label className="admin-field">
-                      <span>Campus</span>
-                      <input
-                        type="text"
-                        value={sessionDrafts[session.id]?.campusLabel ?? session.campus_label}
-                        onChange={(event) =>
-                          syncSessionDraft(session.id, "campusLabel", event.target.value)
-                        }
-                      />
-                    </label>
-                    <label className="admin-field">
-                      <span>Places</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={sessionDrafts[session.id]?.seatCapacity ?? session.seat_capacity}
-                        onChange={(event) =>
-                          syncSessionDraft(session.id, "seatCapacity", event.target.value)
-                        }
-                      />
-                    </label>
-                    <label className="admin-field">
-                      <span>Formateur</span>
-                      <input
-                        type="text"
-                        value={sessionDrafts[session.id]?.teacherName ?? session.teacher_name}
-                        onChange={(event) =>
-                          syncSessionDraft(session.id, "teacherName", event.target.value)
-                        }
-                      />
-                    </label>
-                    <label className="admin-field">
-                      <span>Statut</span>
-                      <select
-                        value={sessionDrafts[session.id]?.status ?? session.status}
-                        onChange={(event) =>
-                          syncSessionDraft(
-                            session.id,
-                            "status",
-                            event.target.value as SessionStatus,
-                          )
-                        }
-                      >
-                        {sessionStatuses.map((status) => (
-                          <option key={status} value={status}>
-                            {statusLabel(status)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                  <ul className="admin-mini-list">
-                    <li>
-                      <FaUsers />
-                      {session.enrolled_count}/{session.seat_capacity} inscrits
-                    </li>
-                    <li>
-                      <FaMapMarkerAlt />
-                      {session.campus_label}
-                    </li>
-                    <li>
-                      <FaCalendarAlt />
-                      Debut: {session.start_date}
-                    </li>
-                  </ul>
-                  <button
-                    className="admin-save-button admin-save-button--inline"
-                    type="button"
-                    disabled={savingSessionId === session.id}
-                    onClick={() => {
-                      void handleSaveSession(session);
-                    }}
+            <article className="admin-create-card">
+              <div className="admin-create-card__heading">
+                <div>
+                  <p className="admin-formation-card__category">Nouvelle session</p>
+                  <h3>Programmer une session pour une offre live ou presentiel</h3>
+                </div>
+                <button
+                  className="admin-save-button"
+                  type="button"
+                  disabled={isCreatingSession}
+                  onClick={() => {
+                    void handleCreateSession();
+                  }}
+                >
+                  <FaPlus />
+                  {isCreatingSession ? "Creation..." : "Creer la session"}
+                </button>
+              </div>
+
+              <div className="admin-formation-form">
+                <label className="admin-field admin-field--span-2">
+                  <span>Formation</span>
+                  <select
+                    value={createSessionDraft.formationId}
+                    onChange={(event) =>
+                      syncCreateSessionDraft("formationId", event.target.value)
+                    }
                   >
-                    <FaSave />
-                    {savingSessionId === session.id ? "Sauvegarde..." : "Sauvegarder"}
-                  </button>
-                  {sessionFeedbackById[session.id] ? (
-                    <p
-                      className={`admin-feedback admin-feedback--${sessionFeedbackById[session.id].type}`}
+                    <option value="">Selectionnez une formation</option>
+                    {availableSessionCreateFormations.map((formation) => (
+                      <option key={formation.id} value={formation.id}>
+                        {formation.title} ({formatTypeLabel(formation.format_type)})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="admin-field admin-field--span-2">
+                  <span>Libelle</span>
+                  <input
+                    type="text"
+                    value={createSessionDraft.label}
+                    onChange={(event) => syncCreateSessionDraft("label", event.target.value)}
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Date de debut</span>
+                  <input
+                    type="date"
+                    value={createSessionDraft.startDate}
+                    onChange={(event) =>
+                      syncCreateSessionDraft("startDate", event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Date de fin</span>
+                  <input
+                    type="date"
+                    value={createSessionDraft.endDate}
+                    onChange={(event) =>
+                      syncCreateSessionDraft("endDate", event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Campus / lieu</span>
+                  <input
+                    type="text"
+                    value={createSessionDraft.campusLabel}
+                    onChange={(event) =>
+                      syncCreateSessionDraft("campusLabel", event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Capacite</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={createSessionDraft.seatCapacity}
+                    onChange={(event) =>
+                      syncCreateSessionDraft("seatCapacity", event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Formateur</span>
+                  <input
+                    type="text"
+                    value={createSessionDraft.teacherName}
+                    onChange={(event) =>
+                      syncCreateSessionDraft("teacherName", event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Statut</span>
+                  <select
+                    value={createSessionDraft.status}
+                    onChange={(event) =>
+                      syncCreateSessionDraft(
+                        "status",
+                        event.target.value as SessionStatus,
+                      )
+                    }
+                  >
+                    {sessionStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {statusLabel(status)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {createSessionFeedback ? (
+                <p className={`admin-feedback admin-feedback--${createSessionFeedback.type}`}>
+                  {createSessionFeedback.message}
+                </p>
+              ) : null}
+              {availableSessionCreateFormations.length === 0 ? (
+                <p className="admin-hint">
+                  Toutes les formations live et presentiel ont deja une session
+                  non terminee. Cloturez d'abord la session en cours avant d'en
+                  programmer une nouvelle.
+                </p>
+              ) : null}
+            </article>
+
+            <div className="admin-grid-two">
+              {sessions.length > 0 ? (
+                sessions.map((session) => (
+                  <article className="admin-info-card" key={session.id}>
+                    <div className="admin-info-card__header">
+                      <div>
+                        <h3>{session.label}</h3>
+                        <p>{session.formation_title}</p>
+                      </div>
+                      <span className={statusClassName(session.status)}>
+                        {statusLabel(session.status)}
+                      </span>
+                    </div>
+                    <div className="admin-formation-card__stats">
+                      <div>
+                        <span>Format</span>
+                        <strong>{formatTypeLabel(session.format_type)}</strong>
+                      </div>
+                      <div>
+                        <span>Etat public</span>
+                        <strong>{statusLabel(session.session_state)}</strong>
+                      </div>
+                      <div>
+                        <span>Achat</span>
+                        <strong>{session.can_purchase ? "Ouvert" : "Ferme"}</strong>
+                      </div>
+                    </div>
+                    <div className="admin-inline-form admin-inline-form--session">
+                      <label className="admin-field">
+                        <span>Libelle</span>
+                        <input
+                          type="text"
+                          value={sessionDrafts[session.id]?.label ?? session.label}
+                          onChange={(event) =>
+                            syncSessionDraft(session.id, "label", event.target.value)
+                          }
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span>Date de debut</span>
+                        <input
+                          type="date"
+                          value={sessionDrafts[session.id]?.startDate ?? session.start_date}
+                          onChange={(event) =>
+                            syncSessionDraft(session.id, "startDate", event.target.value)
+                          }
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span>Date de fin</span>
+                        <input
+                          type="date"
+                          value={sessionDrafts[session.id]?.endDate ?? session.end_date}
+                          onChange={(event) =>
+                            syncSessionDraft(session.id, "endDate", event.target.value)
+                          }
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span>Campus</span>
+                        <input
+                          type="text"
+                          value={sessionDrafts[session.id]?.campusLabel ?? session.campus_label}
+                          onChange={(event) =>
+                            syncSessionDraft(session.id, "campusLabel", event.target.value)
+                          }
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span>Places</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={sessionDrafts[session.id]?.seatCapacity ?? session.seat_capacity}
+                          onChange={(event) =>
+                            syncSessionDraft(session.id, "seatCapacity", event.target.value)
+                          }
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span>Formateur</span>
+                        <input
+                          type="text"
+                          value={sessionDrafts[session.id]?.teacherName ?? session.teacher_name}
+                          onChange={(event) =>
+                            syncSessionDraft(session.id, "teacherName", event.target.value)
+                          }
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span>Statut</span>
+                        <select
+                          value={sessionDrafts[session.id]?.status ?? session.status}
+                          onChange={(event) =>
+                            syncSessionDraft(
+                              session.id,
+                              "status",
+                              event.target.value as SessionStatus,
+                            )
+                          }
+                        >
+                          {sessionStatuses.map((status) => (
+                            <option key={status} value={status}>
+                              {statusLabel(status)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <ul className="admin-mini-list">
+                      <li>
+                        <FaUsers />
+                        {session.enrolled_count}/{session.seat_capacity} inscrits
+                      </li>
+                      <li>
+                        <FaMapMarkerAlt />
+                        {session.campus_label || "A preciser"}
+                      </li>
+                      <li>
+                        <FaCalendarAlt />
+                        {session.start_date} {"->"} {session.end_date}
+                      </li>
+                      <li>
+                        <FaClock />
+                        {session.session_label ?? "Pas de message public"}
+                      </li>
+                    </ul>
+                    <button
+                      className="admin-save-button admin-save-button--inline"
+                      type="button"
+                      disabled={savingSessionId === session.id}
+                      onClick={() => {
+                        void handleSaveSession(session);
+                      }}
                     >
-                      {sessionFeedbackById[session.id].message}
-                    </p>
-                  ) : null}
+                      <FaSave />
+                      {savingSessionId === session.id ? "Sauvegarde..." : "Sauvegarder"}
+                    </button>
+                    {sessionFeedbackById[session.id] ? (
+                      <p
+                        className={`admin-feedback admin-feedback--${sessionFeedbackById[session.id].type}`}
+                      >
+                        {sessionFeedbackById[session.id].message}
+                      </p>
+                    ) : null}
+                  </article>
+                ))
+              ) : (
+                <article className="admin-empty-state">
+                  <p className="admin-formation-card__category">Aucune session</p>
+                  <h3>Aucune session live ou presentiel n'est encore planifiee.</h3>
+                  <p>
+                    Creez une session pour ouvrir les inscriptions et afficher la
+                    prochaine date sur les cartes publiques.
+                  </p>
                 </article>
-              ))}
+              )}
             </div>
           </section>
 

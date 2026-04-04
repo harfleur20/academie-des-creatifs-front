@@ -8,11 +8,12 @@ import AuthPage from "./pages/AuthPage";
 import CartPage from "./pages/CartPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import DashboardPage from "./pages/DashboardPage";
+import FavoritesPage from "./pages/FavoritesPage";
 import FormationDetailPage from "./pages/FormationDetailPage";
 import FormationsPage from "./pages/FormationsPage";
 import HomePage from "./pages/HomePage";
 import NotFoundPage from "./pages/NotFoundPage";
-import ProtectedPlaceholderPage from "./pages/ProtectedPlaceholderPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import StudentDashboardPage from "./pages/StudentDashboardPage";
 import StudentClassicWorkspacePage from "./pages/StudentClassicWorkspacePage";
 import StudentGuidedWorkspacePage from "./pages/StudentGuidedWorkspacePage";
@@ -46,26 +47,8 @@ export const router = createBrowserRouter([
           { path: "panier", element: <CartPage /> },
           { path: "checkout", element: <CheckoutPage /> },
           { path: "espace", element: <AccountRedirectPage /> },
-          {
-            path: "favoris",
-            element: (
-              <ProtectedPlaceholderPage
-                eyebrow="Favoris"
-                title="Vos favoris seront centralises ici."
-                description="Cet espace servira a retrouver les formations enregistrees avant achat ou inscription."
-              />
-            ),
-          },
-          {
-            path: "notifications",
-            element: (
-              <ProtectedPlaceholderPage
-                eyebrow="Notifications"
-                title="Vos rappels et alertes arriveront ici."
-                description="Vous retrouverez ici les notifications de paiement, les rappels de session et les informations importantes."
-              />
-            ),
-          },
+          { path: "favoris", element: <FavoritesPage /> },
+          { path: "notifications", element: <NotificationsPage /> },
         ],
       },
       {

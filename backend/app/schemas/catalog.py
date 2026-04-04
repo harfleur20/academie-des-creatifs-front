@@ -11,8 +11,96 @@ DashboardType = Literal["classic", "guided"]
 UserRole = Literal["admin", "teacher", "student"]
 UserStatus = Literal["active", "suspended"]
 SessionStatus = Literal["planned", "open", "completed", "cancelled"]
+SessionState = Literal[
+    "not_applicable",
+    "unscheduled",
+    "upcoming",
+    "started_open",
+    "started_closed",
+    "ended",
+]
 OrderStatus = Literal["pending", "paid", "partially_paid", "failed", "cancelled"]
 PaymentStatus = Literal["pending", "confirmed", "failed"]
+
+
+class FormationProjectItem(BaseModel):
+    title: str
+    image: str
+    kind: Literal["image", "video"] = "image"
+    poster: str | None = None
+
+    @field_validator("title", "image", "poster")
+    @classmethod
+    def validate_project_strings(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("Ce champ ne peut pas etre vide.")
+        return trimmed
+
+
+class FormationModuleItem(BaseModel):
+    title: str
+    summary: str = ""
+    duration: str = ""
+    lessons: list[str] = Field(default_factory=list)
+
+    @field_validator("title", "summary", "duration")
+    @classmethod
+    def validate_module_strings(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("lessons")
+    @classmethod
+    def validate_lessons(cls, value: list[str]) -> list[str]:
+        return [lesson.strip() for lesson in value if lesson.strip()]
+
+
+class FormationFaqItem(BaseModel):
+    question: str
+    answer: str
+
+    @field_validator("question", "answer")
+    @classmethod
+    def validate_faq_strings(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("Ce champ ne peut pas etre vide.")
+        return trimmed
+
+
+class FormationDetailContent(BaseModel):
+    intro: str = ""
+    mentor_name: str = ""
+    mentor_label: str = ""
+    mentor_image: str = ""
+    included: list[str] = Field(default_factory=list)
+    objectives: list[str] = Field(default_factory=list)
+    projects: list[FormationProjectItem] = Field(default_factory=list)
+    audience_text: str = ""
+    certificate_copy: str = ""
+    certificate_image: str = ""
+    modules: list[FormationModuleItem] = Field(default_factory=list)
+    faqs: list[FormationFaqItem] = Field(default_factory=list)
+
+    @field_validator(
+        "intro",
+        "mentor_name",
+        "mentor_label",
+        "mentor_image",
+        "audience_text",
+        "certificate_copy",
+        "certificate_image",
+    )
+    @classmethod
+    def validate_detail_strings(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("included", "objectives")
+    @classmethod
+    def validate_string_lists(cls, value: list[str]) -> list[str]:
+        return [item.strip() for item in value if item.strip()]
 
 
 class FormationCatalogItem(BaseModel):
@@ -24,7 +112,14 @@ class FormationCatalogItem(BaseModel):
     image: str
     format_type: FormatType
     dashboard_type: DashboardType
-    session_label: str
+    session_state: SessionState
+    session_label: str | None = None
+    card_session_label: str | None = None
+    purchase_message: str | None = None
+    can_purchase: bool
+    session_start_date: date | None = None
+    session_end_date: date | None = None
+    late_enrollment_until: date | None = None
     current_price_amount: int = Field(ge=0)
     current_price_label: str
     original_price_amount: int | None = Field(default=None, ge=0)
@@ -46,6 +141,14 @@ class FormationCatalogItem(BaseModel):
         return value
 
 
+class FormationDetailItem(FormationCatalogItem, FormationDetailContent):
+    pass
+
+
+class AdminFormationItem(FormationDetailItem):
+    pass
+
+
 class AdminFormationBase(BaseModel):
     title: str | None = None
     category: str | None = None
@@ -56,20 +159,40 @@ class AdminFormationBase(BaseModel):
     reviews: int | None = Field(default=None, ge=0)
     current_price_amount: int | None = Field(default=None, ge=0)
     original_price_amount: int | None = Field(default=None, ge=0)
-    session_label: str | None = None
     is_featured_home: bool | None = None
     home_feature_rank: int | None = Field(default=None, ge=0)
     badges: list[MarketingBadge] | None = None
+    intro: str | None = None
+    mentor_name: str | None = None
+    mentor_label: str | None = None
+    mentor_image: str | None = None
+    included: list[str] | None = None
+    objectives: list[str] | None = None
+    projects: list[FormationProjectItem] | None = None
+    audience_text: str | None = None
+    certificate_copy: str | None = None
+    certificate_image: str | None = None
+    modules: list[FormationModuleItem] | None = None
+    faqs: list[FormationFaqItem] | None = None
 
-    @field_validator("title", "category", "level", "image", "session_label")
+    @field_validator(
+        "title",
+        "category",
+        "level",
+        "image",
+        "intro",
+        "mentor_name",
+        "mentor_label",
+        "mentor_image",
+        "audience_text",
+        "certificate_copy",
+        "certificate_image",
+    )
     @classmethod
     def validate_non_empty_string(cls, value: str | None) -> str | None:
         if value is None:
             return value
-        trimmed = value.strip()
-        if not trimmed:
-            raise ValueError("Ce champ ne peut pas etre vide.")
-        return trimmed
+        return value.strip()
 
     @field_validator("rating")
     @classmethod
@@ -89,6 +212,15 @@ class AdminFormationBase(BaseModel):
         # Remove duplicates while preserving input order.
         return list(dict.fromkeys(value))
 
+    @field_validator("included", "objectives")
+    @classmethod
+    def validate_optional_string_lists(
+        cls, value: list[str] | None
+    ) -> list[str] | None:
+        if value is None:
+            return value
+        return [item.strip() for item in value if item.strip()]
+
 
 class AdminFormationCreate(AdminFormationBase):
     slug: str = Field(min_length=3, max_length=255)
@@ -98,7 +230,6 @@ class AdminFormationCreate(AdminFormationBase):
     image: str
     format_type: FormatType
     current_price_amount: int = Field(ge=0)
-    session_label: str
     is_featured_home: bool = False
     home_feature_rank: int = Field(default=100, ge=0)
     rating: float = Field(default=0, ge=0, le=5)
@@ -136,10 +267,21 @@ class AdminFormationUpdate(AdminFormationBase):
             and self.reviews is None
             and self.current_price_amount is None
             and self.original_price_amount is None
-            and self.session_label is None
             and self.is_featured_home is None
             and self.home_feature_rank is None
             and self.badges is None
+            and self.intro is None
+            and self.mentor_name is None
+            and self.mentor_label is None
+            and self.mentor_image is None
+            and self.included is None
+            and self.objectives is None
+            and self.projects is None
+            and self.audience_text is None
+            and self.certificate_copy is None
+            and self.certificate_image is None
+            and self.modules is None
+            and self.faqs is None
         ):
             raise ValueError("Au moins un champ admin doit etre fourni.")
         return self
@@ -171,14 +313,48 @@ class AdminUserItem(BaseModel):
 
 class AdminOnsiteSessionItem(BaseModel):
     id: int
+    formation_id: int
+    formation_slug: str
     formation_title: str
+    format_type: FormatType
     label: str
     start_date: date
+    end_date: date
     campus_label: str
     seat_capacity: int
     enrolled_count: int
     teacher_name: str
     status: SessionStatus
+    session_state: SessionState
+    can_purchase: bool
+    session_label: str | None = None
+
+
+class AdminFormationSessionCreate(BaseModel):
+    formation_id: int = Field(gt=0)
+    label: str
+    start_date: date
+    end_date: date
+    campus_label: str | None = None
+    seat_capacity: int = Field(default=0, ge=0)
+    teacher_name: str | None = None
+    status: SessionStatus = "planned"
+
+    @field_validator("label", "campus_label", "teacher_name")
+    @classmethod
+    def validate_session_create_strings(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("Ce champ ne peut pas etre vide.")
+        return trimmed
+
+    @model_validator(mode="after")
+    def validate_dates(self) -> "AdminFormationSessionCreate":
+        if self.end_date < self.start_date:
+            raise ValueError("La date de fin doit etre posterieure ou egale a la date de debut.")
+        return self
 
 
 class AdminOrderItem(BaseModel):
@@ -220,6 +396,7 @@ class AdminUserUpdate(BaseModel):
 class AdminOnsiteSessionUpdate(BaseModel):
     label: str | None = None
     start_date: date | None = None
+    end_date: date | None = None
     campus_label: str | None = None
     seat_capacity: int | None = Field(default=None, ge=0)
     teacher_name: str | None = None
@@ -240,12 +417,23 @@ class AdminOnsiteSessionUpdate(BaseModel):
         if (
             self.label is None
             and self.start_date is None
+            and self.end_date is None
             and self.campus_label is None
             and self.seat_capacity is None
             and self.teacher_name is None
             and self.status is None
         ):
             raise ValueError("Au moins un champ session doit etre fourni.")
+        return self
+
+    @model_validator(mode="after")
+    def validate_dates(self) -> "AdminOnsiteSessionUpdate":
+        if (
+            self.start_date is not None
+            and self.end_date is not None
+            and self.end_date < self.start_date
+        ):
+            raise ValueError("La date de fin doit etre posterieure ou egale a la date de debut.")
         return self
 
 

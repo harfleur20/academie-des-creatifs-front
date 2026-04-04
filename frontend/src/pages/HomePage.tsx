@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   FaBolt,
   FaBoxOpen,
@@ -10,6 +10,7 @@ import {
   FaGraduationCap,
   FaPlayCircle,
   FaQuoteLeft,
+  FaRegHeart,
   FaRegStar,
   FaRocket,
   FaShoppingCart,
@@ -18,21 +19,29 @@ import {
 } from "react-icons/fa";
 
 import HeroBubblesCanvas from "../components/HeroBubblesCanvas";
+import { useAuth } from "../auth/AuthContext";
+import { useCart } from "../cart/CartContext";
 import {
   getFormationPath,
   albumItems,
   badgeLevels,
-  onlineCourses,
   stats,
   testimonials,
   trainers,
   videos,
   type CourseBadge,
 } from "../data/ecommerceHomeData";
+import { useFavorites } from "../favorites/FavoritesContext";
 import {
+  type CatalogFormation,
   fetchPublicFormations,
   mapCatalogFormationToCourse,
 } from "../lib/catalogApi";
+import {
+  getUserActionErrorMessage,
+  USER_MESSAGES,
+} from "../lib/userMessages";
+import { useToast } from "../toast/ToastContext";
 
 function getCounterTarget(value: string) {
   const digits = value.replace(/[^\d]/g, "");
@@ -142,10 +151,115 @@ function badgeContent(badge: CourseBadge) {
   );
 }
 
+function sortFeaturedCourses<T extends { homeFeatureRank?: number }>(courses: T[]) {
+  return [...courses].sort(
+    (left, right) =>
+      (left.homeFeatureRank ?? 100) - (right.homeFeatureRank ?? 100),
+  );
+}
+
+function getHomeCatalogueMessage(
+  catalogError: string,
+  format: "online" | "presentiel",
+) {
+  if (catalogError) {
+    return catalogError;
+  }
+
+  if (format === "presentiel") {
+    return "Aucune formation en presentiel n'est encore mise en avant.";
+  }
+
+  return "Aucune formation n'est encore mise en avant dans cette section.";
+}
+
 export default function HomePage() {
   const statsRef = useRef<HTMLDivElement | null>(null);
+  const { user } = useAuth();
+  const { cart, addToCart } = useCart();
+  const { toggleFavorite, hasFavorite } = useFavorites();
+  const { success, error } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [statsVisible, setStatsVisible] = useState(false);
-  const [courses, setCourses] = useState(onlineCourses);
+  const [catalogFormations, setCatalogFormations] = useState<CatalogFormation[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState("");
+  const [workingCartSlug, setWorkingCartSlug] = useState<string | null>(null);
+  const [workingFavoriteSlug, setWorkingFavoriteSlug] = useState<string | null>(null);
+
+  const featuredCourses = (
+    sortFeaturedCourses(
+      catalogFormations
+        .filter((formation) => formation.is_featured_home)
+        .map((formation) => mapCatalogFormationToCourse(formation)),
+    )
+  );
+
+  const featuredOnlineCourses = featuredCourses.filter(
+    (course) => course.formatType !== "presentiel",
+  );
+  const featuredPresentielCourses = featuredCourses.filter(
+    (course) => course.formatType === "presentiel",
+  );
+
+  const handleProtectedAction = (slug: string, action: "cart" | "favorite") => {
+    if (!user) {
+      error(USER_MESSAGES.authRequired);
+      navigate("/login", {
+        state: { from: `${location.pathname}${location.search}${location.hash}` },
+      });
+      return false;
+    }
+
+    if (action === "cart") {
+      setWorkingCartSlug(slug);
+    } else {
+      setWorkingFavoriteSlug(slug);
+    }
+
+    return true;
+  };
+
+  const handleAddToCart = async (slug: string, canPurchase = true, purchaseMessage?: string | null) => {
+    if (!canPurchase) {
+      error(purchaseMessage ?? "Inscriptions closes pour cette formation.");
+      return;
+    }
+
+    if (!handleProtectedAction(slug, "cart")) {
+      return;
+    }
+
+    try {
+      await addToCart(slug);
+      success(USER_MESSAGES.cartAdded);
+    } catch (actionError) {
+      error(getUserActionErrorMessage(actionError, "cart.add"));
+    } finally {
+      setWorkingCartSlug(null);
+    }
+  };
+
+  const handleToggleFavorite = async (slug: string) => {
+    if (!handleProtectedAction(slug, "favorite")) {
+      return;
+    }
+
+    try {
+      const wasFavorite = hasFavorite(slug);
+      await toggleFavorite(slug);
+      success(
+        wasFavorite
+          ? USER_MESSAGES.favoriteRemoved
+          : USER_MESSAGES.favoriteAdded,
+      );
+    } catch (actionError) {
+      error(getUserActionErrorMessage(actionError, "favorites.toggle"));
+    } finally {
+      setWorkingFavoriteSlug(null);
+    }
+  };
 
   useEffect(() => {
     const node = statsRef.current;
@@ -185,16 +299,21 @@ export default function HomePage() {
           return;
         }
 
-        const mapped = formations
-          .filter((formation) => formation.format_type !== "presentiel")
-          .map(mapCatalogFormationToCourse);
-
-        if (mapped.length > 0) {
-          setCourses(mapped);
-        }
+        setCatalogFormations(formations);
+        setCatalogError("");
       })
       .catch(() => {
-        // Keep static fallback when the API is unavailable.
+        if (!isMounted) {
+          return;
+        }
+
+        setCatalogFormations([]);
+        setCatalogError("Catalogue indisponible pour le moment.");
+      })
+      .finally(() => {
+        if (isMounted) {
+          setCatalogLoading(false);
+        }
       });
 
     return () => {
@@ -222,8 +341,8 @@ export default function HomePage() {
             L'école des designers graphiques et des métiers du digital.
           </p>
           <Link className="btn-hero" to="/formations">
-            <FaGraduationCap />
-            Se former maintenant
+            <FaGraduationCap className="FaGraduation"/>
+            Consulter les formations
           </Link>
         </div>
 
@@ -319,77 +438,108 @@ export default function HomePage() {
           </div>
 
           <div className="bloc-list-card">
-            {courses.map((course) => {
-              const hasPromo =
-                Boolean(course.originalPrice) &&
-                course.originalPrice !== course.currentPrice;
+            {featuredOnlineCourses.length > 0 ? (
+              featuredOnlineCourses.map((course) => {
+                const hasPromo =
+                  Boolean(course.originalPrice) &&
+                  course.originalPrice !== course.currentPrice;
 
-              return (
-                <article className="card-bloc new-design" key={course.id}>
-                  <div className="card-image">
-                    <img src={course.image} alt={course.title} />
-                    <div className="session-badge">
-                      <FaClock />
-                      <span>{course.sessionLabel}</span>
+                return (
+                  <article className="card-bloc new-design" key={course.id}>
+                    <div className="card-image">
+                      <img src={course.image} alt={course.title} />
+                      <button
+                        aria-label={`Ajouter ${course.title} aux favoris`}
+                        className={`home-card-wish ${hasFavorite(course.slug) ? "is-active" : ""}`}
+                        type="button"
+                        onClick={() => {
+                          void handleToggleFavorite(course.slug);
+                        }}
+                      >
+                        <FaRegHeart />
+                      </button>
+                      {course.sessionLabel ? (
+                        <div className="session-badge">
+                          <FaClock />
+                          <span>{course.sessionLabel}</span>
+                        </div>
+                      ) : null}
                     </div>
-                  </div>
 
-                  <div className="card-content">
-                    <h3 className="card-title">{course.title}</h3>
-                    <div className="card-instructor">
-                      <FaChalkboardTeacher />
-                      <span>{course.level}</span>
-                    </div>
-
-                    <div className="card-rating">
-                      <div className="stars">{renderStars(course.rating)}</div>
-                      <span className="review-count">({course.reviews} avis)</span>
-                    </div>
-
-                    <div className="card-meta-row">
-                      <div className="card-platforms">
-                        <span className="platform-label">Plateforme :</span>
-                        <img src="/Microsoft_Office_Teams.webp" alt="Microsoft Teams" />
-                        <img src="/whatsapp.png" alt="WhatsApp" />
+                    <div className="card-content">
+                      <h3 className="card-title">{course.title}</h3>
+                      <div className="card-instructor">
+                        <FaChalkboardTeacher />
+                        <span>{course.level}</span>
                       </div>
 
-                      <div className="badges-column">
-                        {course.badges?.map((badge) => (
-                          <div key={badge}>{badgeContent(badge)}</div>
-                        ))}
+                      <div className="card-rating">
+                        <div className="stars">{renderStars(course.rating)}</div>
+                        <span className="review-count">({course.reviews} avis)</span>
+                      </div>
+
+                      <div className="card-meta-row">
+                        <div className="card-platforms">
+                          <span className="platform-label">Plateforme :</span>
+                          <img src="/Microsoft_Office_Teams.webp" alt="Microsoft Teams" />
+                          <img src="/whatsapp.png" alt="WhatsApp" />
+                        </div>
+
+                        <div className="badges-column">
+                          {course.badges?.map((badge) => (
+                            <div key={badge}>{badgeContent(badge)}</div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="card-divider" />
+
+                      <div className="card-footer">
+                        <div className="price-block">
+                          <span className="old-price">{course.originalPrice ?? ""}</span>
+                          <span
+                            className={
+                              hasPromo ? "current-price price-promo" : "current-price"
+                            }
+                          >
+                            {course.currentPrice}
+                          </span>
+                        </div>
+                        <div className="card-footer-actions">
+                          <button
+                            aria-label={`Ajouter ${course.title} au panier`}
+                            className="btn-card-icon"
+                            type="button"
+                            disabled={
+                              course.canPurchase === false ||
+                              workingCartSlug === course.slug ||
+                              cart.items.some((item) => item.formation_slug === course.slug)
+                            }
+                            onClick={() => {
+                              void handleAddToCart(course.slug, course.canPurchase, course.purchaseMessage);
+                            }}
+                          >
+                            <FaShoppingCart />
+                          </button>
+                          <Link className="btn-card-action" to={getFormationPath(course.slug)}>
+                            Voir
+                          </Link>
+                        </div>
                       </div>
                     </div>
-
-                    <div className="card-divider" />
-
-                    <div className="card-footer">
-                      <div className="price-block">
-                        <span className="old-price">{course.originalPrice ?? ""}</span>
-                        <span
-                          className={
-                            hasPromo ? "current-price price-promo" : "current-price"
-                          }
-                        >
-                          {course.currentPrice}
-                        </span>
-                      </div>
-                      <div className="card-footer-actions">
-                        <Link
-                          aria-label={`Ajouter ${course.title} au panier`}
-                          className="btn-card-icon"
-                          to={`/panier?add=${course.slug}`}
-                        >
-                          <FaShoppingCart />
-                        </Link>
-                        <Link className="btn-card-action" to={getFormationPath(course.slug)}>
-                          Voir
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+                  </article>
+                );
+              })
+            ) : (
+              <div className="aucune-formation">
+                <FaBoxOpen />
+                <p>
+                  {catalogLoading
+                    ? "Chargement des formations..."
+                    : getHomeCatalogueMessage(catalogError, "online")}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -408,10 +558,108 @@ export default function HomePage() {
           </div>
 
           <div className="pre-list-card">
-            <div className="aucune-formation">
-              <FaBoxOpen />
-              <p>Aucune formation en présentiel n'est encore disponible.</p>
-            </div>
+            {featuredPresentielCourses.length > 0 ? (
+              featuredPresentielCourses.map((course) => {
+                const hasPromo =
+                  Boolean(course.originalPrice) &&
+                  course.originalPrice !== course.currentPrice;
+
+                return (
+                  <article className="card-bloc new-design" key={course.id}>
+                    <div className="card-image">
+                      <img src={course.image} alt={course.title} />
+                      <button
+                        aria-label={`Ajouter ${course.title} aux favoris`}
+                        className={`home-card-wish ${hasFavorite(course.slug) ? "is-active" : ""}`}
+                        type="button"
+                        onClick={() => {
+                          void handleToggleFavorite(course.slug);
+                        }}
+                      >
+                        <FaRegHeart />
+                      </button>
+                      {course.sessionLabel ? (
+                        <div className="session-badge">
+                          <FaClock />
+                          <span>{course.sessionLabel}</span>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="card-content">
+                      <h3 className="card-title">{course.title}</h3>
+                      <div className="card-instructor">
+                        <FaChalkboardTeacher />
+                        <span>{course.level}</span>
+                      </div>
+
+                      <div className="card-rating">
+                        <div className="stars">{renderStars(course.rating)}</div>
+                        <span className="review-count">({course.reviews} avis)</span>
+                      </div>
+
+                      <div className="card-meta-row">
+                        <div className="card-platforms">
+                          <span className="platform-label">Plateforme :</span>
+                          <img src="/Microsoft_Office_Teams.webp" alt="Microsoft Teams" />
+                          <img src="/whatsapp.png" alt="WhatsApp" />
+                        </div>
+
+                        <div className="badges-column">
+                          {course.badges?.map((badge) => (
+                            <div key={badge}>{badgeContent(badge)}</div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="card-divider" />
+
+                      <div className="card-footer">
+                        <div className="price-block">
+                          <span className="old-price">{course.originalPrice ?? ""}</span>
+                          <span
+                            className={
+                              hasPromo ? "current-price price-promo" : "current-price"
+                            }
+                          >
+                            {course.currentPrice}
+                          </span>
+                        </div>
+                        <div className="card-footer-actions">
+                          <button
+                            aria-label={`Ajouter ${course.title} au panier`}
+                            className="btn-card-icon"
+                            type="button"
+                            disabled={
+                              course.canPurchase === false ||
+                              workingCartSlug === course.slug ||
+                              cart.items.some((item) => item.formation_slug === course.slug)
+                            }
+                            onClick={() => {
+                              void handleAddToCart(course.slug, course.canPurchase, course.purchaseMessage);
+                            }}
+                          >
+                            <FaShoppingCart />
+                          </button>
+                          <Link className="btn-card-action" to={getFormationPath(course.slug)}>
+                            Voir
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="aucune-formation">
+                <FaBoxOpen />
+                <p>
+                  {catalogLoading
+                    ? "Chargement des formations..."
+                    : getHomeCatalogueMessage(catalogError, "presentiel")}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </section>

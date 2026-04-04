@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.security import hash_password
 from app.models.entities import (
     FormationRecord,
-    OnsiteSessionRecord,
+    FormationSessionRecord,
     OrderRecord,
     PaymentRecord,
     UserRecord,
@@ -24,7 +24,7 @@ FORMATION_SEED = [
         "image": "/Flyers/packaging.jpg",
         "format_type": "ligne",
         "dashboard_type": "classic",
-        "session_label": "Prochaine session : 15 avril 2026",
+        "session_label": "",
         "current_price_amount": 50000,
         "original_price_amount": None,
         "price_currency": "XAF",
@@ -43,7 +43,7 @@ FORMATION_SEED = [
         "image": "/Flyers/brand-identity.jpg",
         "format_type": "live",
         "dashboard_type": "guided",
-        "session_label": "Prochaine session : 06 mai 2026",
+        "session_label": "",
         "current_price_amount": 65000,
         "original_price_amount": None,
         "price_currency": "XAF",
@@ -62,7 +62,7 @@ FORMATION_SEED = [
         "image": "/Flyers/Motion-design.jpg",
         "format_type": "live",
         "dashboard_type": "guided",
-        "session_label": "Prochaine session : 17 avril 2026",
+        "session_label": "",
         "current_price_amount": 70000,
         "original_price_amount": 95000,
         "price_currency": "XAF",
@@ -81,7 +81,7 @@ FORMATION_SEED = [
         "image": "/Flyers/Flyer_TIKTOK_Academie.jpg",
         "format_type": "ligne",
         "dashboard_type": "classic",
-        "session_label": "Prochaine session : 09 mai 2026",
+        "session_label": "",
         "current_price_amount": 50000,
         "original_price_amount": None,
         "price_currency": "XAF",
@@ -100,7 +100,7 @@ FORMATION_SEED = [
         "image": "/Flyers/brand-identity.jpg",
         "format_type": "presentiel",
         "dashboard_type": "guided",
-        "session_label": "Cohorte presentiel : 20 mai 2026",
+        "session_label": "",
         "current_price_amount": 120000,
         "original_price_amount": None,
         "price_currency": "XAF",
@@ -145,29 +145,6 @@ USER_SEED = [
         "password_hash": hash_password("Student123!"),
         "role": "student",
         "status": "active",
-    },
-]
-
-ONSITE_SESSION_SEED = [
-    {
-        "formation_title": "Brand Identity Intensive",
-        "label": "Cohorte Avril 2026",
-        "start_date": date(2026, 4, 17),
-        "campus_label": "Douala - Bonapriso",
-        "seat_capacity": 30,
-        "enrolled_count": 18,
-        "teacher_name": "Bihee Alex",
-        "status": "open",
-    },
-    {
-        "formation_title": "Motion Design Bootcamp",
-        "label": "Cohorte Mai 2026",
-        "start_date": date(2026, 5, 3),
-        "campus_label": "Douala - Akwa",
-        "seat_capacity": 24,
-        "enrolled_count": 11,
-        "teacher_name": "Francis Kenne",
-        "status": "open",
     },
 ]
 
@@ -220,7 +197,47 @@ def _table_has_rows(db: Session, model: type[object]) -> bool:
     return db.scalar(select(model).limit(1)) is not None
 
 
+def build_formation_session_seed(today: date) -> list[dict[str, object]]:
+    return [
+        {
+            "formation_slug": "deviens-un-brand-designer",
+            "label": "Session live de mai 2026",
+            "start_date": today + date.resolution * 12,
+            "end_date": today + date.resolution * 32,
+            "campus_label": "Classe virtuelle Zoom",
+            "seat_capacity": 80,
+            "enrolled_count": 22,
+            "teacher_name": "Bihee Alex",
+            "status": "planned",
+        },
+        {
+            "formation_slug": "motion-design-par-la-pratique",
+            "label": "Session live intensive motion design",
+            "start_date": today + date.resolution * 6,
+            "end_date": today + date.resolution * 26,
+            "campus_label": "Classe virtuelle Zoom",
+            "seat_capacity": 60,
+            "enrolled_count": 15,
+            "teacher_name": "Francis Kenne",
+            "status": "planned",
+        },
+        {
+            "formation_slug": "bootcamp-brand-designer-presentiel",
+            "label": "Cohorte presentiel Douala",
+            "start_date": today + date.resolution * 18,
+            "end_date": today + date.resolution * 48,
+            "campus_label": "Douala - Bonapriso",
+            "seat_capacity": 30,
+            "enrolled_count": 12,
+            "teacher_name": "Bihee Alex",
+            "status": "planned",
+        },
+    ]
+
+
 def seed_database(db: Session) -> None:
+    today = date.today()
+
     if not _table_has_rows(db, FormationRecord):
         db.add_all(FormationRecord(**item) for item in FORMATION_SEED)
     else:
@@ -266,8 +283,55 @@ def seed_database(db: Session) -> None:
 
     db.flush()
 
-    if not _table_has_rows(db, OnsiteSessionRecord):
-        db.add_all(OnsiteSessionRecord(**item) for item in ONSITE_SESSION_SEED)
+    formation_sessions_seed = build_formation_session_seed(today)
+
+    if not _table_has_rows(db, FormationSessionRecord):
+        formations_by_slug = {
+            formation.slug: formation for formation in db.scalars(select(FormationRecord)).all()
+        }
+        for item in formation_sessions_seed:
+            formation = formations_by_slug.get(str(item["formation_slug"]))
+            if formation is None:
+                continue
+            db.add(
+                FormationSessionRecord(
+                    formation_id=formation.id,
+                    label=str(item["label"]),
+                    start_date=item["start_date"],
+                    end_date=item["end_date"],
+                    campus_label=str(item["campus_label"]),
+                    seat_capacity=int(item["seat_capacity"]),
+                    enrolled_count=int(item["enrolled_count"]),
+                    teacher_name=str(item["teacher_name"]),
+                    status=str(item["status"]),
+                )
+            )
+    else:
+        formations_by_slug = {
+            formation.slug: formation for formation in db.scalars(select(FormationRecord)).all()
+        }
+        existing_sessions = db.scalars(select(FormationSessionRecord)).all()
+        existing_keys = {(session.formation_id, session.label) for session in existing_sessions}
+        for item in formation_sessions_seed:
+            formation = formations_by_slug.get(str(item["formation_slug"]))
+            if formation is None:
+                continue
+            session_key = (formation.id, str(item["label"]))
+            if session_key in existing_keys:
+                continue
+            db.add(
+                FormationSessionRecord(
+                    formation_id=formation.id,
+                    label=str(item["label"]),
+                    start_date=item["start_date"],
+                    end_date=item["end_date"],
+                    campus_label=str(item["campus_label"]),
+                    seat_capacity=int(item["seat_capacity"]),
+                    enrolled_count=int(item["enrolled_count"]),
+                    teacher_name=str(item["teacher_name"]),
+                    status=str(item["status"]),
+                )
+            )
 
     users_by_name = {user.full_name: user for user in db.scalars(select(UserRecord)).all()}
     formations_by_title = {

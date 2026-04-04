@@ -1,5 +1,11 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
+import { apiRequest, ApiRequestError } from "./apiClient";
+import {
+  clearAccessToken,
+  getAccessToken,
+  setAccessToken,
+} from "./authSession";
+
+export { ApiRequestError } from "./apiClient";
 
 export type UserRole = "admin" | "teacher" | "student";
 
@@ -27,80 +33,46 @@ export type LoginPayload = {
   remember_me: boolean;
 };
 
-export class ApiRequestError extends Error {
-  status: number;
-  detail: unknown;
-
-  constructor(message: string, status: number, detail: unknown) {
-    super(message);
-    this.status = status;
-    this.detail = detail;
-  }
-}
-
 type AuthResponse = {
   message: string;
   user: AuthUser;
+  access_token: string;
+  token_type: "Bearer";
+  expires_at: string;
 };
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    credentials: "include",
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  if (!response.ok) {
-    let detail: unknown = null;
-
-    try {
-      detail = await response.json();
-    } catch {
-      detail = await response.text();
-    }
-
-    const message =
-      typeof detail === "object" &&
-      detail !== null &&
-      "detail" in detail &&
-      typeof detail.detail === "string"
-        ? detail.detail
-        : `HTTP ${response.status}`;
-
-    throw new ApiRequestError(message, response.status, detail);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return (await response.json()) as T;
-}
-
 export async function login(payload: LoginPayload): Promise<AuthUser> {
-  const response = await request<AuthResponse>("/auth/login", {
+  const response = await apiRequest<AuthResponse>("/auth/login", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  setAccessToken(response.access_token);
   return response.user;
 }
 
 export async function register(payload: RegisterPayload): Promise<AuthUser> {
-  const response = await request<AuthResponse>("/auth/register", {
+  const response = await apiRequest<AuthResponse>("/auth/register", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  setAccessToken(response.access_token);
   return response.user;
 }
 
 export async function fetchCurrentUser(): Promise<AuthUser> {
-  const response = await request<AuthResponse>("/auth/me");
+  if (!getAccessToken()) {
+    throw new ApiRequestError("Authentification requise.", 401, null);
+  }
+
+  const response = await apiRequest<AuthResponse>("/auth/me");
+  setAccessToken(response.access_token);
   return response.user;
 }
 
 export async function logout(): Promise<void> {
-  await request<void>("/auth/logout", { method: "POST" });
+  try {
+    await apiRequest<void>("/auth/logout", { method: "POST" });
+  } finally {
+    clearAccessToken();
+  }
 }

@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { useCart } from "../cart/CartContext";
+import { getUserActionErrorMessage, USER_MESSAGES } from "../lib/userMessages";
+import { useToast } from "../toast/ToastContext";
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { cart, isLoading, addToCart, checkout } = useCart();
+  const { success, error: showErrorToast } = useToast();
   const [searchParams] = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResolvingIntent, setIsResolvingIntent] = useState(false);
@@ -29,6 +32,7 @@ export default function CheckoutPage() {
     addToCart(requestedSlug)
       .then(() => {
         if (isMounted) {
+          success(USER_MESSAGES.cartAdded);
           navigate("/checkout", { replace: true });
         }
       })
@@ -37,11 +41,9 @@ export default function CheckoutPage() {
           return;
         }
 
-        setError(
-          intentError instanceof Error
-            ? intentError.message
-            : "Impossible de preparer le checkout.",
-        );
+        const message = getUserActionErrorMessage(intentError, "checkout.prepare");
+        setError(message);
+        showErrorToast(message);
       })
       .finally(() => {
         if (isMounted) {
@@ -60,16 +62,15 @@ export default function CheckoutPage() {
 
     try {
       const result = await checkout();
+      success(result.message);
       navigate(result.redirect_path, {
         replace: true,
         state: { checkoutMessage: result.message },
       });
     } catch (checkoutError) {
-      setError(
-        checkoutError instanceof Error
-          ? checkoutError.message
-          : "Le checkout a echoue.",
-      );
+      const message = getUserActionErrorMessage(checkoutError, "checkout.submit");
+      setError(message);
+      showErrorToast(message);
     } finally {
       setIsSubmitting(false);
     }

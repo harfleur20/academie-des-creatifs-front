@@ -1,7 +1,5 @@
 import type { CourseBadge, EcommerceCourse } from "../data/ecommerceHomeData";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
+import { apiRequest } from "./apiClient";
 
 export type FormationFormat = "live" | "ligne" | "presentiel";
 export type DashboardType = "classic" | "guided";
@@ -9,8 +7,34 @@ export type MarketingBadge = Exclude<CourseBadge, "promo">;
 export type UserRole = "admin" | "teacher" | "student";
 export type UserStatus = "active" | "suspended";
 export type SessionStatus = "planned" | "open" | "completed" | "cancelled";
+export type SessionState =
+  | "not_applicable"
+  | "unscheduled"
+  | "upcoming"
+  | "started_open"
+  | "started_closed"
+  | "ended";
 export type OrderStatus = "pending" | "paid" | "partially_paid" | "failed" | "cancelled";
 export type PaymentStatus = "pending" | "confirmed" | "failed";
+
+export type FormationProject = {
+  title: string;
+  image: string;
+  kind?: "image" | "video";
+  poster?: string | null;
+};
+
+export type FormationModule = {
+  title: string;
+  summary?: string;
+  duration?: string;
+  lessons: string[];
+};
+
+export type FormationFaq = {
+  question: string;
+  answer: string;
+};
 
 export type CatalogFormation = {
   id: number;
@@ -21,17 +45,43 @@ export type CatalogFormation = {
   image: string;
   format_type: FormationFormat;
   dashboard_type: DashboardType;
-  session_label: string;
+  session_state: SessionState;
+  session_label: string | null;
+  card_session_label: string | null;
+  purchase_message: string | null;
+  can_purchase: boolean;
+  session_start_date: string | null;
+  session_end_date: string | null;
+  late_enrollment_until: string | null;
   current_price_amount: number;
   current_price_label: string;
   original_price_amount: number | null;
   original_price_label: string | null;
   price_currency: string;
   allow_installments: boolean;
+  is_featured_home: boolean;
+  home_feature_rank: number;
   rating: number;
   reviews: number;
   badges: CourseBadge[];
 };
+
+export type FormationDetailItem = CatalogFormation & {
+  intro: string;
+  mentor_name: string;
+  mentor_label: string;
+  mentor_image: string;
+  included: string[];
+  objectives: string[];
+  projects: FormationProject[];
+  audience_text: string;
+  certificate_copy: string;
+  certificate_image: string;
+  modules: FormationModule[];
+  faqs: FormationFaq[];
+};
+
+export type AdminFormation = FormationDetailItem;
 
 export type AdminFormationCreatePayload = {
   slug: string;
@@ -42,10 +92,23 @@ export type AdminFormationCreatePayload = {
   format_type: FormationFormat;
   current_price_amount: number;
   original_price_amount?: number | null;
-  session_label: string;
+  is_featured_home?: boolean;
+  home_feature_rank?: number;
   rating?: number;
   reviews?: number;
   badges?: MarketingBadge[];
+  intro?: string;
+  mentor_name?: string;
+  mentor_label?: string;
+  mentor_image?: string;
+  included?: string[];
+  objectives?: string[];
+  projects?: FormationProject[];
+  audience_text?: string;
+  certificate_copy?: string;
+  certificate_image?: string;
+  modules?: FormationModule[];
+  faqs?: FormationFaq[];
 };
 
 export type AdminFormationUpdatePayload = {
@@ -58,8 +121,21 @@ export type AdminFormationUpdatePayload = {
   reviews?: number;
   current_price_amount?: number;
   original_price_amount?: number | null;
-  session_label?: string;
+  is_featured_home?: boolean;
+  home_feature_rank?: number;
   badges?: MarketingBadge[];
+  intro?: string;
+  mentor_name?: string;
+  mentor_label?: string;
+  mentor_image?: string;
+  included?: string[];
+  objectives?: string[];
+  projects?: FormationProject[];
+  audience_text?: string;
+  certificate_copy?: string;
+  certificate_image?: string;
+  modules?: FormationModule[];
+  faqs?: FormationFaq[];
 };
 
 export type AdminOverview = {
@@ -93,19 +169,38 @@ export type AdminUserUpdatePayload = {
 
 export type AdminOnsiteSession = {
   id: number;
+  formation_id: number;
+  formation_slug: string;
   formation_title: string;
+  format_type: FormationFormat;
   label: string;
   start_date: string;
+  end_date: string;
   campus_label: string;
   seat_capacity: number;
   enrolled_count: number;
   teacher_name: string;
   status: SessionStatus;
+  session_state: SessionState;
+  can_purchase: boolean;
+  session_label: string | null;
+};
+
+export type AdminFormationSessionCreatePayload = {
+  formation_id: number;
+  label: string;
+  start_date: string;
+  end_date: string;
+  campus_label?: string | null;
+  seat_capacity?: number;
+  teacher_name?: string | null;
+  status?: SessionStatus;
 };
 
 export type AdminOnsiteSessionUpdatePayload = {
   label?: string;
   start_date?: string;
+  end_date?: string;
   campus_label?: string;
   seat_capacity?: number;
   teacher_name?: string;
@@ -146,24 +241,6 @@ export type AdminPaymentUpdatePayload = {
   status?: PaymentStatus;
 };
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    credentials: "include",
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `HTTP ${response.status}`);
-  }
-
-  return (await response.json()) as T;
-}
-
 export function mapCatalogFormationToCourse(
   formation: CatalogFormation,
 ): EcommerceCourse {
@@ -178,33 +255,38 @@ export function mapCatalogFormationToCourse(
     currentPrice: formation.current_price_label,
     originalPrice: formation.original_price_label ?? undefined,
     badges: formation.badges,
-    sessionLabel: formation.session_label,
+    sessionLabel: formation.session_label ?? formation.card_session_label ?? "",
     formatType: formation.format_type,
+    isFeaturedHome: formation.is_featured_home,
+    homeFeatureRank: formation.home_feature_rank,
+    canPurchase: formation.can_purchase,
+    purchaseMessage: formation.purchase_message,
+    sessionState: formation.session_state,
   };
 }
 
 export async function fetchPublicFormations(): Promise<CatalogFormation[]> {
-  return request<CatalogFormation[]>("/formations");
+  return apiRequest<CatalogFormation[]>("/formations");
 }
 
 export async function fetchPublicFormation(
   slug: string,
-): Promise<CatalogFormation> {
-  return request<CatalogFormation>(`/formations/${slug}`);
+): Promise<FormationDetailItem> {
+  return apiRequest<FormationDetailItem>(`/formations/${slug}`);
 }
 
 export async function fetchAdminOverview(): Promise<AdminOverview> {
-  return request<AdminOverview>("/admin/stats/overview");
+  return apiRequest<AdminOverview>("/admin/stats/overview");
 }
 
-export async function fetchAdminFormations(): Promise<CatalogFormation[]> {
-  return request<CatalogFormation[]>("/admin/formations");
+export async function fetchAdminFormations(): Promise<AdminFormation[]> {
+  return apiRequest<AdminFormation[]>("/admin/formations");
 }
 
 export async function createAdminFormation(
   payload: AdminFormationCreatePayload,
-): Promise<CatalogFormation> {
-  return request<CatalogFormation>("/admin/formations", {
+): Promise<AdminFormation> {
+  return apiRequest<AdminFormation>("/admin/formations", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -213,64 +295,73 @@ export async function createAdminFormation(
 export async function updateAdminFormation(
   slug: string,
   payload: AdminFormationUpdatePayload,
-): Promise<CatalogFormation> {
-  return request<CatalogFormation>(`/admin/formations/${slug}`, {
+): Promise<AdminFormation> {
+  return apiRequest<AdminFormation>(`/admin/formations/${slug}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 }
 
 export async function fetchAdminUsers(): Promise<AdminUser[]> {
-  return request<AdminUser[]>("/admin/users");
+  return apiRequest<AdminUser[]>("/admin/users");
 }
 
 export async function updateAdminUser(
   userId: number,
   payload: AdminUserUpdatePayload,
 ): Promise<AdminUser> {
-  return request<AdminUser>(`/admin/users/${userId}`, {
+  return apiRequest<AdminUser>(`/admin/users/${userId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 }
 
 export async function fetchAdminOnsiteSessions(): Promise<AdminOnsiteSession[]> {
-  return request<AdminOnsiteSession[]>("/admin/onsite-sessions");
+  return apiRequest<AdminOnsiteSession[]>("/admin/onsite-sessions");
+}
+
+export async function createAdminOnsiteSession(
+  payload: AdminFormationSessionCreatePayload,
+): Promise<AdminOnsiteSession> {
+  return apiRequest<AdminOnsiteSession>("/admin/onsite-sessions", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function updateAdminOnsiteSession(
   sessionId: number,
   payload: AdminOnsiteSessionUpdatePayload,
 ): Promise<AdminOnsiteSession> {
-  return request<AdminOnsiteSession>(`/admin/onsite-sessions/${sessionId}`, {
+  return apiRequest<AdminOnsiteSession>(`/admin/onsite-sessions/${sessionId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 }
 
 export async function fetchAdminOrders(): Promise<AdminOrder[]> {
-  return request<AdminOrder[]>("/admin/orders");
+  return apiRequest<AdminOrder[]>("/admin/orders");
 }
 
 export async function updateAdminOrder(
   orderId: number,
   payload: AdminOrderUpdatePayload,
 ): Promise<AdminOrder> {
-  return request<AdminOrder>(`/admin/orders/${orderId}`, {
+  return apiRequest<AdminOrder>(`/admin/orders/${orderId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 }
 
 export async function fetchAdminPayments(): Promise<AdminPayment[]> {
-  return request<AdminPayment[]>("/admin/payments");
+  return apiRequest<AdminPayment[]>("/admin/payments");
 }
 
 export async function updateAdminPayment(
   paymentId: number,
   payload: AdminPaymentUpdatePayload,
 ): Promise<AdminPayment> {
-  return request<AdminPayment>(`/admin/payments/${paymentId}`, {
+  return apiRequest<AdminPayment>(`/admin/payments/${paymentId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });

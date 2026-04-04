@@ -38,6 +38,9 @@ type FormationDetailContent = {
 export type FormationDetail = EcommerceCourse &
   FormationDetailContent & {
     heroImage: string;
+    canPurchase?: boolean;
+    purchaseMessage?: string | null;
+    sessionState?: string;
   };
 
 const formationContentBySlug: Record<string, FormationDetailContent> = {

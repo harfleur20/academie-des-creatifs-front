@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   FaArrowRight,
   FaBolt,
@@ -19,11 +19,19 @@ import {
   FaVideo,
 } from "react-icons/fa";
 
-import { getFormationPath, onlineCourses, type CourseBadge } from "../data/ecommerceHomeData";
+import { getFormationPath, type CourseBadge } from "../data/ecommerceHomeData";
+import { useAuth } from "../auth/AuthContext";
+import { useCart } from "../cart/CartContext";
+import { useFavorites } from "../favorites/FavoritesContext";
 import {
   fetchPublicFormations,
   type CatalogFormation,
 } from "../lib/catalogApi";
+import {
+  getUserActionErrorMessage,
+  USER_MESSAGES,
+} from "../lib/userMessages";
+import { useToast } from "../toast/ToastContext";
 
 type CatalogFormat = "all" | "live" | "ligne" | "presentiel";
 type SortKey = "popularite" | "prix-asc" | "prix-desc" | "rating";
@@ -32,27 +40,6 @@ type CatalogFaq = {
   question: string;
   answer: string;
 };
-
-const fallbackCourses: CatalogFormation[] = onlineCourses.map((course) => ({
-  id: course.id,
-  slug: course.slug,
-  title: course.title,
-  category: "Formation creative",
-  level: course.level,
-  image: course.image,
-  format_type: course.formatType ?? "live",
-  dashboard_type: course.formatType === "ligne" ? "classic" : "guided",
-  session_label: course.sessionLabel,
-  current_price_amount: parsePriceLabel(course.currentPrice),
-  current_price_label: course.currentPrice,
-  original_price_amount: course.originalPrice ? parsePriceLabel(course.originalPrice) : null,
-  original_price_label: course.originalPrice ?? null,
-  price_currency: "XAF",
-  allow_installments: false,
-  rating: course.rating,
-  reviews: course.reviews,
-  badges: course.badges ?? [],
-}));
 
 const catalogFaqs: CatalogFaq[] = [
   {
@@ -81,11 +68,6 @@ const catalogFaqs: CatalogFaq[] = [
       "Un changement de formule n'est pas automatique. Il depend de la disponibilite, du calendrier et de l'etat de votre dossier.",
   },
 ];
-
-function parsePriceLabel(label: string) {
-  const digits = label.replace(/[^\d]/g, "");
-  return Number.parseInt(digits, 10) || 0;
-}
 
 function formatFcfa(value: number) {
   return `${value.toLocaleString("fr-FR")} FCFA`;
@@ -159,12 +141,23 @@ function getFormatIcon(format: Exclude<CatalogFormat, "all">) {
 }
 
 export default function FormationsPage() {
-  const [courses, setCourses] = useState<CatalogFormation[]>(fallbackCourses);
+  const { user } = useAuth();
+  const { cart, addToCart } = useCart();
+  const { toggleFavorite, hasFavorite } = useFavorites();
+  const { success, error } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [courses, setCourses] = useState<CatalogFormation[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState("");
   const [formatFilter, setFormatFilter] = useState<CatalogFormat>("all");
   const [maxPrice, setMaxPrice] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey>("popularite");
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [isPriceFilterDirty, setIsPriceFilterDirty] = useState(false);
+  const [workingCartSlug, setWorkingCartSlug] = useState<string | null>(null);
+  const [workingFavoriteSlug, setWorkingFavoriteSlug] = useState<string | null>(null);
   const cardsRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -172,12 +165,23 @@ export default function FormationsPage() {
 
     fetchPublicFormations()
       .then((formations) => {
-        if (isMounted && formations.length > 0) {
+        if (isMounted) {
           setCourses(formations);
+          setCatalogError("");
         }
       })
       .catch(() => {
-        // Keep static fallback when the API is unavailable.
+        if (!isMounted) {
+          return;
+        }
+
+        setCourses([]);
+        setCatalogError("Catalogue indisponible pour le moment.");
+      })
+      .finally(() => {
+        if (isMounted) {
+          setCatalogLoading(false);
+        }
       });
 
     return () => {
@@ -207,13 +211,13 @@ export default function FormationsPage() {
     }
 
     setMaxPrice((current) => {
-      if (current === 0 || current > highestPrice) {
+      if (!isPriceFilterDirty || current === 0 || current > highestPrice) {
         return highestPrice;
       }
 
       return current;
     });
-  }, [highestPrice]);
+  }, [highestPrice, isPriceFilterDirty]);
 
   const formatCounts = useMemo(
     () => ({
@@ -276,6 +280,64 @@ export default function FormationsPage() {
     }
   };
 
+  const handleProtectedAction = (slug: string, action: "cart" | "favorite") => {
+    if (!user) {
+      error(USER_MESSAGES.authRequired);
+      navigate("/login", {
+        state: { from: `${location.pathname}${location.search}${location.hash}` },
+      });
+      return false;
+    }
+
+    if (action === "cart") {
+      setWorkingCartSlug(slug);
+    } else {
+      setWorkingFavoriteSlug(slug);
+    }
+
+    return true;
+  };
+
+  const handleAddToCart = async (course: CatalogFormation) => {
+    if (!course.can_purchase) {
+      error(course.purchase_message ?? "Inscriptions closes pour cette formation.");
+      return;
+    }
+
+    if (!handleProtectedAction(course.slug, "cart")) {
+      return;
+    }
+
+    try {
+      await addToCart(course.slug);
+      success(USER_MESSAGES.cartAdded);
+    } catch (actionError) {
+      error(getUserActionErrorMessage(actionError, "cart.add"));
+    } finally {
+      setWorkingCartSlug(null);
+    }
+  };
+
+  const handleToggleFavorite = async (slug: string) => {
+    if (!handleProtectedAction(slug, "favorite")) {
+      return;
+    }
+
+    try {
+      const wasFavorite = hasFavorite(slug);
+      await toggleFavorite(slug);
+      success(
+        wasFavorite
+          ? USER_MESSAGES.favoriteRemoved
+          : USER_MESSAGES.favoriteAdded,
+      );
+    } catch (actionError) {
+      error(getUserActionErrorMessage(actionError, "favorites.toggle"));
+    } finally {
+      setWorkingFavoriteSlug(null);
+    }
+  };
+
   const renderSidebarBlocks = (isMobile = false) => (
     <>
       <div className="catalogue-sidebar__block">
@@ -286,7 +348,7 @@ export default function FormationsPage() {
             type="button"
             onClick={() => handleFormatChange("all")}
           >
-            <span>Toutes les formations</span>
+            <span>Tous les cours</span>
             <strong>{courses.length}</strong>
           </button>
           <button
@@ -329,6 +391,7 @@ export default function FormationsPage() {
           step={5000}
           value={maxPrice}
           onChange={(event) => {
+            setIsPriceFilterDirty(true);
             setMaxPrice(Number(event.target.value));
           }}
           onPointerUp={handlePriceCommit}
@@ -460,7 +523,13 @@ export default function FormationsPage() {
           </section>
 
           <section className="catalogue-product-grid" id="catalogue-grid" ref={cardsRef}>
-            {filteredCourses.length > 0 ? (
+            {catalogLoading ? (
+              <div className="catalogue-empty-state">
+                <FaBoxOpen />
+                <h3>Chargement du catalogue...</h3>
+                <p>Les formations sont en cours de recuperation.</p>
+              </div>
+            ) : filteredCourses.length > 0 ? (
               filteredCourses.map((course) => {
                 const formatTag = getFormatTag(course);
                 const hasPromo =
@@ -473,8 +542,12 @@ export default function FormationsPage() {
                       <img src={course.image} alt={course.title} />
                       <button
                         aria-label={`Ajouter ${course.title} aux favoris`}
-                        className="catalogue-product-card__wish"
+                        className={`catalogue-product-card__wish ${hasFavorite(course.slug) ? "is-active" : ""}`}
                         type="button"
+                        disabled={workingFavoriteSlug === course.slug}
+                        onClick={() => {
+                          void handleToggleFavorite(course.slug);
+                        }}
                       >
                         <FaRegHeart />
                       </button>
@@ -498,10 +571,12 @@ export default function FormationsPage() {
                           <FaChalkboardTeacher />
                           {course.level}
                         </span>
-                        <span>
-                          <FaClock />
-                          {course.session_label}
-                        </span>
+                        {course.card_session_label ? (
+                          <span>
+                            <FaClock />
+                            {course.card_session_label}
+                          </span>
+                        ) : null}
                       </div>
 
                       <div className="catalogue-product-card__rating">
@@ -522,13 +597,21 @@ export default function FormationsPage() {
                         </div>
 
                         <div className="catalogue-product-card__actions">
-                          <Link
+                          <button
                             aria-label={`Ajouter ${course.title} au panier`}
                             className="catalogue-product-card__cart"
-                            to={`/panier?add=${course.slug}`}
+                            type="button"
+                            disabled={
+                              !course.can_purchase ||
+                              workingCartSlug === course.slug ||
+                              cart.items.some((item) => item.formation_slug === course.slug)
+                            }
+                            onClick={() => {
+                              void handleAddToCart(course);
+                            }}
                           >
                             <FaShoppingCart />
-                          </Link>
+                          </button>
                           <Link className="catalogue-product-card__cta" to={getFormationPath(course.slug)}>
                             <FaArrowRight />
                           </Link>
@@ -541,11 +624,15 @@ export default function FormationsPage() {
             ) : (
               <div className="catalogue-empty-state">
                 <FaBoxOpen />
-                <h3>Aucune formation ne correspond a ce filtre.</h3>
+                <h3>
+                  {catalogError
+                    ? "Catalogue indisponible pour le moment."
+                    : "Aucune formation ne correspond a ce filtre."}
+                </h3>
                 <p>
-                  Elargissez votre budget ou changez de format. Les offres en
-                  ligne autonomes et les prochaines sessions presentiel
-                  apparaitront ici au fur et a mesure.
+                  {catalogError
+                    ? "Impossible de recuperer les formations pour le moment. Reessayez plus tard."
+                    : "Elargissez votre budget ou changez de format pour voir d'autres offres."}
                 </p>
               </div>
             )}

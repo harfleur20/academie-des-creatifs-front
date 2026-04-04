@@ -12,6 +12,8 @@ import {
 
 import { useAuth } from "../auth/AuthContext";
 import { useCart } from "../cart/CartContext";
+import { useFavorites } from "../favorites/FavoritesContext";
+import { useToast } from "../toast/ToastContext";
 import { scrollToPageSection } from "../utils/scroll";
 
 const navItems = [
@@ -30,9 +32,12 @@ export default function SiteHeader() {
   const profileRef = useRef<HTMLDivElement | null>(null);
   const { user, logout } = useAuth();
   const { cart } = useCart();
+  const { favorites } = useFavorites();
+  const { success } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const cartCount = cart.items.length;
+  const favoritesCount = favorites.total_count;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -90,6 +95,7 @@ export default function SiteHeader() {
     setIsProfileOpen(false);
     closeMenu();
     await logout();
+    success("Vous etes deconnecte.");
     navigate("/", { replace: true });
   };
 
@@ -170,6 +176,9 @@ export default function SiteHeader() {
             <>
               <Link aria-label="Voir les favoris" className="icon-action-btn" to="/favoris">
                 <FaRegHeart />
+                {favoritesCount > 0 ? (
+                  <span className="icon-action-btn__count">{favoritesCount}</span>
+                ) : null}
               </Link>
               <Link aria-label="Voir les notifications" className="icon-action-btn" to="/notifications">
                 <FaBell />

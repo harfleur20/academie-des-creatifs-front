@@ -19,6 +19,19 @@ from app.main import app
 
 
 class JwtAuthenticationFlowTests(unittest.TestCase):
+    def auth_headers(self, email: str, password: str) -> dict[str, str]:
+        response = self.client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": email,
+                "password": password,
+                "remember_me": False,
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        token = response.json()["access_token"]
+        return {"Authorization": f"Bearer {token}"}
+
     @classmethod
     def setUpClass(cls) -> None:
         if TEST_DB_PATH.exists():
@@ -132,8 +145,113 @@ class JwtAuthenticationFlowTests(unittest.TestCase):
         self.assertEqual(dashboard_payload["classic_enrollments_count"], 0)
 
     def test_cart_requires_authentication_without_jwt(self) -> None:
-        response = self.client.get("/api/v1/cart")
+        self.client.cookies.clear()
+        response = self.client.post(
+            "/api/v1/cart/items",
+            json={"formation_slug": "deviens-un-brand-designer"},
+        )
         self.assertEqual(response.status_code, 401, response.text)
+
+    def test_live_formation_without_session_cannot_be_added_to_cart(self) -> None:
+        admin_headers = self.auth_headers(
+            "francis@academiedescreatifs.com",
+            "Admin123!",
+        )
+
+        create_response = self.client.post(
+            "/api/v1/admin/formations",
+            headers=admin_headers,
+            json={
+                "slug": "live-sans-session-test",
+                "title": "Live sans session",
+                "category": "Formation creative",
+                "level": "Niveau debutant",
+                "image": "/Flyers/brand-identity.jpg",
+                "format_type": "live",
+                "current_price_amount": 45000,
+                "original_price_amount": None,
+                "is_featured_home": False,
+                "home_feature_rank": 100,
+                "rating": 0,
+                "reviews": 0,
+                "badges": [],
+            },
+        )
+        self.assertEqual(create_response.status_code, 201, create_response.text)
+
+        student_headers = self.auth_headers(
+            "melvine@example.com",
+            "Student123!",
+        )
+
+        cart_response = self.client.post(
+            "/api/v1/cart/items",
+            headers=student_headers,
+            json={"formation_slug": "live-sans-session-test"},
+        )
+        self.assertEqual(cart_response.status_code, 400, cart_response.text)
+        self.assertIn("Inscriptions closes", cart_response.text)
+
+    def test_admin_cannot_create_second_session_before_first_is_finished(self) -> None:
+        admin_headers = self.auth_headers(
+            "francis@academiedescreatifs.com",
+            "Admin123!",
+        )
+
+        create_formation_response = self.client.post(
+            "/api/v1/admin/formations",
+            headers=admin_headers,
+            json={
+                "slug": "live-avec-session-test",
+                "title": "Live avec session unique",
+                "category": "Formation creative",
+                "level": "Niveau intermediaire",
+                "image": "/Flyers/Motion-design.jpg",
+                "format_type": "live",
+                "current_price_amount": 60000,
+                "original_price_amount": 80000,
+                "is_featured_home": False,
+                "home_feature_rank": 100,
+                "rating": 4,
+                "reviews": 10,
+                "badges": ["premium"],
+            },
+        )
+        self.assertEqual(create_formation_response.status_code, 201, create_formation_response.text)
+        formation_id = create_formation_response.json()["id"]
+
+        first_session_response = self.client.post(
+            "/api/v1/admin/onsite-sessions",
+            headers=admin_headers,
+            json={
+                "formation_id": formation_id,
+                "label": "Cohorte avril",
+                "start_date": "2026-04-20",
+                "end_date": "2026-04-30",
+                "campus_label": "Campus Douala",
+                "seat_capacity": 20,
+                "teacher_name": "Francis Kenne",
+                "status": "planned",
+            },
+        )
+        self.assertEqual(first_session_response.status_code, 201, first_session_response.text)
+
+        second_session_response = self.client.post(
+            "/api/v1/admin/onsite-sessions",
+            headers=admin_headers,
+            json={
+                "formation_id": formation_id,
+                "label": "Cohorte mai",
+                "start_date": "2026-05-05",
+                "end_date": "2026-05-15",
+                "campus_label": "Campus Douala",
+                "seat_capacity": 20,
+                "teacher_name": "Francis Kenne",
+                "status": "planned",
+            },
+        )
+        self.assertEqual(second_session_response.status_code, 400, second_session_response.text)
+        self.assertIn("Impossible de creer une nouvelle session", second_session_response.text)
 
 
 if __name__ == "__main__":

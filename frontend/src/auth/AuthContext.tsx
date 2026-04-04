@@ -17,6 +17,10 @@ import {
   type LoginPayload,
   type RegisterPayload,
 } from "../lib/authApi";
+import {
+  hasAccessToken,
+  subscribeToAuthSessionClear,
+} from "../lib/authSession";
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -48,6 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (!hasAccessToken()) {
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
     refreshUser()
       .catch(() => {
         setUser(null);
@@ -55,6 +65,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => {
         setIsLoading(false);
       });
+  }, []);
+
+  useEffect(() => {
+    return subscribeToAuthSessionClear(() => {
+      setUser(null);
+      setIsLoading(false);
+    });
   }, []);
 
   const value = useMemo<AuthContextValue>(

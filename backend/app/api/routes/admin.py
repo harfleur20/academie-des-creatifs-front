@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import require_roles
 from app.db.session import get_db
 from app.schemas.catalog import (
+    AdminFormationSessionCreate,
+    AdminFormationItem,
     AdminDashboardOverview,
     AdminFormationCreate,
     AdminFormationUpdate,
@@ -15,16 +17,16 @@ from app.schemas.catalog import (
     AdminPaymentUpdate,
     AdminUserItem,
     AdminUserUpdate,
-    FormationCatalogItem,
 )
 from app.services.catalog import (
+    create_admin_onsite_session,
     create_catalog_entry,
     get_admin_overview,
+    list_admin_catalog_items,
     list_admin_onsite_sessions,
     list_admin_orders,
     list_admin_payments,
     list_admin_users,
-    list_catalog_items,
     update_admin_onsite_session,
     update_admin_order,
     update_admin_payment,
@@ -39,28 +41,28 @@ router = APIRouter(
 )
 
 
-@router.get("/formations", response_model=list[FormationCatalogItem])
-def list_admin_formations(db: Session = Depends(get_db)) -> list[FormationCatalogItem]:
-    return list_catalog_items(db)
+@router.get("/formations", response_model=list[AdminFormationItem])
+def list_admin_formations(db: Session = Depends(get_db)) -> list[AdminFormationItem]:
+    return list_admin_catalog_items(db)
 
 
-@router.post("/formations", response_model=FormationCatalogItem, status_code=201)
+@router.post("/formations", response_model=AdminFormationItem, status_code=201)
 def create_admin_formation(
     payload: AdminFormationCreate,
     db: Session = Depends(get_db),
-) -> FormationCatalogItem:
+) -> AdminFormationItem:
     try:
         return create_catalog_entry(db, payload)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
 
-@router.patch("/formations/{slug}", response_model=FormationCatalogItem)
+@router.patch("/formations/{slug}", response_model=AdminFormationItem)
 def patch_admin_formation(
     slug: str,
     payload: AdminFormationUpdate,
     db: Session = Depends(get_db),
-) -> FormationCatalogItem:
+) -> AdminFormationItem:
     try:
         updated = update_catalog_entry(db, slug, payload)
     except ValueError as error:
@@ -100,13 +102,28 @@ def read_admin_onsite_sessions(
     return list_admin_onsite_sessions(db)
 
 
+@router.post("/onsite-sessions", response_model=AdminOnsiteSessionItem, status_code=201)
+def post_admin_onsite_session(
+    payload: AdminFormationSessionCreate,
+    db: Session = Depends(get_db),
+) -> AdminOnsiteSessionItem:
+    try:
+        return create_admin_onsite_session(db, payload)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
 @router.patch("/onsite-sessions/{session_id}", response_model=AdminOnsiteSessionItem)
 def patch_admin_onsite_session(
     session_id: int,
     payload: AdminOnsiteSessionUpdate,
     db: Session = Depends(get_db),
 ) -> AdminOnsiteSessionItem:
-    updated = update_admin_onsite_session(db, session_id, payload)
+    try:
+        updated = update_admin_onsite_session(db, session_id, payload)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
     if updated is None:
         raise HTTPException(status_code=404, detail="Session introuvable.")
     return updated
