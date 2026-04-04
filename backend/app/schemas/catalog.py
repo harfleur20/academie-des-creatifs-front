@@ -31,6 +31,8 @@ class FormationCatalogItem(BaseModel):
     original_price_label: str | None = None
     price_currency: str
     allow_installments: bool
+    is_featured_home: bool
+    home_feature_rank: int = Field(ge=0)
     rating: float = Field(ge=0, le=5)
     reviews: int = Field(ge=0)
     badges: list[FormationBadge] = Field(default_factory=list)
@@ -55,6 +57,8 @@ class AdminFormationBase(BaseModel):
     current_price_amount: int | None = Field(default=None, ge=0)
     original_price_amount: int | None = Field(default=None, ge=0)
     session_label: str | None = None
+    is_featured_home: bool | None = None
+    home_feature_rank: int | None = Field(default=None, ge=0)
     badges: list[MarketingBadge] | None = None
 
     @field_validator("title", "category", "level", "image", "session_label")
@@ -95,6 +99,8 @@ class AdminFormationCreate(AdminFormationBase):
     format_type: FormatType
     current_price_amount: int = Field(ge=0)
     session_label: str
+    is_featured_home: bool = False
+    home_feature_rank: int = Field(default=100, ge=0)
     rating: float = Field(default=0, ge=0, le=5)
     reviews: int = Field(default=0, ge=0)
     badges: list[MarketingBadge] = Field(default_factory=list)
@@ -131,6 +137,8 @@ class AdminFormationUpdate(AdminFormationBase):
             and self.current_price_amount is None
             and self.original_price_amount is None
             and self.session_label is None
+            and self.is_featured_home is None
+            and self.home_feature_rank is None
             and self.badges is None
         ):
             raise ValueError("Au moins un champ admin doit etre fourni.")

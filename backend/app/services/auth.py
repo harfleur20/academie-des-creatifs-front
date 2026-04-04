@@ -4,6 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.security import (
+    create_access_token,
+    decode_access_token,
     generate_session_token,
     hash_password,
     hash_session_token,
@@ -128,3 +130,27 @@ def revoke_session(db: Session, token: str) -> None:
     session.revoked_at = utc_now()
     db.add(session)
     db.commit()
+
+
+def create_user_access_token(
+    user: UserRecord,
+    remember_me: bool,
+) -> tuple[str, str]:
+    token, expires_at = create_access_token(user.id, user.role, remember_me)
+    return token, expires_at.isoformat()
+
+
+def get_user_from_access_token(db: Session, token: str) -> UserRecord | None:
+    payload = decode_access_token(token)
+    if payload is None:
+        return None
+
+    subject = payload.get("sub")
+    if not isinstance(subject, str) or not subject.isdigit():
+        return None
+
+    user = db.get(UserRecord, int(subject))
+    if user is None or user.status != "active":
+        return None
+
+    return user

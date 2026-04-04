@@ -103,6 +103,8 @@ def serialize_catalog_item(record: FormationRecord) -> FormationCatalogItem:
         original_price_label=format_fcfa(original_price),
         price_currency=record.price_currency,
         allow_installments=record.allow_installments,
+        is_featured_home=record.is_featured_home,
+        home_feature_rank=record.home_feature_rank,
         rating=record.rating,
         reviews=record.reviews,
         badges=normalize_marketing_badges(
@@ -154,6 +156,8 @@ def create_catalog_entry(
         allow_installments=should_allow_installments(
             payload.format_type, payload.current_price_amount
         ),
+        is_featured_home=payload.is_featured_home,
+        home_feature_rank=payload.home_feature_rank,
         rating=payload.rating,
         reviews=payload.reviews,
         badges=list(payload.badges),
@@ -205,6 +209,12 @@ def update_catalog_entry(
 
     if "session_label" in payload.model_fields_set and payload.session_label is not None:
         record.session_label = payload.session_label
+
+    if "is_featured_home" in payload.model_fields_set and payload.is_featured_home is not None:
+        record.is_featured_home = payload.is_featured_home
+
+    if "home_feature_rank" in payload.model_fields_set and payload.home_feature_rank is not None:
+        record.home_feature_rank = payload.home_feature_rank
 
     if "badges" in payload.model_fields_set and payload.badges is not None:
         record.badges = list(payload.badges)

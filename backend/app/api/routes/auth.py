@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_user, get_session_cookie
+from app.api.dependencies import get_current_user
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.entities import UserRecord
@@ -9,8 +9,7 @@ from app.schemas.auth import AuthResponse, LoginPayload, RegisterPayload
 from app.services.auth import (
     authenticate_user,
     create_user,
-    create_user_session,
-    revoke_session,
+    create_user_access_token,
     serialize_auth_user,
 )
 
@@ -60,11 +59,13 @@ def register(
             ) from None
         raise
 
-    raw_token, _ = create_user_session(db, user, remember_me=True)
-    set_auth_cookie(response, raw_token, remember_me=True)
+    access_token, expires_at = create_user_access_token(user, remember_me=True)
+    set_auth_cookie(response, access_token, remember_me=True)
     return AuthResponse(
         message="Compte cree avec succes.",
         user=serialize_auth_user(user),
+        access_token=access_token,
+        expires_at=expires_at,
     )
 
 
@@ -81,29 +82,31 @@ def login(
             detail="Adresse e-mail ou mot de passe incorrect.",
         )
 
-    raw_token, _ = create_user_session(db, user, remember_me=payload.remember_me)
-    set_auth_cookie(response, raw_token, remember_me=payload.remember_me)
+    access_token, expires_at = create_user_access_token(user, remember_me=payload.remember_me)
+    set_auth_cookie(response, access_token, remember_me=payload.remember_me)
     return AuthResponse(
         message="Connexion reussie.",
         user=serialize_auth_user(user),
+        access_token=access_token,
+        expires_at=expires_at,
     )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
     db: Session = Depends(get_db),
-    session_token: str | None = Depends(get_session_cookie),
 ) -> Response:
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
-    if session_token:
-        revoke_session(db, session_token)
     clear_auth_cookie(response)
     return response
 
 
 @router.get("/me", response_model=AuthResponse)
 def read_me(current_user: UserRecord = Depends(get_current_user)) -> AuthResponse:
+    access_token, expires_at = create_user_access_token(current_user, remember_me=False)
     return AuthResponse(
         message="Session active.",
         user=serialize_auth_user(current_user),
+        access_token=access_token,
+        expires_at=expires_at,
     )

@@ -11,6 +11,7 @@ from sqlalchemy import (
     Integer,
     JSON,
     String,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -46,6 +47,8 @@ class FormationRecord(TimestampMixin, Base):
     original_price_amount: Mapped[int | None] = mapped_column(Integer, nullable=True)
     price_currency: Mapped[str] = mapped_column(String(12), nullable=False, default="XAF")
     allow_installments: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_featured_home: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    home_feature_rank: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
     rating: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     reviews: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     badges: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
@@ -134,6 +137,23 @@ class AuthSessionRecord(TimestampMixin, Base):
 
 class CartItemRecord(TimestampMixin, Base):
     __tablename__ = "cart_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    formation_id: Mapped[int] = mapped_column(
+        ForeignKey("formations.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+
+class FavoriteItemRecord(TimestampMixin, Base):
+    __tablename__ = "favorite_items"
+    __table_args__ = (UniqueConstraint("user_id", "formation_id", name="uq_favorite_items_user_formation"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(

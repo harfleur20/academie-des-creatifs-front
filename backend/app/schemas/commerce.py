@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 
 FormatType = Literal["live", "ligne", "presentiel"]
 DashboardType = Literal["classic", "guided"]
+NotificationTone = Literal["info", "success", "warning"]
+NotificationCategory = Literal["payment", "enrollment", "session", "admin", "system"]
 
 
 class CartItemPayload(BaseModel):
@@ -21,6 +23,7 @@ class CartItemView(BaseModel):
     format_type: FormatType
     dashboard_type: DashboardType
     session_label: str
+    level: str
     current_price_amount: int
     current_price_label: str
     original_price_label: str | None = None
@@ -36,6 +39,30 @@ class CartSnapshot(BaseModel):
     presentiel_items_count: int
     classic_items_count: int
     guided_items_count: int
+
+
+class FavoriteItemView(BaseModel):
+    id: int
+    formation_id: int
+    formation_slug: str
+    title: str
+    image: str
+    format_type: FormatType
+    dashboard_type: DashboardType
+    session_label: str
+    level: str
+    current_price_amount: int
+    current_price_label: str
+    original_price_label: str | None = None
+    allow_installments: bool
+    rating: float
+    reviews: int
+    badges: list[str]
+
+
+class FavoriteSnapshot(BaseModel):
+    items: list[FavoriteItemView]
+    total_count: int
 
 
 class CheckoutResponse(BaseModel):
@@ -69,3 +96,14 @@ class StudentDashboardSummary(BaseModel):
     guided_enrollments_count: int
     classic_enrollments: list[EnrollmentView]
     guided_enrollments: list[EnrollmentView]
+
+
+class NotificationView(BaseModel):
+    id: str
+    title: str
+    message: str
+    tone: NotificationTone
+    category: NotificationCategory
+    created_at: datetime
+    action_label: str | None = None
+    action_path: str | None = None

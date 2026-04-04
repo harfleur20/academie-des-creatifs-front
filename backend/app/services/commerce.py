@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.entities import (
     CartItemRecord,
     EnrollmentRecord,
+    FavoriteItemRecord,
     FormationRecord,
+    OnsiteSessionRecord,
     OrderRecord,
     PaymentRecord,
     StudentCodeCounterRecord,
@@ -20,6 +22,9 @@ from app.schemas.commerce import (
     CartSnapshot,
     CheckoutResponse,
     EnrollmentView,
+    FavoriteItemView,
+    FavoriteSnapshot,
+    NotificationView,
     StudentDashboardSummary,
 )
 from app.services.auth import get_dashboard_path
@@ -28,6 +33,16 @@ from app.services.catalog import format_fcfa
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+def combine_date_to_utc(value: datetime | None = None, *, day: date | None = None) -> datetime:
+    if value is not None:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
+    if day is not None:
+        return datetime.combine(day, time.min, tzinfo=UTC)
+    return utc_now()
 
 
 def serialize_cart_item(item: CartItemRecord, formation: FormationRecord) -> CartItemView:
@@ -40,6 +55,7 @@ def serialize_cart_item(item: CartItemRecord, formation: FormationRecord) -> Car
         format_type=formation.format_type,  # type: ignore[arg-type]
         dashboard_type=formation.dashboard_type,  # type: ignore[arg-type]
         session_label=formation.session_label,
+        level=formation.level,
         current_price_amount=formation.current_price_amount,
         current_price_label=format_fcfa(formation.current_price_amount) or "",
         original_price_label=format_fcfa(formation.original_price_amount),
@@ -67,6 +83,32 @@ def build_cart_snapshot(rows: list[tuple[CartItemRecord, FormationRecord]]) -> C
     )
 
 
+def serialize_favorite_item(item: FavoriteItemRecord, formation: FormationRecord) -> FavoriteItemView:
+    return FavoriteItemView(
+        id=item.id,
+        formation_id=formation.id,
+        formation_slug=formation.slug,
+        title=formation.title,
+        image=formation.image,
+        format_type=formation.format_type,  # type: ignore[arg-type]
+        dashboard_type=formation.dashboard_type,  # type: ignore[arg-type]
+        session_label=formation.session_label,
+        level=formation.level,
+        current_price_amount=formation.current_price_amount,
+        current_price_label=format_fcfa(formation.current_price_amount) or "",
+        original_price_label=format_fcfa(formation.original_price_amount),
+        allow_installments=formation.allow_installments,
+        rating=formation.rating,
+        reviews=formation.reviews,
+        badges=formation.badges,
+    )
+
+
+def build_favorite_snapshot(rows: list[tuple[FavoriteItemRecord, FormationRecord]]) -> FavoriteSnapshot:
+    items = [serialize_favorite_item(item, formation) for item, formation in rows]
+    return FavoriteSnapshot(items=items, total_count=len(items))
+
+
 def list_cart_snapshot(db: Session, user: UserRecord) -> CartSnapshot:
     rows = db.execute(
         select(CartItemRecord, FormationRecord)
@@ -75,6 +117,16 @@ def list_cart_snapshot(db: Session, user: UserRecord) -> CartSnapshot:
         .order_by(CartItemRecord.created_at.desc())
     ).all()
     return build_cart_snapshot(rows)
+
+
+def list_favorite_snapshot(db: Session, user: UserRecord) -> FavoriteSnapshot:
+    rows = db.execute(
+        select(FavoriteItemRecord, FormationRecord)
+        .join(FormationRecord, FavoriteItemRecord.formation_id == FormationRecord.id)
+        .where(FavoriteItemRecord.user_id == user.id)
+        .order_by(FavoriteItemRecord.created_at.desc())
+    ).all()
+    return build_favorite_snapshot(rows)
 
 
 def add_item_to_cart(db: Session, user: UserRecord, formation_slug: str) -> CartSnapshot:
@@ -112,6 +164,43 @@ def remove_item_from_cart(db: Session, user: UserRecord, formation_slug: str) ->
     db.delete(item)
     db.commit()
     return list_cart_snapshot(db, user)
+
+
+def add_item_to_favorites(db: Session, user: UserRecord, formation_slug: str) -> FavoriteSnapshot:
+    formation = db.scalar(select(FormationRecord).where(FormationRecord.slug == formation_slug))
+    if formation is None:
+        raise HTTPException(status_code=404, detail="Formation introuvable.")
+
+    existing = db.scalar(
+        select(FavoriteItemRecord).where(
+            FavoriteItemRecord.user_id == user.id,
+            FavoriteItemRecord.formation_id == formation.id,
+        )
+    )
+    if existing is None:
+        db.add(FavoriteItemRecord(user_id=user.id, formation_id=formation.id))
+        db.commit()
+
+    return list_favorite_snapshot(db, user)
+
+
+def remove_item_from_favorites(db: Session, user: UserRecord, formation_slug: str) -> FavoriteSnapshot:
+    formation = db.scalar(select(FormationRecord).where(FormationRecord.slug == formation_slug))
+    if formation is None:
+        raise HTTPException(status_code=404, detail="Formation introuvable.")
+
+    item = db.scalar(
+        select(FavoriteItemRecord).where(
+            FavoriteItemRecord.user_id == user.id,
+            FavoriteItemRecord.formation_id == formation.id,
+        )
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="Article introuvable dans les favoris.")
+
+    db.delete(item)
+    db.commit()
+    return list_favorite_snapshot(db, user)
 
 
 def _build_order_reference(db: Session, year: int, offset: int) -> str:
@@ -285,3 +374,210 @@ def get_student_dashboard_summary(db: Session, user: UserRecord) -> StudentDashb
         classic_enrollments=classic_enrollments,
         guided_enrollments=guided_enrollments,
     )
+
+
+def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationView]:
+    notifications: list[NotificationView] = []
+
+    if user.role == "student":
+        payment_rows = db.execute(
+            select(PaymentRecord, OrderRecord)
+            .outerjoin(OrderRecord, PaymentRecord.order_reference == OrderRecord.reference)
+            .where(
+                or_(
+                    OrderRecord.user_id == user.id,
+                    OrderRecord.customer_name == user.full_name,
+                    PaymentRecord.payer_name == user.full_name,
+                )
+            )
+            .order_by(func.coalesce(PaymentRecord.paid_at, PaymentRecord.created_at).desc())
+        ).all()
+
+        for payment, order in payment_rows:
+            formation_title = order.formation_title if order else "votre formation"
+            notifications.append(
+                NotificationView(
+                    id=f"payment-{payment.id}",
+                    title=(
+                        "Paiement confirme"
+                        if payment.status == "confirmed"
+                        else "Paiement en attente"
+                    ),
+                    message=(
+                        f"Le paiement de {format_fcfa(payment.amount) or f'{payment.amount} FCFA'} "
+                        f"pour {formation_title} a ete confirme."
+                        if payment.status == "confirmed"
+                        else f"Le paiement de {format_fcfa(payment.amount) or f'{payment.amount} FCFA'} "
+                        f"pour {formation_title} est toujours en attente de validation."
+                    ),
+                    tone="success" if payment.status == "confirmed" else "warning",
+                    category="payment",
+                    created_at=combine_date_to_utc(payment.paid_at or payment.created_at),
+                    action_label=(
+                        "Acceder a mon espace"
+                        if payment.status == "confirmed"
+                        else "Voir mon panier"
+                    ),
+                    action_path="/espace/etudiant" if payment.status == "confirmed" else "/panier",
+                )
+            )
+
+        enrollment_rows = db.execute(
+            select(EnrollmentRecord, FormationRecord)
+            .join(FormationRecord, EnrollmentRecord.formation_id == FormationRecord.id)
+            .where(EnrollmentRecord.user_id == user.id)
+            .order_by(EnrollmentRecord.created_at.desc())
+        ).all()
+
+        has_presentiel_enrollment = False
+        for enrollment, formation in enrollment_rows:
+            has_presentiel_enrollment = has_presentiel_enrollment or formation.format_type == "presentiel"
+            workspace_path = (
+                f"/espace/etudiant/classic/{enrollment.id}"
+                if enrollment.dashboard_type == "classic"
+                else f"/espace/etudiant/guided/{enrollment.id}"
+            )
+            notifications.append(
+                NotificationView(
+                    id=f"enrollment-{enrollment.id}",
+                    title="Acces formation active",
+                    message=(
+                        f"{formation.title} est disponible dans votre espace "
+                        f"{'classique' if enrollment.dashboard_type == 'classic' else 'guide'}."
+                    ),
+                    tone="info",
+                    category="enrollment",
+                    created_at=combine_date_to_utc(enrollment.created_at),
+                    action_label="Ouvrir le parcours",
+                    action_path=workspace_path,
+                )
+            )
+
+        if user.student_code and has_presentiel_enrollment:
+            notifications.append(
+                NotificationView(
+                    id=f"student-code-{user.id}",
+                    title="Code etudiant attribue",
+                    message=(
+                        f"Votre code etudiant {user.student_code} est actif pour vos "
+                        "formations guidees et votre suivi presentiel."
+                    ),
+                    tone="success",
+                    category="system",
+                    created_at=utc_now(),
+                    action_label="Voir mon espace guide",
+                    action_path="/espace/etudiant?focus=guided",
+                )
+            )
+
+        if not notifications:
+            notifications.append(
+                NotificationView(
+                    id=f"starter-{user.id}",
+                    title="Votre espace est pret",
+                    message=(
+                        "Ajoutez une formation a votre panier ou finalisez un achat pour "
+                        "recevoir ici vos rappels de paiement, acces et informations de session."
+                    ),
+                    tone="info",
+                    category="system",
+                    created_at=utc_now(),
+                    action_label="Voir le catalogue",
+                    action_path="/formations",
+                )
+            )
+
+    elif user.role == "teacher":
+        sessions = db.scalars(
+            select(OnsiteSessionRecord)
+            .where(OnsiteSessionRecord.teacher_name == user.full_name)
+            .order_by(OnsiteSessionRecord.start_date.asc())
+        ).all()
+
+        for session in sessions:
+            notifications.append(
+                NotificationView(
+                    id=f"teacher-session-{session.id}",
+                    title=f"Session {session.label}",
+                    message=(
+                        f"{session.formation_title} demarre le "
+                        f"{session.start_date.strftime('%d/%m/%Y')} a {session.campus_label}. "
+                        f"Places occupees: {session.enrolled_count}/{session.seat_capacity}."
+                    ),
+                    tone="info" if session.status == "open" else "warning",
+                    category="session",
+                    created_at=combine_date_to_utc(day=session.start_date),
+                    action_label="Ouvrir l'espace enseignant",
+                    action_path="/espace/enseignant",
+                )
+            )
+
+        if not notifications:
+            notifications.append(
+                NotificationView(
+                    id=f"teacher-empty-{user.id}",
+                    title="Aucune session assignee pour le moment",
+                    message=(
+                        "Quand une cohorte vous sera attribuee, ses rappels et informations "
+                        "apparaitront ici."
+                    ),
+                    tone="info",
+                    category="system",
+                    created_at=utc_now(),
+                    action_label="Ouvrir l'espace enseignant",
+                    action_path="/espace/enseignant",
+                )
+            )
+
+    else:
+        pending_orders = db.scalar(
+            select(func.count()).select_from(OrderRecord).where(OrderRecord.status == "pending")
+        ) or 0
+        pending_payments = db.scalar(
+            select(func.count()).select_from(PaymentRecord).where(PaymentRecord.status == "pending")
+        ) or 0
+        confirmed_revenue = db.scalar(
+            select(func.coalesce(func.sum(PaymentRecord.amount), 0)).where(
+                PaymentRecord.status == "confirmed"
+            )
+        ) or 0
+
+        notifications.extend(
+            [
+                NotificationView(
+                    id="admin-pending-orders",
+                    title="Commandes en attente",
+                    message=f"{pending_orders} commande(s) necessitent encore une validation ou un paiement.",
+                    tone="warning" if pending_orders > 0 else "info",
+                    category="admin",
+                    created_at=utc_now(),
+                    action_label="Ouvrir l'administration",
+                    action_path="/admin",
+                ),
+                NotificationView(
+                    id="admin-pending-payments",
+                    title="Paiements a surveiller",
+                    message=f"{pending_payments} paiement(s) sont encore marques comme en attente.",
+                    tone="warning" if pending_payments > 0 else "info",
+                    category="admin",
+                    created_at=utc_now(),
+                    action_label="Voir les paiements",
+                    action_path="/admin",
+                ),
+                NotificationView(
+                    id="admin-confirmed-revenue",
+                    title="Encaissements confirmes",
+                    message=(
+                        f"Le total confirme a ce jour atteint "
+                        f"{format_fcfa(int(confirmed_revenue)) or f'{confirmed_revenue} FCFA'}."
+                    ),
+                    tone="success",
+                    category="admin",
+                    created_at=utc_now(),
+                    action_label="Voir le dashboard admin",
+                    action_path="/admin",
+                ),
+            ]
+        )
+
+    return sorted(notifications, key=lambda item: item.created_at, reverse=True)

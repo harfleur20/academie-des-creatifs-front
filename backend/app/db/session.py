@@ -8,14 +8,23 @@ from app.core.config import settings
 import app.models  # noqa: F401
 
 
+def _database_url() -> str:
+    if not settings.database_url:
+        raise RuntimeError(
+            "DATABASE_URL manquant. Configure PostgreSQL avant de lancer l'API ou les migrations."
+        )
+    return settings.database_url
+
+
 def _engine_options() -> dict[str, object]:
-    if settings.database_url.startswith("sqlite"):
+    database_url = _database_url()
+    if database_url.startswith("sqlite"):
         return {"connect_args": {"check_same_thread": False}}
     return {}
 
 
 engine: Engine = create_engine(
-    settings.database_url,
+    _database_url(),
     future=True,
     **_engine_options(),
 )

@@ -58,3 +58,6 @@ class AuthUser(BaseModel):
 class AuthResponse(BaseModel):
     message: str
     user: AuthUser
+    access_token: str
+    token_type: str = "Bearer"
+    expires_at: str

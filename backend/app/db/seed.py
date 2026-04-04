@@ -29,6 +29,8 @@ FORMATION_SEED = [
         "original_price_amount": None,
         "price_currency": "XAF",
         "allow_installments": False,
+        "is_featured_home": True,
+        "home_feature_rank": 30,
         "rating": 3.0,
         "reviews": 65,
         "badges": [],
@@ -46,6 +48,8 @@ FORMATION_SEED = [
         "original_price_amount": None,
         "price_currency": "XAF",
         "allow_installments": False,
+        "is_featured_home": True,
+        "home_feature_rank": 20,
         "rating": 4.0,
         "reviews": 205,
         "badges": ["premium"],
@@ -63,6 +67,8 @@ FORMATION_SEED = [
         "original_price_amount": 95000,
         "price_currency": "XAF",
         "allow_installments": False,
+        "is_featured_home": True,
+        "home_feature_rank": 10,
         "rating": 3.0,
         "reviews": 895,
         "badges": ["populaire"],
@@ -80,6 +86,8 @@ FORMATION_SEED = [
         "original_price_amount": None,
         "price_currency": "XAF",
         "allow_installments": False,
+        "is_featured_home": True,
+        "home_feature_rank": 40,
         "rating": 4.5,
         "reviews": 104,
         "badges": ["premium"],
@@ -97,6 +105,8 @@ FORMATION_SEED = [
         "original_price_amount": None,
         "price_currency": "XAF",
         "allow_installments": True,
+        "is_featured_home": True,
+        "home_feature_rank": 50,
         "rating": 4.5,
         "reviews": 36,
         "badges": ["premium"],
@@ -219,6 +229,12 @@ def seed_database(db: Session) -> None:
         }
         for item in FORMATION_SEED:
             if item["slug"] in formations_by_slug:
+                existing = formations_by_slug[item["slug"]]
+                if getattr(existing, "is_featured_home", False) is False and item.get("is_featured_home"):
+                    existing.is_featured_home = item["is_featured_home"]
+                if getattr(existing, "home_feature_rank", 100) == 100 and item.get("home_feature_rank") is not None:
+                    existing.home_feature_rank = item["home_feature_rank"]
+                db.add(existing)
                 continue
             db.add(FormationRecord(**item))
 
@@ -248,11 +264,53 @@ def seed_database(db: Session) -> None:
 
             db.add(existing_user)
 
+    db.flush()
+
     if not _table_has_rows(db, OnsiteSessionRecord):
         db.add_all(OnsiteSessionRecord(**item) for item in ONSITE_SESSION_SEED)
 
+    users_by_name = {user.full_name: user for user in db.scalars(select(UserRecord)).all()}
+    formations_by_title = {
+        formation.title: formation for formation in db.scalars(select(FormationRecord)).all()
+    }
+
     if not _table_has_rows(db, OrderRecord):
-        db.add_all(OrderRecord(**item) for item in ORDER_SEED)
+        for item in ORDER_SEED:
+            user = users_by_name.get(item["customer_name"])
+            formation = formations_by_title.get(item["formation_title"])
+            db.add(
+                OrderRecord(
+                    **item,
+                    user_id=user.id if user else None,
+                    formation_id=formation.id if formation else None,
+                )
+            )
+    else:
+        orders_by_reference = {
+            order.reference: order for order in db.scalars(select(OrderRecord)).all()
+        }
+        for item in ORDER_SEED:
+            existing_order = orders_by_reference.get(item["reference"])
+            user = users_by_name.get(item["customer_name"])
+            formation = formations_by_title.get(item["formation_title"])
+
+            if existing_order is None:
+                db.add(
+                    OrderRecord(
+                        **item,
+                        user_id=user.id if user else None,
+                        formation_id=formation.id if formation else None,
+                    )
+                )
+                continue
+
+            if existing_order.user_id is None and user:
+                existing_order.user_id = user.id
+
+            if existing_order.formation_id is None and formation:
+                existing_order.formation_id = formation.id
+
+            db.add(existing_order)
 
     if not _table_has_rows(db, PaymentRecord):
         db.add_all(PaymentRecord(**item) for item in PAYMENT_SEED)
