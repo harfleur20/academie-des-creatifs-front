@@ -1,17 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { Outlet } from "react-router-dom";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   FaCalendarAlt,
+  FaChartLine,
   FaCheckCircle,
+  FaChevronRight,
   FaClock,
   FaCrown,
+  FaEdit,
+  FaEye,
   FaFire,
   FaLaptop,
   FaMapMarkerAlt,
   FaMoneyBillWave,
   FaPlus,
   FaSave,
+  FaSearch,
+  FaStar,
   FaSyncAlt,
   FaTag,
+  FaTimes,
   FaUsers,
   FaVideo,
 } from "react-icons/fa";
@@ -50,9 +58,11 @@ import {
   type OrderStatus,
   type PaymentStatus,
   type SessionStatus,
+  type SessionState,
   type UserRole,
   type UserStatus,
 } from "../lib/catalogApi";
+import type { AdminDashboardOutletContext } from "../admin/adminDashboardContext";
 
 type DraftValues = {
   title: string;
@@ -92,6 +102,7 @@ type UserDraft = {
 };
 
 type SessionDraft = {
+  formationId: string;
   label: string;
   startDate: string;
   endDate: string;
@@ -189,6 +200,48 @@ function statusClassName(status: string) {
 function statusLabel(status: string) {
   const normalized = status.replace(/_/g, " ");
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function sessionStateLabel(state: SessionState) {
+  switch (state) {
+    case "unscheduled":
+      return "Aucune session";
+    case "upcoming":
+      return "A venir";
+    case "started_open":
+      return "En cours / ouverte";
+    case "started_closed":
+      return "En cours / fermee";
+    case "ended":
+      return "Terminee";
+    case "not_applicable":
+      return "Sans session";
+    default:
+      return "A venir";
+  }
+}
+
+function sessionStateHint(state: SessionState) {
+  switch (state) {
+    case "unscheduled":
+      return "La prochaine date doit encore etre programmee.";
+    case "upcoming":
+      return "Les inscriptions et paiements sont ouverts.";
+    case "started_open":
+      return "La formation a deja demarre, mais les inscriptions restent ouvertes.";
+    case "started_closed":
+      return "La formation a demarre et la fenetre d'inscription est fermee.";
+    case "ended":
+      return "La session est cloturee, une nouvelle peut etre planifiee.";
+    case "not_applicable":
+      return "Ce format ne fonctionne pas avec une logique de session.";
+    default:
+      return "";
+  }
+}
+
+function sessionStateClassName(state: SessionState) {
+  return `admin-status admin-status--session admin-status--session-${state}`;
 }
 
 function slugify(value: string) {
@@ -305,6 +358,106 @@ function parseFaqs(value: string): FormationFaq[] {
 
     return { question, answer };
   });
+}
+
+function toggleBadge(
+  currentBadges: MarketingBadge[],
+  badge: MarketingBadge,
+  onChange: (nextBadges: MarketingBadge[]) => void,
+) {
+  const nextBadges = currentBadges.includes(badge)
+    ? currentBadges.filter((item) => item !== badge)
+    : [...currentBadges, badge];
+
+  onChange(nextBadges);
+}
+
+function AdminModal({
+  title,
+  subtitle,
+  onClose,
+  size = "wide",
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  onClose: () => void;
+  size?: "wide" | "narrow";
+  children: ReactNode;
+}) {
+  return (
+    <div className="admin-modal" role="dialog" aria-modal="true">
+      <button
+        aria-label="Fermer"
+        className="admin-modal__backdrop"
+        type="button"
+        onClick={onClose}
+      />
+      <div className={`admin-modal__panel admin-modal__panel--${size}`}>
+        <div className="admin-modal__header">
+          <div>
+            <p className="admin-modal__eyebrow">Edition admin</p>
+            <h3>{title}</h3>
+            {subtitle ? <p>{subtitle}</p> : null}
+          </div>
+
+          <button
+            aria-label="Fermer le panneau"
+            className="admin-icon-button admin-icon-button--ghost"
+            type="button"
+            onClick={onClose}
+          >
+            <FaTimes />
+          </button>
+        </div>
+
+        <div className="admin-modal__body">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function AdminDrawer({
+  title,
+  subtitle,
+  onClose,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="admin-drawer" role="dialog" aria-modal="true">
+      <button
+        aria-label="Fermer"
+        className="admin-drawer__backdrop"
+        type="button"
+        onClick={onClose}
+      />
+      <div className="admin-drawer__panel">
+        <div className="admin-drawer__header">
+          <div>
+            <p className="admin-modal__eyebrow">Edition admin</p>
+            <h3>{title}</h3>
+            {subtitle ? <p>{subtitle}</p> : null}
+          </div>
+
+          <button
+            aria-label="Fermer le panneau"
+            className="admin-icon-button admin-icon-button--ghost"
+            type="button"
+            onClick={onClose}
+          >
+            <FaTimes />
+          </button>
+        </div>
+
+        <div className="admin-drawer__body">{children}</div>
+      </div>
+    </div>
+  );
 }
 
 function buildDraftFromFormation(formation: AdminFormation): DraftValues {
@@ -467,6 +620,7 @@ function buildUserDraft(user: AdminUser): UserDraft {
 
 function buildSessionDraft(session: AdminOnsiteSession): SessionDraft {
   return {
+    formationId: session.formation_id.toString(),
     label: session.label,
     startDate: session.start_date,
     endDate: session.end_date,
@@ -647,6 +801,13 @@ export default function DashboardPage() {
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [catalogDisplayFilter, setCatalogDisplayFilter] =
     useState<CatalogDisplayFilter>("all");
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [formationEditorState, setFormationEditorState] = useState<
+    { mode: "create" } | { mode: "edit"; slug: string } | null
+  >(null);
+  const [sessionEditorState, setSessionEditorState] = useState<
+    { mode: "create" } | { mode: "edit"; sessionId: number } | null
+  >(null);
 
   const featuredFormationsCount = useMemo(
     () => formations.filter((formation) => formation.is_featured_home).length,
@@ -660,6 +821,20 @@ export default function DashboardPage() {
 
     return formations;
   }, [catalogDisplayFilter, formations]);
+  const filteredFormations = useMemo(() => {
+    const query = catalogSearch.trim().toLowerCase();
+
+    if (!query) {
+      return visibleFormations;
+    }
+
+    return visibleFormations.filter((formation) =>
+      [formation.title, formation.category, formation.level, formation.format_type]
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [catalogSearch, visibleFormations]);
 
   const sessionCapableFormations = useMemo(
     () => formations.filter((formation) => formation.format_type !== "ligne"),
@@ -672,6 +847,24 @@ export default function DashboardPage() {
           formation.session_state === "unscheduled" || formation.session_state === "ended",
       ),
     [sessionCapableFormations],
+  );
+  const activeFormation = useMemo(
+    () =>
+      formationEditorState?.mode === "edit"
+        ? formations.find((formation) => formation.slug === formationEditorState.slug) ?? null
+        : null,
+    [formationEditorState, formations],
+  );
+  const activeSession = useMemo(
+    () =>
+      sessionEditorState?.mode === "edit"
+        ? sessions.find((session) => session.id === sessionEditorState.sessionId) ?? null
+        : null,
+    [sessionEditorState, sessions],
+  );
+  const eligibleSessionFormationIds = useMemo(
+    () => new Set(availableSessionCreateFormations.map((formation) => formation.id)),
+    [availableSessionCreateFormations],
   );
 
   useEffect(() => {
@@ -868,16 +1061,53 @@ export default function DashboardPage() {
     });
   };
 
-  const toggleBadge = (
-    currentBadges: MarketingBadge[],
-    badge: MarketingBadge,
-    onChange: (nextBadges: MarketingBadge[]) => void,
-  ) => {
-    const nextBadges = currentBadges.includes(badge)
-      ? currentBadges.filter((item) => item !== badge)
-      : [...currentBadges, badge];
+  const openCreateFormationEditor = () => {
+    setCreateDraft(emptyCreateDraft());
+    setCreateFeedback(null);
+    setFormationEditorState({ mode: "create" });
+  };
 
-    onChange(nextBadges);
+  const openEditFormationEditor = (slug: string) => {
+    setFeedbackBySlug((current) => {
+      if (!(slug in current)) {
+        return current;
+      }
+      const next = { ...current };
+      delete next[slug];
+      return next;
+    });
+    setFormationEditorState({ mode: "edit", slug });
+  };
+
+  const closeFormationEditor = () => {
+    setFormationEditorState(null);
+    setCreateFeedback(null);
+  };
+
+  const openCreateSessionEditor = (formationId?: number) => {
+    setCreateSessionDraft({
+      ...emptySessionCreateDraft(),
+      formationId: formationId ? String(formationId) : "",
+    });
+    setCreateSessionFeedback(null);
+    setSessionEditorState({ mode: "create" });
+  };
+
+  const openEditSessionEditor = (sessionId: number) => {
+    setSessionFeedbackById((current) => {
+      if (!(sessionId in current)) {
+        return current;
+      }
+      const next = { ...current };
+      delete next[sessionId];
+      return next;
+    });
+    setSessionEditorState({ mode: "edit", sessionId });
+  };
+
+  const closeSessionEditor = () => {
+    setSessionEditorState(null);
+    setCreateSessionFeedback(null);
   };
 
   const refreshOverview = async () => {
@@ -933,6 +1163,7 @@ export default function DashboardPage() {
       }));
 
       await refreshOverview();
+      return true;
     } catch (error) {
       setFeedbackBySlug((current) => ({
         ...current,
@@ -941,9 +1172,10 @@ export default function DashboardPage() {
           message:
             error instanceof Error
               ? error.message
-              : "Echec de sauvegarde. Reessaie quand l'API admin est disponible.",
+            : "Echec de sauvegarde. Reessaie quand l'API admin est disponible.",
         },
       }));
+      return false;
     } finally {
       setSavingSlug(null);
     }
@@ -979,6 +1211,7 @@ export default function DashboardPage() {
       });
 
       await refreshOverview();
+      return true;
     } catch (error) {
       setCreateFeedback({
         type: "error",
@@ -987,6 +1220,7 @@ export default function DashboardPage() {
             ? error.message
             : "Impossible de creer la formation pour le moment.",
       });
+      return false;
     } finally {
       setIsCreating(false);
     }
@@ -1090,6 +1324,7 @@ export default function DashboardPage() {
         ...current,
         [session.id]: { type: "success", message: "Session mise a jour." },
       }));
+      return true;
     } catch (error) {
       setSessionFeedbackById((current) => ({
         ...current,
@@ -1098,6 +1333,7 @@ export default function DashboardPage() {
           message: error instanceof Error ? error.message : "Echec de mise a jour session.",
         },
       }));
+      return false;
     } finally {
       setSavingSessionId(null);
     }
@@ -1156,6 +1392,7 @@ export default function DashboardPage() {
       });
       await refreshFormationsAndSessions();
       await refreshOverview();
+      return true;
     } catch (error) {
       setCreateSessionFeedback({
         type: "error",
@@ -1164,6 +1401,7 @@ export default function DashboardPage() {
             ? error.message
             : "Impossible de creer la session pour le moment.",
       });
+      return false;
     } finally {
       setIsCreatingSession(false);
     }
@@ -1255,6 +1493,615 @@ export default function DashboardPage() {
     }
   };
 
+  const formationEditorDraft =
+    formationEditorState?.mode === "create"
+      ? createDraft
+      : activeFormation
+        ? drafts[activeFormation.slug] ?? buildDraftFromFormation(activeFormation)
+        : null;
+  const formationEditorFeedback =
+    formationEditorState?.mode === "create"
+      ? createFeedback
+      : activeFormation
+        ? feedbackBySlug[activeFormation.slug] ?? null
+        : null;
+  const sessionEditorDraft =
+    sessionEditorState?.mode === "create"
+      ? createSessionDraft
+      : activeSession
+        ? sessionDrafts[activeSession.id] ?? buildSessionDraft(activeSession)
+        : null;
+  const sessionEditorFeedback =
+    sessionEditorState?.mode === "create"
+      ? createSessionFeedback
+      : activeSession
+        ? sessionFeedbackById[activeSession.id] ?? null
+        : null;
+  const outletContext: AdminDashboardOutletContext = {
+    overview,
+    formations,
+    sessions,
+    users,
+    orders,
+    payments,
+    loading,
+    loadingError,
+    filteredFormations,
+    featuredFormationsCount,
+    sessionCapableFormations,
+    availableSessionCreateFormations,
+    eligibleSessionFormationIds,
+    catalogSearch,
+    catalogDisplayFilter,
+    setCatalogSearch,
+    setCatalogDisplayFilter,
+    openCreateFormationEditor,
+    openEditFormationEditor,
+    openCreateSessionEditor,
+    openEditSessionEditor,
+    userDrafts,
+    userRoles,
+    userStatuses,
+    syncUserDraft,
+    savingUserId,
+    handleSaveUser,
+    userFeedbackById,
+    orderDrafts,
+    orderStatuses,
+    syncOrderDraft,
+    savingOrderId,
+    handleSaveOrder,
+    orderFeedbackById,
+    paymentDrafts,
+    paymentStatuses,
+    syncPaymentDraft,
+    savingPaymentId,
+    handleSavePayment,
+    paymentFeedbackById,
+  };
+
+  return (
+    <>
+      <Outlet context={outletContext} />
+
+      {formationEditorState && formationEditorDraft ? (
+        <AdminDrawer
+          title={
+            formationEditorState.mode === "create"
+              ? "Nouvelle formation"
+              : `Edition · ${activeFormation?.title ?? "Formation"}`
+          }
+          subtitle={
+            formationEditorState.mode === "create"
+              ? "Cree une nouvelle offre puis enrichis sa fiche publique."
+              : "Mets a jour le produit, sa vitrine et son contenu detaille."
+          }
+          onClose={closeFormationEditor}
+        >
+          <div className="admin-editor-grid">
+            <div className="admin-editor-stack">
+              <section className="admin-editor-card">
+                <div className="admin-editor-card__heading">
+                  <div>
+                    <h4>Identite produit</h4>
+                    <p>Le socle principal du catalogue public.</p>
+                  </div>
+                </div>
+
+                <div className="admin-formation-form">
+                  <label className="admin-field admin-field--span-2">
+                    <span>Titre</span>
+                    <input
+                      type="text"
+                      value={formationEditorDraft.title}
+                      onChange={(event) =>
+                        formationEditorState.mode === "create"
+                          ? syncCreateDraft("title", event.target.value)
+                          : syncDraft(formationEditorState.slug, "title", event.target.value)
+                      }
+                    />
+                  </label>
+
+                  <label className="admin-field">
+                    <span>Categorie</span>
+                    <input
+                      type="text"
+                      value={formationEditorDraft.category}
+                      onChange={(event) =>
+                        formationEditorState.mode === "create"
+                          ? syncCreateDraft("category", event.target.value)
+                          : syncDraft(formationEditorState.slug, "category", event.target.value)
+                      }
+                    />
+                  </label>
+
+                  <label className="admin-field">
+                    <span>Niveau</span>
+                    <input
+                      type="text"
+                      value={formationEditorDraft.level}
+                      onChange={(event) =>
+                        formationEditorState.mode === "create"
+                          ? syncCreateDraft("level", event.target.value)
+                          : syncDraft(formationEditorState.slug, "level", event.target.value)
+                      }
+                    />
+                  </label>
+
+                  <label className="admin-field">
+                    <span>Format</span>
+                    <select
+                      value={formationEditorDraft.formatType}
+                      onChange={(event) =>
+                        formationEditorState.mode === "create"
+                          ? syncCreateDraft("formatType", event.target.value as FormationFormat)
+                          : syncDraft(
+                              formationEditorState.slug,
+                              "formatType",
+                              event.target.value as FormationFormat,
+                            )
+                      }
+                    >
+                      <option value="live">Live</option>
+                      <option value="ligne">Ligne</option>
+                      <option value="presentiel">Presentiel</option>
+                    </select>
+                  </label>
+
+                  <label className="admin-field">
+                    <span>Dashboard derive</span>
+                    <input
+                      type="text"
+                      value={dashboardTypeLabel(formationEditorDraft.formatType)}
+                      disabled
+                    />
+                  </label>
+
+                  <label className="admin-field admin-field--span-2">
+                    <span>Image / cover</span>
+                    <input
+                      type="text"
+                      value={formationEditorDraft.image}
+                      onChange={(event) =>
+                        formationEditorState.mode === "create"
+                          ? syncCreateDraft("image", event.target.value)
+                          : syncDraft(formationEditorState.slug, "image", event.target.value)
+                      }
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className="admin-editor-card">
+                <div className="admin-editor-card__heading">
+                  <div>
+                    <h4>Tarification et vitrine</h4>
+                    <p>Prix, avis, badges et mise en avant accueil.</p>
+                  </div>
+                </div>
+
+                <div className="admin-formation-form">
+                  <label className="admin-field">
+                    <span>Prix actuel</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={formationEditorDraft.currentPrice}
+                      onChange={(event) =>
+                        formationEditorState.mode === "create"
+                          ? syncCreateDraft("currentPrice", event.target.value)
+                          : syncDraft(formationEditorState.slug, "currentPrice", event.target.value)
+                      }
+                    />
+                  </label>
+
+                  <label className="admin-field">
+                    <span>Prix barre</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={formationEditorDraft.originalPrice}
+                      onChange={(event) =>
+                        formationEditorState.mode === "create"
+                          ? syncCreateDraft("originalPrice", event.target.value)
+                          : syncDraft(formationEditorState.slug, "originalPrice", event.target.value)
+                      }
+                    />
+                  </label>
+
+                  <label className="admin-field">
+                    <span>Note</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="5"
+                      step="0.5"
+                      value={formationEditorDraft.rating}
+                      onChange={(event) =>
+                        formationEditorState.mode === "create"
+                          ? syncCreateDraft("rating", event.target.value)
+                          : syncDraft(formationEditorState.slug, "rating", event.target.value)
+                      }
+                    />
+                  </label>
+
+                  <label className="admin-field">
+                    <span>Avis</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={formationEditorDraft.reviews}
+                      onChange={(event) =>
+                        formationEditorState.mode === "create"
+                          ? syncCreateDraft("reviews", event.target.value)
+                          : syncDraft(formationEditorState.slug, "reviews", event.target.value)
+                      }
+                    />
+                  </label>
+
+                  <label className="admin-field">
+                    <span>Vedette accueil</span>
+                    <select
+                      value={formationEditorDraft.isFeaturedHome ? "oui" : "non"}
+                      onChange={(event) =>
+                        formationEditorState.mode === "create"
+                          ? syncCreateDraft("isFeaturedHome", event.target.value === "oui")
+                          : syncDraft(
+                              formationEditorState.slug,
+                              "isFeaturedHome",
+                              event.target.value === "oui",
+                            )
+                      }
+                    >
+                      <option value="non">Non</option>
+                      <option value="oui">Oui</option>
+                    </select>
+                  </label>
+
+                  <label className="admin-field">
+                    <span>Ordre accueil</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={formationEditorDraft.homeFeatureRank}
+                      onChange={(event) =>
+                        formationEditorState.mode === "create"
+                          ? syncCreateDraft("homeFeatureRank", event.target.value)
+                          : syncDraft(
+                              formationEditorState.slug,
+                              "homeFeatureRank",
+                              event.target.value,
+                            )
+                      }
+                    />
+                  </label>
+                </div>
+
+                <div className="admin-badge-config">
+                  <div className="admin-badge-list">
+                    {marketingBadges.map((badge) => (
+                      <button
+                        className={
+                          formationEditorDraft.badges.includes(badge)
+                            ? `admin-badge admin-badge--${badge} is-selected`
+                            : `admin-badge admin-badge--${badge}`
+                        }
+                        key={badge}
+                        type="button"
+                        onClick={() =>
+                          toggleBadge(formationEditorDraft.badges, badge, (nextBadges) =>
+                            formationEditorState.mode === "create"
+                              ? syncCreateDraft("badges", nextBadges)
+                              : syncDraft(formationEditorState.slug, "badges", nextBadges),
+                          )
+                        }
+                      >
+                        {badgeIcon(badge)}
+                        {badgeLabel(badge)}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="admin-hint">
+                    `promo` reste derive automatiquement du couple prix actuel / prix barre.
+                  </p>
+                </div>
+
+                {formationEditorFeedback ? (
+                  <p className={`admin-feedback admin-feedback--${formationEditorFeedback.type}`}>
+                    {formationEditorFeedback.message}
+                  </p>
+                ) : null}
+              </section>
+
+              <FormationDetailFields
+                draft={formationEditorDraft}
+                onChange={(field, value) =>
+                  formationEditorState.mode === "create"
+                    ? syncCreateDraft(field, value)
+                    : syncDraft(formationEditorState.slug, field, value)
+                }
+              />
+            </div>
+
+            <aside className="admin-editor-preview">
+              <div className="admin-editor-preview__image">
+                {formationEditorDraft.image ? (
+                  <img src={formationEditorDraft.image} alt={formationEditorDraft.title || "Formation"} />
+                ) : (
+                  <div className="admin-editor-preview__placeholder">Apercu cover</div>
+                )}
+              </div>
+              <div className="admin-editor-preview__body">
+                <span className={`admin-format-pill admin-format-pill--${formationEditorDraft.formatType}`}>
+                  {formationEditorDraft.formatType === "live" ? <FaVideo /> : formationEditorDraft.formatType === "presentiel" ? <FaMapMarkerAlt /> : <FaLaptop />}
+                  {formatTypeLabel(formationEditorDraft.formatType)}
+                </span>
+                <h4>{formationEditorDraft.title || "Titre de la formation"}</h4>
+                <p>{formationEditorDraft.category || "Categorie"} · {formationEditorDraft.level || "Niveau"}</p>
+                <div className="admin-editor-preview__price">
+                  <strong>
+                    {formationEditorDraft.currentPrice
+                      ? `${Number.parseInt(formationEditorDraft.currentPrice || "0", 10).toLocaleString("fr-FR")} FCFA`
+                      : "Prix a definir"}
+                  </strong>
+                  {formationEditorDraft.originalPrice ? (
+                    <small>
+                      {Number.parseInt(formationEditorDraft.originalPrice || "0", 10).toLocaleString("fr-FR")} FCFA
+                    </small>
+                  ) : null}
+                </div>
+                <div className="admin-table-badges">
+                  {formationEditorDraft.badges.map((badge) => (
+                    <span className={`admin-market-badge admin-market-badge--${badge}`} key={badge}>
+                      {badgeIcon(badge)}
+                      {badgeLabel(badge)}
+                    </span>
+                  ))}
+                  {formationEditorDraft.originalPrice &&
+                  Number.parseInt(formationEditorDraft.originalPrice || "0", 10) >
+                    Number.parseInt(formationEditorDraft.currentPrice || "0", 10) ? (
+                    <span className="admin-market-badge admin-market-badge--promo">
+                      <FaTag />
+                      Promo
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </aside>
+          </div>
+
+          <div className="admin-modal__footer">
+            <button className="admin-secondary-button" type="button" onClick={closeFormationEditor}>
+              Annuler
+            </button>
+            <button
+              className="admin-action-button"
+              type="button"
+              disabled={
+                formationEditorState.mode === "create"
+                  ? isCreating
+                  : savingSlug === formationEditorState.slug
+              }
+              onClick={() => {
+                void (async () => {
+                  const ok =
+                    formationEditorState.mode === "create"
+                      ? await handleCreate()
+                      : activeFormation
+                        ? await handleSave(activeFormation)
+                        : false;
+                  if (ok) {
+                    closeFormationEditor();
+                  }
+                })();
+              }}
+            >
+              <FaSave />
+              {formationEditorState.mode === "create"
+                ? isCreating
+                  ? "Creation..."
+                  : "Creer la formation"
+                : savingSlug === formationEditorState.slug
+                  ? "Sauvegarde..."
+                  : "Enregistrer"}
+            </button>
+          </div>
+        </AdminDrawer>
+      ) : null}
+
+      {sessionEditorState && sessionEditorDraft ? (
+        <AdminModal
+          title={
+            sessionEditorState.mode === "create"
+              ? "Nouvelle session"
+              : `Edition session · ${activeSession?.label ?? ""}`
+          }
+          subtitle="Les sessions ne concernent que les formations live et presentiel."
+          onClose={closeSessionEditor}
+          size="narrow"
+        >
+          <div className="admin-editor-stack">
+            <section className="admin-editor-card">
+              <div className="admin-editor-card__heading">
+                <div>
+                  <h4>Parametres de session</h4>
+                  <p>Une seule session non terminee par formation.</p>
+                </div>
+              </div>
+
+              <div className="admin-formation-form">
+                <label className="admin-field admin-field--span-2">
+                  <span>Formation</span>
+                  {sessionEditorState.mode === "create" ? (
+                    <select
+                      value={sessionEditorDraft.formationId}
+                      onChange={(event) => syncCreateSessionDraft("formationId", event.target.value)}
+                    >
+                      <option value="">Choisir une formation</option>
+                      {availableSessionCreateFormations.map((formation) => (
+                        <option key={formation.id} value={formation.id}>
+                          {formation.title} · {formatTypeLabel(formation.format_type)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input type="text" value={activeSession?.formation_title ?? ""} disabled />
+                  )}
+                </label>
+
+                <label className="admin-field admin-field--span-2">
+                  <span>Libelle</span>
+                  <input
+                    type="text"
+                    value={sessionEditorDraft.label}
+                    onChange={(event) =>
+                      sessionEditorState.mode === "create"
+                        ? syncCreateSessionDraft("label", event.target.value)
+                        : syncSessionDraft(activeSession!.id, "label", event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Debut</span>
+                  <input
+                    type="date"
+                    value={sessionEditorDraft.startDate}
+                    onChange={(event) =>
+                      sessionEditorState.mode === "create"
+                        ? syncCreateSessionDraft("startDate", event.target.value)
+                        : syncSessionDraft(activeSession!.id, "startDate", event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Fin</span>
+                  <input
+                    type="date"
+                    value={sessionEditorDraft.endDate}
+                    onChange={(event) =>
+                      sessionEditorState.mode === "create"
+                        ? syncCreateSessionDraft("endDate", event.target.value)
+                        : syncSessionDraft(activeSession!.id, "endDate", event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Campus / lieu</span>
+                  <input
+                    type="text"
+                    value={sessionEditorDraft.campusLabel}
+                    onChange={(event) =>
+                      sessionEditorState.mode === "create"
+                        ? syncCreateSessionDraft("campusLabel", event.target.value)
+                        : syncSessionDraft(activeSession!.id, "campusLabel", event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Places</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={sessionEditorDraft.seatCapacity}
+                    onChange={(event) =>
+                      sessionEditorState.mode === "create"
+                        ? syncCreateSessionDraft("seatCapacity", event.target.value)
+                        : syncSessionDraft(activeSession!.id, "seatCapacity", event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Intervenant</span>
+                  <input
+                    type="text"
+                    value={sessionEditorDraft.teacherName}
+                    onChange={(event) =>
+                      sessionEditorState.mode === "create"
+                        ? syncCreateSessionDraft("teacherName", event.target.value)
+                        : syncSessionDraft(activeSession!.id, "teacherName", event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Statut</span>
+                  <select
+                    value={sessionEditorDraft.status}
+                    onChange={(event) =>
+                      sessionEditorState.mode === "create"
+                        ? syncCreateSessionDraft("status", event.target.value as SessionStatus)
+                        : syncSessionDraft(activeSession!.id, "status", event.target.value as SessionStatus)
+                    }
+                  >
+                    {sessionStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {sessionEditorFeedback ? (
+                <p className={`admin-feedback admin-feedback--${sessionEditorFeedback.type}`}>
+                  {sessionEditorFeedback.message}
+                </p>
+              ) : null}
+            </section>
+          </div>
+
+          <div className="admin-modal__footer">
+            <button className="admin-secondary-button" type="button" onClick={closeSessionEditor}>
+              Annuler
+            </button>
+            <button
+              className="admin-action-button"
+              type="button"
+              disabled={
+                sessionEditorState.mode === "create"
+                  ? isCreatingSession
+                  : savingSessionId === activeSession?.id
+              }
+              onClick={() => {
+                void (async () => {
+                  const ok =
+                    sessionEditorState.mode === "create"
+                      ? await handleCreateSession()
+                      : activeSession
+                        ? await handleSaveSession(activeSession)
+                        : false;
+                  if (ok) {
+                    closeSessionEditor();
+                  }
+                })();
+              }}
+            >
+              <FaSave />
+              {sessionEditorState.mode === "create"
+                ? isCreatingSession
+                  ? "Creation..."
+                  : "Creer la session"
+                : savingSessionId === activeSession?.id
+                  ? "Sauvegarde..."
+                  : "Enregistrer"}
+            </button>
+          </div>
+        </AdminModal>
+      ) : null}
+    </>
+  );
+
+  /*
   return (
     <div className="admin-dashboard-page">
       <section className="section-heading section-heading--spaced" id="admin-overview">
@@ -2392,4 +3239,5 @@ export default function DashboardPage() {
       ) : null}
     </div>
   );
+  */
 }

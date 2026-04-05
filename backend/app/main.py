@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
 from app.core.config import settings
 from app.db.seed import seed_database
-from app.db.session import SessionLocal, database_has_schema
+from app.db.session import SessionLocal, database_has_schema, verify_database_connection
 
 
 def create_app() -> FastAPI:
@@ -19,6 +19,8 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     def startup_event() -> None:
+        verify_database_connection()
+
         if not database_has_schema():
             return
 

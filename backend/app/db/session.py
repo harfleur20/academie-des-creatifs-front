@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -20,7 +20,10 @@ def _engine_options() -> dict[str, object]:
     database_url = _database_url()
     if database_url.startswith("sqlite"):
         return {"connect_args": {"check_same_thread": False}}
-    return {}
+    return {
+        "connect_args": {"connect_timeout": 5},
+        "pool_pre_ping": True,
+    }
 
 
 engine: Engine = create_engine(
@@ -43,3 +46,13 @@ def get_db() -> Generator[Session, None, None]:
 def database_has_schema() -> bool:
     inspector = inspect(engine)
     return inspector.has_table("formations") and inspector.has_table("users")
+
+
+def verify_database_connection() -> None:
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except Exception as exc:  # pragma: no cover - depends on local infra
+        raise RuntimeError(
+            "Connexion a la base impossible. Verifie PostgreSQL, DATABASE_URL et le mot de passe."
+        ) from exc
