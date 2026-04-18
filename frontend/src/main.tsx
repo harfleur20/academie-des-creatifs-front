@@ -7,6 +7,9 @@ import { FavoritesProvider } from "./favorites/FavoritesContext";
 import { ToastProvider } from "./toast/ToastContext";
 import "./styles/global.css";
 import "./styles/ecommerce.css";
+import "./styles/course.css";
+import "./styles/team.css";
+import "./styles/about.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <ToastProvider>

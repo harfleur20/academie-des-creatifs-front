@@ -62,12 +62,16 @@ export function getUserActionErrorMessage(
       return error.message;
     }
 
-    if (error.status === 0 || error.status >= 500) {
+    if (error.status === 0) {
       return fallback;
     }
 
     if (isShortDisplayableMessage(error.message)) {
       return error.message;
+    }
+
+    if (error.status >= 500) {
+      return fallback;
     }
 
     return fallback;

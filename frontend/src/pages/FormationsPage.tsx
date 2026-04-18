@@ -597,21 +597,31 @@ export default function FormationsPage() {
                         </div>
 
                         <div className="catalogue-product-card__actions">
-                          <button
-                            aria-label={`Ajouter ${course.title} au panier`}
-                            className="catalogue-product-card__cart"
-                            type="button"
-                            disabled={
-                              !course.can_purchase ||
-                              workingCartSlug === course.slug ||
-                              cart.items.some((item) => item.formation_slug === course.slug)
-                            }
-                            onClick={() => {
-                              void handleAddToCart(course);
-                            }}
-                          >
-                            <FaShoppingCart />
-                          </button>
+                          {course.can_purchase ? (
+                            <button
+                              aria-label={`Ajouter ${course.title} au panier`}
+                              className="catalogue-product-card__cart"
+                              type="button"
+                              disabled={
+                                workingCartSlug === course.slug ||
+                                cart.items.some((item) => item.formation_slug === course.slug)
+                              }
+                              onClick={() => { void handleAddToCart(course); }}
+                            >
+                              <FaShoppingCart />
+                            </button>
+                          ) : (
+                            <button
+                              aria-label="Inscriptions closes"
+                              className="catalogue-product-card__cart catalogue-product-card__cart--closed"
+                              type="button"
+                              onClick={() => {
+                                error(course.purchase_message ?? "Inscriptions closes pour cette formation.");
+                              }}
+                            >
+                              <span className="catalogue-product-card__closed-label">Inscription close</span>
+                            </button>
+                          )}
                           <Link className="catalogue-product-card__cta" to={getFormationPath(course.slug)}>
                             <FaArrowRight />
                           </Link>

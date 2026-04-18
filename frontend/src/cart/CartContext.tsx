@@ -14,6 +14,7 @@ import {
   fetchCart,
   removeFromCart as removeFromCartRequest,
   type CartSnapshot,
+  type CheckoutOptions,
   type CheckoutResult,
 } from "../lib/commerceApi";
 
@@ -21,6 +22,9 @@ const emptyCart: CartSnapshot = {
   items: [],
   total_amount: 0,
   total_amount_label: "0 FCFA",
+  allow_installments: false,
+  installment_threshold_amount: 100000,
+  installment_threshold_label: "100 000 FCFA",
   live_items_count: 0,
   ligne_items_count: 0,
   presentiel_items_count: 0,
@@ -34,7 +38,7 @@ type CartContextValue = {
   refreshCart: () => Promise<CartSnapshot>;
   addToCart: (formationSlug: string) => Promise<CartSnapshot>;
   removeFromCart: (formationSlug: string) => Promise<CartSnapshot>;
-  checkout: () => Promise<CheckoutResult>;
+  checkout: (options?: CheckoutOptions) => Promise<CheckoutResult>;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -91,8 +95,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCart(nextCart);
         return nextCart;
       },
-      checkout: async () => {
-        const result = await checkoutCartRequest();
+      checkout: async (options?: CheckoutOptions) => {
+        const result = await checkoutCartRequest(options ?? {});
         setCart(emptyCart);
         return result;
       },

@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.core.config import settings
@@ -8,6 +11,9 @@ from app.db.session import SessionLocal, database_has_schema, verify_database_co
 
 
 def create_app() -> FastAPI:
+    uploads_root = Path(__file__).resolve().parent.parent / "uploads"
+    uploads_root.mkdir(parents=True, exist_ok=True)
+
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
@@ -46,6 +52,7 @@ def create_app() -> FastAPI:
             "environment": settings.environment,
         }
 
+    app.mount("/uploads", StaticFiles(directory=str(uploads_root)), name="uploads")
     app.include_router(api_router, prefix=settings.api_prefix)
     return app
 

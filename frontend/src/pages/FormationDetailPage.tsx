@@ -13,6 +13,8 @@ import {
   FaInstagram,
   FaRegHeart,
   FaRegStar,
+  FaHeadset,
+  FaLock,
   FaShoppingCart,
   FaStar,
   FaStarHalfAlt,
@@ -37,6 +39,7 @@ import {
   USER_MESSAGES,
 } from "../lib/userMessages";
 import { useToast } from "../toast/ToastContext";
+import VerifiedBadge from "../components/VerifiedBadge";
 
 type AccordionItem = FormationModule | FormationFaq;
 
@@ -545,75 +548,42 @@ export default function FormationDetailPage() {
 
             <div className="formation-detail-mentor">
               <p className="formation-detail-mentor__eyebrow">
-                Sous la supervision de
+                Cette formation est sous la supervision de :
               </p>
-              <div className="formation-detail-mentor__row">
-                <div className="formation-detail-mentor__card">
+              <div className="formation-detail-mentor__bar">
+                <div className="formation-detail-mentor__info">
                   <img src={formation.mentorImage} alt={formation.mentor} />
                   <div className="formation-detail-mentor__body">
-                    <strong>{formation.mentor}</strong>
+                    <strong>
+                      {formation.mentor}
+                      <VerifiedBadge size={15} />
+                    </strong>
                     <span>{formation.mentorLabel}</span>
                   </div>
-                  <Link className="formation-detail-mentor__cta" to="/#notre-equipe">
-                    Consulter
-                  </Link>
                 </div>
 
-                <div className="formation-detail-mentor__actions">
+                <div className="formation-detail-mentor__controls">
+                  <Link className="formation-detail-mentor__consult" to="/#notre-equipe">
+                    Voir le profil
+                  </Link>
+
+                  <div className="formation-detail-mentor__divider" />
+
                   <button
-                    className={`formation-detail-mentor__favorite ${
-                      isFavorite ? "is-active" : ""
-                    }`}
+                    className={`formation-detail-mentor__fav-btn${isFavorite ? " is-active" : ""}`}
                     disabled={isUpdatingFavorite}
                     type="button"
-                    onClick={() => {
-                      void handleFavoriteToggle();
-                    }}
+                    aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                    onClick={() => { void handleFavoriteToggle(); }}
                   >
                     <FaRegHeart />
-                    <span>
-                      {isUpdatingFavorite
-                        ? "Mise a jour..."
-                        : isFavorite
-                          ? "Ajoute aux favoris"
-                          : "Ajouter aux favoris"}
-                    </span>
                   </button>
 
-                  <div className="formation-detail-mentor__share-row">
-                    <span className="formation-detail-mentor__share-label">
-                      Partager :
-                    </span>
-                    <div className="formation-detail-mentor__socials">
-                      <button
-                        type="button"
-                        aria-label="Partager sur Facebook"
-                        onClick={() => handleShareAction("facebook")}
-                      >
-                        <FaFacebookF />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Partager sur WhatsApp"
-                        onClick={() => handleShareAction("whatsapp")}
-                      >
-                        <FaWhatsapp />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Partager sur Instagram"
-                        onClick={() => handleShareAction("instagram")}
-                      >
-                        <FaInstagram />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Copier le lien"
-                        onClick={() => handleShareAction("copy")}
-                      >
-                        <FaLink />
-                      </button>
-                    </div>
+                  <div className="formation-detail-mentor__socials">
+                    <button type="button" aria-label="Partager sur Facebook" onClick={() => handleShareAction("facebook")}><FaFacebookF /></button>
+                    <button type="button" aria-label="Partager sur WhatsApp" onClick={() => handleShareAction("whatsapp")}><FaWhatsapp /></button>
+                    <button type="button" aria-label="Partager sur Instagram" onClick={() => handleShareAction("instagram")}><FaInstagram /></button>
+                    <button type="button" aria-label="Copier le lien" onClick={() => handleShareAction("copy")}><FaLink /></button>
                   </div>
                 </div>
               </div>
@@ -651,49 +621,54 @@ export default function FormationDetailPage() {
               </div>
 
               <div className="formation-detail-card__actions">
-                <button
-                  className="formation-detail-card__primary"
-                  disabled={
-                    formation.canPurchase === false ||
-                    isAddingToCart ||
-                    isPreparingCheckout ||
-                    isAlreadyInCart
-                  }
-                  type="button"
-                  onClick={() => {
-                    void handleEnrollmentAction("cart");
-                  }}
-                >
-                  <FaShoppingCart />
-                  {isAlreadyInCart
-                    ? "Deja dans le panier"
-                    : isAddingToCart
-                      ? "Ajout en cours..."
-                      : "Ajouter au panier"}
-                </button>
-                <button
-                  className="formation-detail-card__secondary"
-                  disabled={
-                    formation.canPurchase === false ||
-                    isAddingToCart ||
-                    isPreparingCheckout
-                  }
-                  type="button"
-                  onClick={() => {
-                    void handleEnrollmentAction("checkout");
-                  }}
-                >
-                  {isPreparingCheckout
-                    ? "Preparation du checkout..."
-                    : "S'inscrire a cette formation"}
-                </button>
+                {formation.canPurchase === false ? (
+                  <>
+                    <button
+                      className="formation-detail-card__primary is-closed"
+                      type="button"
+                      onClick={() => { void handleEnrollmentAction("cart"); }}
+                    >
+                      <FaLock /> Inscription close
+                    </button>
+                    <p className="formation-detail-card__closed-notice">
+                      Les inscriptions pour cette formation sont closes.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      className="formation-detail-card__primary"
+                      disabled={isAddingToCart || isPreparingCheckout}
+                      type="button"
+                      onClick={() => { void handleEnrollmentAction("cart"); }}
+                    >
+                      {isAlreadyInCart ? (
+                        <><FaCheckCircle /> Deja dans le panier</>
+
+                      ) : isAddingToCart ? (
+                        "Ajout en cours..."
+                      ) : (
+                        <><FaShoppingCart /> Ajouter au panier</>
+                      )}
+                    </button>
+                    <button
+                      className="formation-detail-card__secondary"
+                      disabled={isAddingToCart || isPreparingCheckout}
+                      type="button"
+                      onClick={() => { void handleEnrollmentAction("checkout"); }}
+                    >
+                      {isPreparingCheckout ? "Preparation du checkout..." : "S'inscrire a cette formation"}
+                    </button>
+                  </>
+                )}
               </div>
 
-              {actionMessage || formation.purchaseMessage ? (
-                <p className="formation-detail-card__notice">
-                  {actionMessage || formation.purchaseMessage}
-                </p>
-              ) : null}
+              <div className="cart-summary__features">
+                <div className="feature-badge">
+                  <FaLock className="feature-badge__icon" />
+                  <span>Paiement sécurisé</span>
+                </div>
+              </div>
             </div>
           </aside>
         </div>

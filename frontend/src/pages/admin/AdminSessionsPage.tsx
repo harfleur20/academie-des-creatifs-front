@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { FaChevronRight, FaEdit, FaPlus, FaSearch } from "react-icons/fa";
+import { CalendarCheck, CalendarDays, UnlockKeyhole, Users } from "lucide-react";
 
 import { useAdminDashboard } from "../../admin/adminDashboardContext";
 import {
@@ -8,12 +9,34 @@ import {
   getPageItems,
   getTotalPages,
   includesSearchValue,
-  sessionStateClassName,
   sessionStateLabel,
   statusLabel,
 } from "../../admin/adminDashboardUtils";
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 8;
+
+function sessionStateBadge(state: string) {
+  if (state === "upcoming") return "adm-badge adm-badge--blue";
+  if (state === "started_open") return "adm-badge adm-badge--green";
+  if (state === "started_closed") return "adm-badge adm-badge--yellow";
+  if (state === "ended") return "adm-badge adm-badge--gray";
+  if (state === "unscheduled") return "adm-badge adm-badge--red";
+  return "adm-badge adm-badge--gray";
+}
+
+function sessionStatusBadge(status: string) {
+  if (status === "open") return "adm-badge adm-badge--green";
+  if (status === "planned") return "adm-badge adm-badge--blue";
+  if (status === "completed") return "adm-badge adm-badge--gray";
+  if (status === "cancelled") return "adm-badge adm-badge--red";
+  return "adm-badge adm-badge--gray";
+}
+
+function formatTypePill(formatType: string) {
+  if (formatType === "live") return "adm-format-pill adm-format-pill--live";
+  if (formatType === "presentiel") return "adm-format-pill adm-format-pill--presentiel";
+  return "adm-format-pill adm-format-pill--ligne";
+}
 
 export default function AdminSessionsPage() {
   const {
@@ -24,180 +47,199 @@ export default function AdminSessionsPage() {
     openCreateSessionEditor,
     openEditSessionEditor,
   } = useAdminDashboard();
+
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
   const filtered = useMemo(
-    () =>
-      sessions.filter((session) =>
-        includesSearchValue(
-          [session.formation_title, session.label, session.campus_label, session.teacher_name, session.status],
-          search,
-        ),
-      ),
+    () => sessions.filter((s) =>
+      includesSearchValue([s.formation_title, s.label, s.campus_label, s.teacher_name, s.status], search),
+    ),
     [search, sessions],
   );
 
-  useEffect(() => {
-    setPage(1);
-  }, [search, sessions.length]);
+  useEffect(() => { setPage(1); }, [search, sessions.length]);
 
   const totalPages = getTotalPages(filtered.length, PAGE_SIZE);
   const safePage = Math.min(page, totalPages);
   const paginated = useMemo(() => getPageItems(filtered, safePage, PAGE_SIZE), [filtered, safePage]);
 
+  const openCount = sessions.filter((s) => s.status === "open").length;
+  const plannedCount = sessions.filter((s) => s.status === "planned").length;
+  const totalEnrolled = sessions.reduce((acc, s) => acc + s.enrolled_count, 0);
+
   return (
-    <div className="admin-workspace">
-      <section className="admin-page-head">
+    <div className="adm-workspace">
+      <div className="adm-page-header">
         <div>
-          <p className="admin-section__eyebrow">Sessions</p>
-          <h1>Planifie les cohortes sans casser la logique metier.</h1>
-          <p>
-            Les formations live et presentiel eligibles apparaissent clairement. Une
-            session non terminee bloque la creation d’une nouvelle.
-          </p>
+          <p className="adm-eyebrow">Planning</p>
+          <h1 className="adm-page-title">Sessions</h1>
+          <p className="adm-page-desc">Gérez les cohortes live et présentiel, planifiez les dates et suivez les inscriptions.</p>
         </div>
-        <button className="admin-action-button" type="button" onClick={() => openCreateSessionEditor()}>
-          <FaPlus />
-          Nouvelle session
-        </button>
-      </section>
-
-      {loading ? (
-        <div className="admin-state-card">
-          <p>Chargement des sessions...</p>
+        <div className="adm-page-actions">
+          <button className="adm-btn adm-btn--primary" type="button" onClick={() => openCreateSessionEditor()}>
+            <FaPlus /> Nouvelle session
+          </button>
         </div>
-      ) : null}
+      </div>
 
-      {loadingError ? (
-        <div className="admin-state-card admin-state-card--error">
-          <p>{loadingError}</p>
+      <div className="adm-kpi-row">
+        <div className="adm-kpi-card adm-kpi-card--dark">
+          <span className="adm-kpi-card__bg-icon"><CalendarDays strokeWidth={1.2} /></span>
+          <span>Total sessions</span>
+          <strong>{sessions.length}</strong>
+          <small>toutes cohortes</small>
         </div>
-      ) : null}
+        <div className="adm-kpi-card adm-kpi-card--green">
+          <span className="adm-kpi-card__bg-icon"><UnlockKeyhole strokeWidth={1.2} /></span>
+          <span>Ouvertes</span>
+          <strong>{openCount}</strong>
+          <small>inscriptions actives</small>
+        </div>
+        <div className="adm-kpi-card adm-kpi-card--blue">
+          <span className="adm-kpi-card__bg-icon"><CalendarCheck strokeWidth={1.2} /></span>
+          <span>Planifiées</span>
+          <strong>{plannedCount}</strong>
+          <small>à venir</small>
+        </div>
+        <div className="adm-kpi-card">
+          <span className="adm-kpi-card__bg-icon"><Users strokeWidth={1.2} /></span>
+          <span>Inscrits total</span>
+          <strong>{totalEnrolled}</strong>
+          <small>sur toutes sessions</small>
+        </div>
+      </div>
 
-      {!loading && !loadingError ? (
-        <section className="admin-session-layout">
-          <article className="admin-panel">
-            <div className="admin-panel__heading">
+      {loading && <div className="adm-state-card"><p>Chargement…</p></div>}
+      {loadingError && <div className="adm-state-card adm-state-card--error"><p>{loadingError}</p></div>}
+
+      {!loading && !loadingError && (
+        <div className="adm-sessions-layout">
+          {/* Eligibility panel */}
+          <div className="adm-card adm-sessions-eligibility">
+            <div className="adm-card__header">
               <div>
-                <p className="admin-section__eyebrow">Eligibilite</p>
-                <h3>Formations prêtes pour une session</h3>
-                <p>Seulement live et presentiel, sans session non terminee.</p>
+                <h2 className="adm-card__title">Formations planifiables</h2>
+                <p className="adm-card__desc">Ajoutez une cohorte live ou présentiel à chaque période.</p>
               </div>
             </div>
-            <div className="admin-session-eligibility-list">
+            <div className="adm-eligibility-list">
               {availableSessionCreateFormations.length ? (
                 availableSessionCreateFormations.map((formation) => (
                   <button
-                    className="admin-session-eligibility"
                     key={formation.id}
                     type="button"
+                    className="adm-eligibility-item"
                     onClick={() => openCreateSessionEditor(formation.id)}
                   >
-                    <div className="admin-session-eligibility__content">
-                      <div className="admin-session-eligibility__topline">
-                        <strong>{formation.title}</strong>
-                        <span className={`admin-format-pill admin-format-pill--${formation.format_type}`}>
+                    <div className="adm-eligibility-item__info">
+                      <strong>{formation.title}</strong>
+                      <span>
+                        <span className={formatTypePill(formation.format_type)}>
                           {formatTypeLabel(formation.format_type)}
                         </span>
-                      </div>
-                      <span>{formation.session_label ?? "Nouvelle date a programmer"}</span>
+                        {" · "}
+                        {formation.session_label ?? "Aucune date planifiée"}
+                      </span>
                     </div>
-                    <FaChevronRight />
+                    <FaChevronRight className="adm-eligibility-item__arrow" />
                   </button>
                 ))
               ) : (
-                <div className="admin-empty-table">
-                  Toutes les formations live et presentiel ont deja une session non terminee.
-                </div>
+                <div className="adm-empty">Aucune formation live ou présentiel disponible.</div>
               )}
             </div>
-          </article>
+          </div>
 
-          <article className="admin-panel admin-panel--table">
-            <div className="admin-panel__heading">
+          {/* Sessions table */}
+          <div className="adm-card adm-sessions-table-card">
+            <div className="adm-card__header">
               <div>
-                <p className="admin-section__eyebrow">Suivi</p>
-                <h3>Sessions planifiees</h3>
-                <p>Inscriptions, fenetres d’achat et cohortes en cours.</p>
+                <h2 className="adm-card__title">Toutes les sessions</h2>
+                <p className="adm-card__desc">{sessions.length} sessions au total</p>
               </div>
-              <label className="admin-inline-search">
+              <label className="adm-search">
                 <FaSearch />
                 <input
                   type="search"
                   value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Rechercher une session"
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Formation, lieu, enseignant…"
                 />
               </label>
             </div>
 
-            <div className="admin-table-scroll">
-              <table className="admin-resource-table">
+            <div className="adm-table-wrap">
+              <table className="adm-table">
                 <thead>
                   <tr>
                     <th>Formation</th>
-                    <th>Periode</th>
+                    <th>Dates</th>
+                    <th>Lieu · Enseignant</th>
                     <th>Inscrits</th>
-                    <th>Etat</th>
+                    <th>État</th>
+                    <th>Statut</th>
                     <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {paginated.length ? (
-                    paginated.map((session) => (
-                      <tr key={session.id}>
-                        <td>
-                          <div className="admin-inline-stack">
-                            <strong>{session.formation_title}</strong>
-                            <small>{session.label}</small>
-                            <small>{session.campus_label || "Lieu a preciser"}</small>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="admin-inline-stack">
-                            <strong>
-                              {session.start_date} → {session.end_date}
-                            </strong>
-                            <small>{session.teacher_name || "Enseignant a attribuer"}</small>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="admin-inline-stack">
-                            <strong>
-                              {session.enrolled_count}/{session.seat_capacity}
-                            </strong>
-                            <small>{session.can_purchase ? "Paiement autorise" : "Paiement ferme"}</small>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="admin-inline-stack">
-                            <span className={sessionStateClassName(session.session_state)}>
-                              {sessionStateLabel(session.session_state)}
-                            </span>
-                            <span className={`admin-status admin-status--${session.status}`}>
-                              {statusLabel(session.status)}
-                            </span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="admin-row-actions">
-                            <button
-                              aria-label={`Editer ${session.label}`}
-                              className="admin-icon-button admin-icon-button--accent"
-                              type="button"
-                              onClick={() => openEditSessionEditor(session.id)}
-                            >
-                              <FaEdit />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
+                  {paginated.length ? paginated.map((session) => (
+                    <tr key={session.id}>
+                      <td>
+                        <div className="adm-td-title">
+                          <strong>{session.formation_title}</strong>
+                          <span style={{ color: "#8a95b0", fontSize: "0.78rem" }}>{session.label}</span>
+                          <span className={formatTypePill(session.format_type)} style={{ marginTop: "0.3rem", display: "inline-block" }}>
+                            {formatTypeLabel(session.format_type)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="adm-td-muted">
+                        <span style={{ display: "block", fontSize: "0.82rem" }}>{session.start_date}</span>
+                        <span style={{ display: "block", fontSize: "0.82rem" }}>→ {session.end_date}</span>
+                      </td>
+                      <td className="adm-td-muted">
+                        <span style={{ display: "block", fontSize: "0.82rem" }}>
+                          {session.campus_label || "—"}
+                        </span>
+                        <span style={{ display: "block", fontSize: "0.82rem" }}>
+                          {session.teacher_name || "—"}
+                        </span>
+                      </td>
+                      <td>
+                        <strong style={{ color: "#111827", fontSize: "0.875rem" }}>
+                          {session.enrolled_count}
+                          <span style={{ color: "#8a95b0", fontWeight: 400 }}>/{session.seat_capacity}</span>
+                        </strong>
+                        <span style={{ display: "block", fontSize: "0.74rem", color: session.can_purchase ? "#15803d" : "#b91c1c" }}>
+                          {session.can_purchase ? "Paiement ouvert" : "Paiement fermé"}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={sessionStateBadge(session.session_state)}>
+                          {sessionStateLabel(session.session_state)}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={sessionStatusBadge(session.status)}>
+                          {statusLabel(session.status)}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          aria-label={`Éditer ${session.label}`}
+                          className="adm-icon-btn adm-icon-btn--accent"
+                          type="button"
+                          onClick={() => openEditSessionEditor(session.id)}
+                        >
+                          <FaEdit />
+                        </button>
+                      </td>
+                    </tr>
+                  )) : (
                     <tr>
-                      <td colSpan={5}>
-                        <div className="admin-empty-table">Aucune session ne correspond a cette recherche.</div>
+                      <td colSpan={7}>
+                        <div className="adm-empty">Aucune session trouvée.</div>
                       </td>
                     </tr>
                   )}
@@ -212,9 +254,9 @@ export default function AdminSessionsPage() {
               label="Sessions"
               onPageChange={setPage}
             />
-          </article>
-        </section>
-      ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

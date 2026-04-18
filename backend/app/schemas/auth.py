@@ -52,6 +52,7 @@ class AuthUser(BaseModel):
     role: UserRole
     status: str
     avatar_initials: str
+    avatar_url: str | None = None
     dashboard_path: str
 
 

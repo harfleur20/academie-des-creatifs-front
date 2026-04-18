@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { FaCalendarAlt, FaVideo, FaMapMarkerAlt, FaExternalLinkAlt } from "react-icons/fa";
 
 import { useAuth } from "../auth/AuthContext";
-import { fetchStudentDashboardSummary, type StudentDashboardSummary } from "../lib/commerceApi";
+import {
+  fetchStudentDashboardSummary,
+  fetchMySessions,
+  type StudentDashboardSummary,
+  type StudentSession,
+} from "../lib/commerceApi";
 
 function useFocusMode(search: string) {
   return useMemo(() => {
@@ -23,9 +29,27 @@ function getFormatLabel(formatType: "live" | "ligne" | "presentiel") {
   return "Formation live";
 }
 
+function buildCalendarUrl(session: StudentSession): string {
+  const fmt = (d: string) => d.replace(/-/g, "");
+  const start = fmt(session.start_date);
+  const end = fmt(session.end_date);
+  const title = encodeURIComponent(`${session.formation_title} — ${session.label}`);
+  const details = encodeURIComponent(session.meeting_link ? `Lien : ${session.meeting_link}` : "");
+  const location = encodeURIComponent(session.campus_label ?? session.meeting_link ?? "");
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}&location=${location}`;
+}
+
+function sessionStatusLabel(status: string): { label: string; cls: string } {
+  if (status === "open") return { label: "Ouverte", cls: "session-status--open" };
+  if (status === "completed") return { label: "Terminée", cls: "session-status--done" };
+  if (status === "planned") return { label: "Planifiée", cls: "session-status--planned" };
+  return { label: status, cls: "" };
+}
+
 export default function StudentDashboardPage() {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const focusMode = useFocusMode(location.search);
   const checkoutMessage =
     location.state &&
@@ -36,12 +60,14 @@ export default function StudentDashboardPage() {
       : "";
 
   const [summary, setSummary] = useState<StudentDashboardSummary | null>(null);
+  const [sessions, setSessions] = useState<StudentSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchStudentDashboardSummary()
-      .then((nextSummary) => {
+    Promise.all([fetchStudentDashboardSummary(), fetchMySessions()])
+      .then(([nextSummary, nextSessions]) => {
         setSummary(nextSummary);
+        setSessions(nextSessions);
       })
       .finally(() => {
         setIsLoading(false);
@@ -101,6 +127,85 @@ export default function StudentDashboardPage() {
           </strong>
         </article>
       </div>
+
+      {sessions.length > 0 && (
+        <section className="student-enrollment-section student-sessions-section">
+          <div className="student-enrollment-section__heading">
+            <h2>Mes sessions programmées</h2>
+          </div>
+          <div className="student-sessions-list">
+            {sessions.map((session) => {
+              const { label: statusLabel, cls: statusCls } = sessionStatusLabel(session.status);
+              return (
+                <article className="student-session-card" key={session.id}>
+                  <div className="student-session-card__left">
+                    <span className={`session-status ${statusCls}`}>{statusLabel}</span>
+                    <h3>{session.formation_title}</h3>
+                    <p className="student-session-card__label">{session.label}</p>
+                    <div className="student-session-card__meta">
+                      <span>
+                        <FaCalendarAlt />
+                        {new Date(session.start_date).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                        {" → "}
+                        {new Date(session.end_date).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </span>
+                      {session.teacher_name && (
+                        <span>{session.teacher_name}</span>
+                      )}
+                      {session.campus_label && (
+                        <span>
+                          <FaMapMarkerAlt />
+                          {session.campus_label}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="student-session-card__actions">
+                    {session.meeting_link && (
+                      session.format_type === "live" ? (
+                        <button
+                          className="button button--primary button--sm"
+                          onClick={() => navigate(`/live/${session.id}`)}
+                        >
+                          <FaVideo />
+                          Rejoindre
+                        </button>
+                      ) : (
+                        <a
+                          className="button button--primary button--sm"
+                          href={session.meeting_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <FaVideo />
+                          Rejoindre
+                        </a>
+                      )
+                    )}
+                    <a
+                      className="button button--secondary button--sm"
+                      href={buildCalendarUrl(session)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <FaExternalLinkAlt />
+                      Ajouter au calendrier
+                    </a>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section className={`student-enrollment-section ${focusMode === "classic" ? "is-focused" : ""}`}>
         <div className="student-enrollment-section__heading">

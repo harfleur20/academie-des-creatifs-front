@@ -1,12 +1,14 @@
 import { useOutletContext } from "react-router-dom";
 
 import type {
+  AdminEnrollment,
   AdminFormation,
   AdminOnsiteSession,
   AdminOrder,
   AdminOverview,
   AdminPayment,
   AdminUser,
+  EnrollmentStatus,
   OrderStatus,
   PaymentStatus,
   UserRole,
@@ -27,6 +29,10 @@ export type OrderDraft = {
   status: OrderStatus;
 };
 
+export type EnrollmentDraft = {
+  status: EnrollmentStatus;
+};
+
 export type PaymentDraft = {
   providerCode: string;
   status: PaymentStatus;
@@ -39,6 +45,7 @@ export type AdminDashboardOutletContext = {
   formations: AdminFormation[];
   sessions: AdminOnsiteSession[];
   users: AdminUser[];
+  enrollments: AdminEnrollment[];
   orders: AdminOrder[];
   payments: AdminPayment[];
   loading: boolean;
@@ -63,6 +70,12 @@ export type AdminDashboardOutletContext = {
   savingUserId: number | null;
   handleSaveUser: (user: AdminUser) => void;
   userFeedbackById: Record<number, AdminInlineFeedback>;
+  enrollmentDrafts: Record<number, EnrollmentDraft>;
+  enrollmentStatuses: EnrollmentStatus[];
+  syncEnrollmentDraft: (enrollmentId: number, status: EnrollmentStatus) => void;
+  savingEnrollmentId: number | null;
+  handleSaveEnrollment: (enrollment: AdminEnrollment) => void;
+  enrollmentFeedbackById: Record<number, AdminInlineFeedback>;
   orderDrafts: Record<number, OrderDraft>;
   orderStatuses: OrderStatus[];
   syncOrderDraft: (orderId: number, status: OrderStatus) => void;
@@ -77,7 +90,9 @@ export type AdminDashboardOutletContext = {
     value: string | PaymentStatus,
   ) => void;
   savingPaymentId: number | null;
+  remindingPaymentId: number | null;
   handleSavePayment: (payment: AdminPayment) => void;
+  handleSendPaymentReminder: (payment: AdminPayment) => void;
   paymentFeedbackById: Record<number, AdminInlineFeedback>;
 };
 

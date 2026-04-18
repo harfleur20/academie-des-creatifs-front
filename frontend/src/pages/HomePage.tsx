@@ -1,13 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import type { IconType } from "react-icons";
 import {
+  FaClipboardCheck,
   FaBolt,
   FaBoxOpen,
   FaChalkboardTeacher,
+  FaChevronLeft,
+  FaChevronRight,
   FaClock,
   FaCrown,
+  FaFileAlt,
   FaFire,
   FaGraduationCap,
+  FaImage,
   FaPlayCircle,
   FaQuoteLeft,
   FaRegHeart,
@@ -16,18 +22,23 @@ import {
   FaShoppingCart,
   FaStar,
   FaTags,
+  FaUserPlus,
+  FaUsers,
+  FaWhatsapp,
 } from "react-icons/fa";
+import { MdOutlineGroup } from "react-icons/md";
+import { FaRegArrowAltCircleRight } from "react-icons/fa";
+import { FaArrowRight } from "react-icons/fa";
+import { HiTrophy } from "react-icons/hi2";
 
-import HeroBubblesCanvas from "../components/HeroBubblesCanvas";
+
 import { useAuth } from "../auth/AuthContext";
 import { useCart } from "../cart/CartContext";
 import {
   getFormationPath,
   albumItems,
   badgeLevels,
-  stats,
   testimonials,
-  trainers,
   videos,
   type CourseBadge,
 } from "../data/ecommerceHomeData";
@@ -42,14 +53,36 @@ import {
   USER_MESSAGES,
 } from "../lib/userMessages";
 import { useToast } from "../toast/ToastContext";
+import { fetchFeaturedPosts, type BlogPost } from "../lib/blogApi";
 
-function getCounterTarget(value: string) {
-  const digits = value.replace(/[^\d]/g, "");
-  return Number.parseInt(digits, 10) || 0;
+function catClass(category: string): string {
+  const c = category.toLowerCase();
+  if (c.includes("freelance")) return "blog-cat-badge--freelance";
+  if (c.includes("design")) return "blog-cat-badge--design";
+  if (c.includes("découv") || c.includes("decouv")) return "blog-cat-badge--decouverte";
+  if (c.includes("marketing")) return "blog-cat-badge--marketing";
+  if (c.includes("vidéo") || c.includes("video") || c.includes("motion")) return "blog-cat-badge--video";
+  if (c.includes("no-code") || c.includes("nocode")) return "blog-cat-badge--nocode";
+  if (c.includes("ia") || c.includes("intelligence") || c.includes("artificielle")) return "blog-cat-badge--ia";
+  return "blog-cat-badge--default";
 }
 
-function getCounterPrefix(value: string) {
-  return value.trim().startsWith("+") ? "+" : "";
+function getCounterParts(value: string) {
+  const match = value.trim().match(/^([^\d]*)(\d+)(.*)$/);
+
+  if (!match) {
+    return {
+      prefix: "",
+      suffix: "",
+      target: 0,
+    };
+  }
+
+  return {
+    prefix: match[1],
+    suffix: match[3].trim(),
+    target: Number.parseInt(match[2], 10) || 0,
+  };
 }
 
 function AnimatedCounter({
@@ -60,8 +93,7 @@ function AnimatedCounter({
   value: string;
 }) {
   const [displayValue, setDisplayValue] = useState(0);
-  const target = getCounterTarget(value);
-  const prefix = getCounterPrefix(value);
+  const { prefix, suffix, target } = getCounterParts(value);
 
   useEffect(() => {
     if (!start) {
@@ -105,6 +137,7 @@ function AnimatedCounter({
     <span className="counter-value">
       {prefix}
       {displayValue.toLocaleString("fr-FR")}
+      {suffix}
     </span>
   );
 }
@@ -173,6 +206,159 @@ function getHomeCatalogueMessage(
   return "Aucune formation n'est encore mise en avant dans cette section.";
 }
 
+type HeroAction = {
+  label: string;
+  to: string;
+  variant: "primary" | "secondary";
+  external?: boolean;
+  icon?: IconType;
+};
+
+type HeroSlide = {
+  eyebrow: string;
+  navLabel: string;
+  title: ReactNode;
+  description: string;
+  image: string;
+  imagePosition?: string;
+  actions: HeroAction[];
+};
+
+const heroSlides: HeroSlide[] = [
+  {
+    eyebrow: "Académie des Créatifs",
+    navLabel: "Formations",
+    title: (
+      <>
+        Apprends le design par <span>la pratique guidée.</span>
+      </>
+    ),
+    description:
+      "Des projets concrets, des retours précis et un accompagnement pensé pour faire monter ton niveau rapidement.",
+    image: "/bg-ac-1.jpg",
+    imagePosition: "center center",
+    actions: [
+      {
+        label: "Demarrer mon diagnostic",
+        to: "/diagnostic",
+        variant: "primary",
+        icon: FaRegArrowAltCircleRight,
+      },
+      {
+        label: "Écrire sur WhatsApp",
+        to: "https://wa.me/message/DMISDTO4HCUDC1",
+        variant: "secondary",
+        external: true,
+        icon: FaWhatsapp,
+      },
+    ],
+  },
+  {
+    eyebrow: "Parcours en ligne et en présentiel",
+    navLabel: "Formats",
+    title: (
+      <>
+        Choisis un parcours <span>adapté à ton rythme.</span>
+      </>
+    ),
+    description:
+      "Sessions live, accompagnement terrain et programmes intensifs pour progresser avec un cadre clair.",
+    image: "/Album/album-7.jpg",
+    imagePosition: "center center",
+    actions: [
+      {
+        label: "Formations en ligne",
+        to: "/#form-en-ligne",
+        variant: "primary",
+        icon: FaGraduationCap,
+      },
+      {
+        label: "Présentiel certifiant",
+        to: "/#form-en-presentiel",
+        variant: "secondary",
+        icon: FaArrowRight,
+      },
+    ],
+  },
+  {
+    eyebrow: "Portfolio et employabilité",
+    navLabel: "Portfolio",
+    title: (
+      <>
+        Construis un portfolio <span>qui vend tes compétences.</span>
+      </>
+    ),
+    description:
+      "Branding, packaging, motion, UI et web design: tu avances avec des livrables solides à montrer à tes clients.",
+    image: "/Album/album-9.jpg",
+    imagePosition: "center 28%",
+    actions: [
+      {
+        label: "Créer mon compte",
+        to: "/register",
+        variant: "primary",
+        icon: FaUserPlus,
+      },
+      {
+        label: "Voir les témoignages",
+        to: "/#temoignage",
+        variant: "secondary",
+        icon: FaQuoteLeft,
+      },
+    ],
+  },
+  {
+    eyebrow: "Mentorat terrain",
+    navLabel: "Mentorat",
+    title: (
+      <>
+        Progresse avec des mentors <span>qui pratiquent vraiment.</span>
+      </>
+    ),
+    description:
+      "Tu progresses avec des intervenants du terrain, des retours utiles et une communauté créative vraiment active.",
+    image: "/Album/album-1.jpg",
+    imagePosition: "center 32%",
+    actions: [
+      {
+        label: "Découvrir l'équipe",
+        to: "/#formateur",
+        variant: "primary",
+        icon: MdOutlineGroup,
+      },
+      {
+        label: "Moments en image",
+        to: "/#album",
+        variant: "secondary",
+        icon: FaImage,
+      },
+    ],
+  },
+];
+
+const heroCounters = [
+  {
+    value: "+2000",
+    copy: "apprenants accompagnés sur des parcours créatifs et digitaux.",
+    icon: FaGraduationCap,
+  },
+  {
+    value: "+20",
+    copy: "bootcamps, ateliers et masterclasses menés avec la communauté.",
+    icon: FaBolt,
+  },
+  {
+    value: "24h",
+    copy: "pour donner une première orientation claire et exploitable.",
+    icon: FaClock,
+  },
+  {
+    value: "5",
+    copy: "étapes pour cadrer un parcours de progression utile et concret.",
+    icon: HiTrophy,
+  },
+];
+
 export default function HomePage() {
   const statsRef = useRef<HTMLDivElement | null>(null);
   const { user } = useAuth();
@@ -185,8 +371,15 @@ export default function HomePage() {
   const [catalogFormations, setCatalogFormations] = useState<CatalogFormation[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState("");
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [blogError, setBlogError] = useState("");
   const [workingCartSlug, setWorkingCartSlug] = useState<string | null>(null);
   const [workingFavoriteSlug, setWorkingFavoriteSlug] = useState<string | null>(null);
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const [albumItemsPerPage, setAlbumItemsPerPage] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 600px)").matches ? 1 : 3,
+  );
+  const [activeAlbumPage, setActiveAlbumPage] = useState(0);
 
   const featuredCourses = (
     sortFeaturedCourses(
@@ -201,6 +394,12 @@ export default function HomePage() {
   );
   const featuredPresentielCourses = featuredCourses.filter(
     (course) => course.formatType === "presentiel",
+  );
+  const activeSlide = heroSlides[activeSlideIndex];
+  const albumPageCount = Math.ceil(albumItems.length / albumItemsPerPage);
+  const visibleAlbumItems = albumItems.slice(
+    activeAlbumPage * albumItemsPerPage,
+    activeAlbumPage * albumItemsPerPage + albumItemsPerPage,
   );
 
   const handleProtectedAction = (slug: string, action: "cart" | "favorite") => {
@@ -321,33 +520,178 @@ export default function HomePage() {
     };
   }, []);
 
+  useEffect(() => {
+    fetchFeaturedPosts()
+      .then(setBlogPosts)
+      .catch(() => setBlogError("Erreur lors du chargement des articles."));
+  }, []);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return;
+    }
+
+    const slideInterval = window.setInterval(() => {
+      setActiveSlideIndex((current) => (current + 1) % heroSlides.length);
+    }, 6500);
+
+    return () => {
+      window.clearInterval(slideInterval);
+    };
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 600px)");
+
+    const syncAlbumLayout = () => {
+      setAlbumItemsPerPage(mediaQuery.matches ? 1 : 3);
+    };
+
+    syncAlbumLayout();
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", syncAlbumLayout);
+      return () => mediaQuery.removeEventListener("change", syncAlbumLayout);
+    }
+
+    mediaQuery.addListener(syncAlbumLayout);
+    return () => mediaQuery.removeListener(syncAlbumLayout);
+  }, []);
+
+  useEffect(() => {
+    setActiveAlbumPage((current) =>
+      Math.min(current, Math.max(0, Math.ceil(albumItems.length / albumItemsPerPage) - 1)),
+    );
+  }, [albumItemsPerPage]);
+
+  const goToPreviousSlide = () => {
+    setActiveSlideIndex((current) =>
+      current === 0 ? heroSlides.length - 1 : current - 1,
+    );
+  };
+
+  const goToNextSlide = () => {
+    setActiveSlideIndex((current) => (current + 1) % heroSlides.length);
+  };
+
+  const goToPreviousAlbum = () => {
+    setActiveAlbumPage((current) =>
+      current === 0 ? albumPageCount - 1 : current - 1,
+    );
+  };
+
+  const goToNextAlbum = () => {
+    setActiveAlbumPage((current) => (current + 1) % albumPageCount);
+  };
+
   return (
     <div className="ecommerce-home">
-      <section id="hero">
-        <HeroBubblesCanvas />
-
-        <div className="hero-gauche">
-          <img src="/SVG/text-bienvenue.svg" alt="Bienvenue à l'Académie des Créatifs" />
-          <h2>
-            <span>Meilleur Centre de Formation</span>
-            <span>pour les graphistes et les</span>
-            <span>Métiers du Digital</span>
-          </h2>
-          <p>
-            Gagne en assurance et deviens un professionnel, très compétent et
-            implacable.
-          </p>
-          <p className="mobil-text">
-            L'école des designers graphiques et des métiers du digital.
-          </p>
-          <Link className="btn-hero" to="/formations">
-            <FaGraduationCap className="FaGraduation"/>
-            Consulter les formations
-          </Link>
+      <section id="hero" aria-label="Présentation de l'Académie des Créatifs">
+        <div className="hero-slider__backdrop" aria-hidden="true">
+          {heroSlides.map((slide, index) => (
+            <div
+              key={slide.navLabel}
+              className={`hero-slider__image ${index === activeSlideIndex ? "is-active" : ""}`}
+              style={{
+                backgroundImage: `url(${slide.image})`,
+                backgroundPosition: slide.imagePosition ?? "center center",
+              }}
+            />
+          ))}
         </div>
+        <div className="hero-slider__shade" aria-hidden="true" />
 
-        <div className="hero-droite">
-          <img src="/girl-bg-2-min.webp" alt="Étudiante de l'Académie des Créatifs" />
+        <div className="hero-slider__shell">
+          <div className="hero-slider__main">
+            <div className="hero-slider__rail" aria-label="Navigation du slider">
+              {heroSlides.map((slide, index) => (
+                <button
+                  key={slide.navLabel}
+                  aria-label={`Afficher le slide ${index + 1}: ${slide.navLabel}`}
+                  aria-pressed={index === activeSlideIndex}
+                  className={index === activeSlideIndex ? "is-active" : ""}
+                  type="button"
+                  onClick={() => setActiveSlideIndex(index)}
+                >
+                  <span className="hero-slider__rail-index">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="hero-slider__rail-label">{slide.navLabel}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="hero-slider__copy" aria-live="polite" key={activeSlide.navLabel}>
+              <p className="hero-slider__eyebrow"><img src="assets/logo_ico_hd.png" alt="" className="ico-logo" /> {activeSlide.eyebrow}</p>
+              <h1>{activeSlide.title}</h1>
+              <p className="hero-slider__description">{activeSlide.description}</p>
+
+              <div className="hero-slider__actions">
+                {activeSlide.actions.map((action) => {
+                  const ActionIcon = action.icon;
+
+                  if (action.external) {
+                    return (
+                      <a
+                        key={action.label}
+                        className={`hero-slider__action hero-slider__action--${action.variant}`}
+                        href={action.to}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {ActionIcon ? <ActionIcon /> : null}
+                        <span>{action.label}</span>
+                      </a>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={action.label}
+                      className={`hero-slider__action hero-slider__action--${action.variant}`}
+                      to={action.to}
+                    >
+                      {ActionIcon ? <ActionIcon /> : null}
+                      <span>{action.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="hero-slider__controls">
+            <button
+              aria-label="Slide précédent"
+              type="button"
+              onClick={goToPreviousSlide}
+            >
+              <FaChevronLeft />
+            </button>
+            <button aria-label="Slide suivant" type="button" onClick={goToNextSlide}>
+              <FaChevronRight />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="hero-counters" aria-label="Quelques chiffres clés">
+        <div className="hero-counters__container" ref={statsRef}>
+          {heroCounters.map((stat) => {
+            const Icon = stat.icon;
+
+            return (
+              <article className="hero-counter" key={stat.value}>
+                <div className="hero-counter__icon" aria-hidden="true">
+                  <Icon />
+                </div>
+                <h2>
+                  <AnimatedCounter start={statsVisible} value={stat.value} />
+                </h2>
+                <p>{stat.copy}</p>
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -388,17 +732,6 @@ export default function HomePage() {
             <div className="partie-droite">
               <img src="/simone-3x.png" alt="Étudiante sur la plateforme" />
             </div>
-          </div>
-
-          <div className="partie-basse" ref={statsRef}>
-            {stats.map((stat) => (
-              <div className="decompte-chiffre" key={stat.value}>
-                <h1>
-                  <AnimatedCounter start={statsVisible} value={stat.value} />
-                </h1>
-                <p>{stat.copy}</p>
-              </div>
-            ))}
           </div>
         </div>
       </section>
@@ -506,21 +839,22 @@ export default function HomePage() {
                           </span>
                         </div>
                         <div className="card-footer-actions">
-                          <button
-                            aria-label={`Ajouter ${course.title} au panier`}
-                            className="btn-card-icon"
-                            type="button"
-                            disabled={
-                              course.canPurchase === false ||
-                              workingCartSlug === course.slug ||
-                              cart.items.some((item) => item.formation_slug === course.slug)
-                            }
-                            onClick={() => {
-                              void handleAddToCart(course.slug, course.canPurchase, course.purchaseMessage);
-                            }}
-                          >
-                            <FaShoppingCart />
-                          </button>
+                          {course.canPurchase === false ? null : (
+                            <button
+                              aria-label={`Ajouter ${course.title} au panier`}
+                              className="btn-card-icon"
+                              type="button"
+                              disabled={
+                                workingCartSlug === course.slug ||
+                                cart.items.some((item) => item.formation_slug === course.slug)
+                              }
+                              onClick={() => {
+                                void handleAddToCart(course.slug, course.canPurchase, course.purchaseMessage);
+                              }}
+                            >
+                              <FaShoppingCart />
+                            </button>
+                          )}
                           <Link className="btn-card-action" to={getFormationPath(course.slug)}>
                             Voir
                           </Link>
@@ -626,21 +960,22 @@ export default function HomePage() {
                           </span>
                         </div>
                         <div className="card-footer-actions">
-                          <button
-                            aria-label={`Ajouter ${course.title} au panier`}
-                            className="btn-card-icon"
-                            type="button"
-                            disabled={
-                              course.canPurchase === false ||
-                              workingCartSlug === course.slug ||
-                              cart.items.some((item) => item.formation_slug === course.slug)
-                            }
-                            onClick={() => {
-                              void handleAddToCart(course.slug, course.canPurchase, course.purchaseMessage);
-                            }}
-                          >
-                            <FaShoppingCart />
-                          </button>
+                          {course.canPurchase === false ? null : (
+                            <button
+                              aria-label={`Ajouter ${course.title} au panier`}
+                              className="btn-card-icon"
+                              type="button"
+                              disabled={
+                                workingCartSlug === course.slug ||
+                                cart.items.some((item) => item.formation_slug === course.slug)
+                              }
+                              onClick={() => {
+                                void handleAddToCart(course.slug, course.canPurchase, course.purchaseMessage);
+                              }}
+                            >
+                              <FaShoppingCart />
+                            </button>
+                          )}
                           <Link className="btn-card-action" to={getFormationPath(course.slug)}>
                             Voir
                           </Link>
@@ -662,35 +997,32 @@ export default function HomePage() {
             )}
           </div>
         </div>
+        <div className="home-formations-cta">
+          <Link to="/formations" className="home-formations-cta__btn">
+            Voir toutes nos formations
+            <FaArrowRight />
+          </Link>
+        </div>
       </section>
 
       <section id="note-info">
         <div className="note-info-contenair">
-          <div className="note-info-gauche">
-            <h3>L'Académie des Créatifs</h3>
-            <h2>
-              Nous formons et contribuons au perfectionnement de la prochaine
-              génération de professionnels du numérique
-            </h2>
-            <p>
-              Notre mission est de former les futurs professionnels du numérique
-              en leur offrant des formations de qualité, adaptées aux besoins du
-              marché.
-            </p>
-            <p>
-              Rejoignez-nous pour découvrir comment nous pouvons vous aider à
-              atteindre vos objectifs professionnels et à exceller dans votre
-              carrière.
-            </p>
-            <Link className="solid-icon" to="/register">
-              <FaGraduationCap />
-              S'inscrire maintenant
-            </Link>
-          </div>
-
-          <div className="note-info-droite">
-            <img src="/bg-ac-1.jpg" alt="Locaux de l'Académie des Créatifs" />
-          </div>
+          <p className="note-info__eyebrow">
+            <FaGraduationCap />
+            <span>Académie des Créatifs</span>
+          </p>
+          <h2>
+            Nous formons la prochaine génération <span>de créatifs du numérique.</span>
+          </h2>
+          <p className="note-info__lead">
+            Design graphique, marketing digital, réseaux sociaux et projets concrets:
+            tu progresses avec un cadre clair, des retours utiles et un accompagnement
+            pensé pour le terrain.
+          </p>
+          <a className="note-info__cta" href="/diagnostic">
+            <span>Démarrer mon diagnostic</span>
+            <FaArrowRight />
+          </a>
         </div>
       </section>
 
@@ -770,15 +1102,54 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="part-bas-al">
-            {albumItems.map((item) => (
-              <div className="img-al" key={item.title}>
-                <img src={item.image} alt={item.title} />
-                <div className="img-al-overlay">
-                  <h3>{item.title}</h3>
-                </div>
+          <div className="album-carousel" aria-label="Galerie photo de l'Académie des Créatifs">
+            <div className="album-carousel__shell">
+              <button
+                aria-label="Photo précédente"
+                className="album-carousel__nav album-carousel__nav--prev"
+                type="button"
+                onClick={goToPreviousAlbum}
+              >
+                <FaChevronLeft />
+              </button>
+
+              <div
+                className={`album-carousel__viewport album-carousel__viewport--${albumItemsPerPage}`}
+                key={`${albumItemsPerPage}-${activeAlbumPage}`}
+              >
+                {visibleAlbumItems.map((item) => (
+                  <article className="album-carousel__card" key={item.title}>
+                    <img src={item.image} alt={item.title} />
+                    <div className="album-carousel__overlay" />
+                    <div className="album-carousel__caption">
+                      <h3>{item.title}</h3>
+                    </div>
+                  </article>
+                ))}
               </div>
-            ))}
+
+              <button
+                aria-label="Photo suivante"
+                className="album-carousel__nav album-carousel__nav--next"
+                type="button"
+                onClick={goToNextAlbum}
+              >
+                <FaChevronRight />
+              </button>
+            </div>
+
+            <div className="album-carousel__dots" aria-label="Pages de la galerie">
+              {Array.from({ length: albumPageCount }, (_, index) => (
+                <button
+                  key={index}
+                  aria-label={`Afficher la page ${index + 1} de la galerie`}
+                  aria-pressed={index === activeAlbumPage}
+                  className={index === activeAlbumPage ? "is-active" : ""}
+                  type="button"
+                  onClick={() => setActiveAlbumPage(index)}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -891,32 +1262,53 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="formateur">
-        <div className="formateur-container">
-          <div className="formateur-container-haut">
-            <div className="section-icon">
-              <FaFire />
-            </div>
-            <h2>Quelques formateurs & responsables académiques</h2>
-            <p>
-              Nos formateurs expérimentés accompagnent chaque apprenant avec
-              passion. Experts dans leur domaine, ils partagent leur savoir-faire
-              à travers une pédagogie pratique et adaptée au monde réel.
-            </p>
+      {/* ── BLOG SECTION ─────────────────────────────────── */}
+      <section className="home-blog">
+        <div className="home-blog__inner">
+          <div className="home-blog__header">
+            <p className="home-blog__eyebrow">Le Blog</p>
+            <h2>Nos Articles Populaires</h2>
+            <p>Découvrez les sujets qui passionnent notre communauté de créatifs.</p>
           </div>
-          <div className="formateur-contenair-bas">
-            <div className="form-container">
-              {trainers.map((trainer) => (
-                <article className="formateur-carte" key={trainer.name}>
-                  <div className="photo-img">
-                    <img src={trainer.image} alt={trainer.name} />
-                  </div>
-                  <h3>{trainer.name}</h3>
-                  <p>{trainer.role}</p>
-                  <span className="high">{trainer.label}</span>
-                </article>
+
+          {blogError ? (
+            <p className="home-blog__error">{blogError}</p>
+          ) : blogPosts.length === 0 ? (
+            <div className="home-blog__grid home-blog__grid--skeleton">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="home-blog-card home-blog-card--skeleton" />
               ))}
             </div>
+          ) : (
+            <div className="home-blog__grid">
+              {blogPosts.map((post) => (
+                <Link to={`/blog/${post.slug}`} key={post.slug} className="home-blog-card">
+                  <div className="home-blog-card__cover">
+                    <img src={post.cover_image} alt={post.title} />
+                    <span className={`home-blog-card__cat blog-cat-badge ${catClass(post.category)}`}>{post.category}</span>
+                  </div>
+                  <div className="home-blog-card__body">
+                    <span className="home-blog-card__date">{post.published_at}</span>
+                    <h3>{post.title}</h3>
+                    <p>{post.excerpt}</p>
+                    <div className="home-blog-card__footer">
+                      {post.reviews_count > 0 && (
+                        <span className="home-blog-card__rating">
+                          <FaStar /> {post.rating.toFixed(1)} <em>({post.reviews_count})</em>
+                        </span>
+                      )}
+                      <span className="home-blog-card__read">Lire la suite →</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          <div className="home-blog__footer">
+            <Link to="/blog" className="home-blog__cta">
+              Explorer tout le blog
+            </Link>
           </div>
         </div>
       </section>

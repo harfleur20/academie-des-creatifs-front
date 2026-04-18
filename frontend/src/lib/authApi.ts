@@ -17,6 +17,7 @@ export type AuthUser = {
   role: UserRole;
   status: string;
   avatar_initials: string;
+  avatar_url: string | null;
   dashboard_path: string;
 };
 
@@ -75,4 +76,48 @@ export async function logout(): Promise<void> {
   } finally {
     clearAccessToken();
   }
+}
+
+export async function forgotPassword(email: string): Promise<void> {
+  await apiRequest<void>("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  await apiRequest<void>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+}
+
+export async function uploadAvatar(file: File): Promise<string> {
+  const res = await apiRequest<{ avatar_url: string }>(`/me/avatar?filename=${encodeURIComponent(file.name)}`, {
+    method: "POST",
+    headers: { "Content-Type": file.type },
+    body: file,
+  });
+  return res.avatar_url;
+}
+
+export type UpdateProfilePayload = {
+  full_name: string;
+  phone?: string | null;
+};
+
+export async function updateProfile(payload: UpdateProfilePayload): Promise<AuthUser> {
+  const updated = await apiRequest<{ id: number; full_name: string; email: string; phone: string | null }>(
+    "/me/profile",
+    { method: "PATCH", body: JSON.stringify(payload) }
+  );
+  const current = await fetchCurrentUser();
+  return { ...current, full_name: updated.full_name, phone: updated.phone };
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await apiRequest<void>("/me/change-password", {
+    method: "POST",
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
 }

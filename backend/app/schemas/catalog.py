@@ -10,6 +10,7 @@ FormatType = Literal["live", "ligne", "presentiel"]
 DashboardType = Literal["classic", "guided"]
 UserRole = Literal["admin", "teacher", "student"]
 UserStatus = Literal["active", "suspended"]
+EnrollmentStatus = Literal["pending", "active", "suspended", "completed", "cancelled"]
 SessionStatus = Literal["planned", "open", "completed", "cancelled"]
 SessionState = Literal[
     "not_applicable",
@@ -20,7 +21,7 @@ SessionState = Literal[
     "ended",
 ]
 OrderStatus = Literal["pending", "paid", "partially_paid", "failed", "cancelled"]
-PaymentStatus = Literal["pending", "confirmed", "failed"]
+PaymentStatus = Literal["pending", "confirmed", "late", "failed", "cancelled"]
 
 
 class FormationProjectItem(BaseModel):
@@ -132,13 +133,6 @@ class FormationCatalogItem(BaseModel):
     reviews: int = Field(ge=0)
     badges: list[FormationBadge] = Field(default_factory=list)
 
-    @field_validator("rating")
-    @classmethod
-    def validate_rating_step(cls, value: float) -> float:
-        scaled = round(value * 2)
-        if abs((scaled / 2) - value) > 1e-9:
-            raise ValueError("La note doit avancer par pas de 0.5.")
-        return value
 
 
 class FormationDetailItem(FormationCatalogItem, FormationDetailContent):
@@ -170,8 +164,6 @@ class AdminFormationBase(BaseModel):
     objectives: list[str] | None = None
     projects: list[FormationProjectItem] | None = None
     audience_text: str | None = None
-    certificate_copy: str | None = None
-    certificate_image: str | None = None
     modules: list[FormationModuleItem] | None = None
     faqs: list[FormationFaqItem] | None = None
 
@@ -185,8 +177,6 @@ class AdminFormationBase(BaseModel):
         "mentor_label",
         "mentor_image",
         "audience_text",
-        "certificate_copy",
-        "certificate_image",
     )
     @classmethod
     def validate_non_empty_string(cls, value: str | None) -> str | None:
@@ -197,11 +187,6 @@ class AdminFormationBase(BaseModel):
     @field_validator("rating")
     @classmethod
     def validate_rating_step(cls, value: float | None) -> float | None:
-        if value is None:
-            return value
-        scaled = round(value * 2)
-        if abs((scaled / 2) - value) > 1e-9:
-            raise ValueError("La note doit avancer par pas de 0.5.")
         return value
 
     @field_validator("badges")
@@ -278,8 +263,6 @@ class AdminFormationUpdate(AdminFormationBase):
             and self.objectives is None
             and self.projects is None
             and self.audience_text is None
-            and self.certificate_copy is None
-            and self.certificate_image is None
             and self.modules is None
             and self.faqs is None
         ):
@@ -298,16 +281,59 @@ class AdminDashboardOverview(BaseModel):
     pending_orders_count: int
     confirmed_payments_count: int
     pending_payments_count: int
+    late_payments_count: int
     total_confirmed_revenue_amount: int
     total_confirmed_revenue_label: str
+
+
+class AdminUploadedAsset(BaseModel):
+    filename: str
+    path: str
+    public_url: str
+    content_type: str
+    size: int = Field(ge=0)
 
 
 class AdminUserItem(BaseModel):
     id: int
     full_name: str
     email: str
+    phone: str | None = None
     role: UserRole
     status: UserStatus
+    student_code: str | None = None
+    enrollments_count: int = 0
+    created_at: datetime
+
+
+class AdminEnrollmentItem(BaseModel):
+    id: int
+    user_id: int
+    student_name: str
+    student_email: str
+    student_phone: str | None = None
+    student_code: str | None = None
+    user_status: UserStatus
+    formation_id: int
+    formation_slug: str
+    formation_title: str
+    format_type: FormatType
+    dashboard_type: DashboardType
+    order_reference: str
+    order_status: OrderStatus | None = None
+    payments_count: int = 0
+    confirmed_payments_count: int = 0
+    pending_payments_count: int = 0
+    late_payments_count: int = 0
+    failed_payments_count: int = 0
+    cancelled_payments_count: int = 0
+    session_id: int | None = None
+    session_label: str | None = None
+    session_start_date: date | None = None
+    session_end_date: date | None = None
+    campus_label: str | None = None
+    teacher_name: str | None = None
+    status: EnrollmentStatus
     created_at: datetime
 
 
@@ -328,6 +354,7 @@ class AdminOnsiteSessionItem(BaseModel):
     session_state: SessionState
     can_purchase: bool
     session_label: str | None = None
+    meeting_link: str | None = None
 
 
 class AdminFormationSessionCreate(BaseModel):
@@ -339,6 +366,7 @@ class AdminFormationSessionCreate(BaseModel):
     seat_capacity: int = Field(default=0, ge=0)
     teacher_name: str | None = None
     status: SessionStatus = "planned"
+    meeting_link: str | None = None
 
     @field_validator("label", "campus_label", "teacher_name")
     @classmethod
@@ -376,8 +404,15 @@ class AdminPaymentItem(BaseModel):
     amount: int
     amount_label: str
     currency: str
+    order_status: OrderStatus | None = None
+    installment_plan: str | None = None
+    installment_number: int | None = None
+    due_date: date | None = None
     provider_code: str
     status: PaymentStatus
+    reminder_count: int = 0
+    last_reminded_at: datetime | None = None
+    can_send_reminder: bool = False
     paid_at: datetime | None
     created_at: datetime
 
@@ -393,6 +428,10 @@ class AdminUserUpdate(BaseModel):
         return self
 
 
+class AdminEnrollmentUpdate(BaseModel):
+    status: EnrollmentStatus
+
+
 class AdminOnsiteSessionUpdate(BaseModel):
     label: str | None = None
     start_date: date | None = None
@@ -401,6 +440,7 @@ class AdminOnsiteSessionUpdate(BaseModel):
     seat_capacity: int | None = Field(default=None, ge=0)
     teacher_name: str | None = None
     status: SessionStatus | None = None
+    meeting_link: str | None = None
 
     @field_validator("label", "campus_label", "teacher_name")
     @classmethod
@@ -414,15 +454,7 @@ class AdminOnsiteSessionUpdate(BaseModel):
 
     @model_validator(mode="after")
     def validate_non_empty_payload(self) -> "AdminOnsiteSessionUpdate":
-        if (
-            self.label is None
-            and self.start_date is None
-            and self.end_date is None
-            and self.campus_label is None
-            and self.seat_capacity is None
-            and self.teacher_name is None
-            and self.status is None
-        ):
+        if not self.model_fields_set:
             raise ValueError("Au moins un champ session doit etre fourni.")
         return self
 

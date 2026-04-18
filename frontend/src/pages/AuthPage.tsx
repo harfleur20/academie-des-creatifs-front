@@ -453,6 +453,14 @@ export default function AuthPage({ mode }: AuthPageProps) {
               ) : null}
             </label>
 
+            {isLogin && (
+              <div style={{ textAlign: "right", marginTop: "-0.25rem" }}>
+                <Link className="auth-forgot-link" to="/forgot-password">
+                  Mot de passe oublié ?
+                </Link>
+              </div>
+            )}
+
             <label className={`auth-checkbox ${policyState}`.trim()} htmlFor="auth-policy">
               <input
                 checked={values.policy}

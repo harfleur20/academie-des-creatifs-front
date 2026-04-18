@@ -1,9 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
+from pathlib import Path
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import require_roles
 from app.db.session import get_db
 from app.schemas.catalog import (
+    AdminEnrollmentItem,
+    AdminEnrollmentUpdate,
     AdminFormationSessionCreate,
     AdminFormationItem,
     AdminDashboardOverview,
@@ -15,6 +20,7 @@ from app.schemas.catalog import (
     AdminOrderUpdate,
     AdminPaymentItem,
     AdminPaymentUpdate,
+    AdminUploadedAsset,
     AdminUserItem,
     AdminUserUpdate,
 )
@@ -22,12 +28,15 @@ from app.services.catalog import (
     create_admin_onsite_session,
     create_catalog_entry,
     get_admin_overview,
+    list_admin_enrollments,
     list_admin_catalog_items,
     list_admin_onsite_sessions,
     list_admin_orders,
     list_admin_payments,
     list_admin_users,
+    remind_admin_payment,
     update_admin_onsite_session,
+    update_admin_enrollment,
     update_admin_order,
     update_admin_payment,
     update_admin_user,
@@ -39,6 +48,26 @@ router = APIRouter(
     tags=["admin"],
     dependencies=[Depends(require_roles("admin"))],
 )
+
+UPLOAD_ROOT = Path(__file__).resolve().parents[3] / "uploads" / "admin-media"
+UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif"}
+ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".webm", ".ogg", ".mov"}
+IMAGE_CONTENT_TYPES = {
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "image/gif",
+    "image/avif",
+}
+VIDEO_CONTENT_TYPES = {
+    "video/mp4",
+    "video/webm",
+    "video/ogg",
+    "video/quicktime",
+}
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+MAX_VIDEO_BYTES = 50 * 1024 * 1024
 
 
 @router.get("/formations", response_model=list[AdminFormationItem])
@@ -73,6 +102,48 @@ def patch_admin_formation(
     return updated
 
 
+@router.post("/uploads", response_model=AdminUploadedAsset, status_code=201)
+async def upload_admin_asset(
+    request: Request,
+    filename: str = Query(min_length=1, max_length=255),
+) -> AdminUploadedAsset:
+    raw = await request.body()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Aucun fichier recu.")
+
+    original_name = Path(filename).name.strip()
+    extension = Path(original_name).suffix.lower()
+    content_type = request.headers.get("content-type", "application/octet-stream").split(";")[0].strip().lower()
+
+    if extension in ALLOWED_IMAGE_EXTENSIONS:
+        if content_type not in IMAGE_CONTENT_TYPES:
+            raise HTTPException(status_code=400, detail="Type de fichier image invalide.")
+        max_bytes = MAX_IMAGE_BYTES
+    elif extension in ALLOWED_VIDEO_EXTENSIONS:
+        if content_type not in VIDEO_CONTENT_TYPES:
+            raise HTTPException(status_code=400, detail="Type de fichier video invalide.")
+        max_bytes = MAX_VIDEO_BYTES
+    else:
+        raise HTTPException(status_code=400, detail="Extension de fichier non prise en charge.")
+
+    if len(raw) > max_bytes:
+        raise HTTPException(status_code=400, detail="Fichier trop volumineux pour cet upload.")
+
+    stored_name = f"{uuid4().hex}{extension}"
+    destination = UPLOAD_ROOT / stored_name
+    destination.write_bytes(raw)
+
+    public_path = f"/uploads/admin-media/{stored_name}"
+    public_url = f"{str(request.base_url).rstrip('/')}{public_path}"
+    return AdminUploadedAsset(
+        filename=original_name,
+        path=public_path,
+        public_url=public_url,
+        content_type=content_type,
+        size=len(raw),
+    )
+
+
 @router.get("/stats/overview", response_model=AdminDashboardOverview)
 def read_admin_overview(db: Session = Depends(get_db)) -> AdminDashboardOverview:
     return get_admin_overview(db)
@@ -81,6 +152,11 @@ def read_admin_overview(db: Session = Depends(get_db)) -> AdminDashboardOverview
 @router.get("/users", response_model=list[AdminUserItem])
 def read_admin_users(db: Session = Depends(get_db)) -> list[AdminUserItem]:
     return list_admin_users(db)
+
+
+@router.get("/enrollments", response_model=list[AdminEnrollmentItem])
+def read_admin_enrollments(db: Session = Depends(get_db)) -> list[AdminEnrollmentItem]:
+    return list_admin_enrollments(db)
 
 
 @router.patch("/users/{user_id}", response_model=AdminUserItem)
@@ -92,6 +168,18 @@ def patch_admin_user(
     updated = update_admin_user(db, user_id, payload)
     if updated is None:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
+    return updated
+
+
+@router.patch("/enrollments/{enrollment_id}", response_model=AdminEnrollmentItem)
+def patch_admin_enrollment(
+    enrollment_id: int,
+    payload: AdminEnrollmentUpdate,
+    db: Session = Depends(get_db),
+) -> AdminEnrollmentItem:
+    updated = update_admin_enrollment(db, enrollment_id, payload)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Inscription introuvable.")
     return updated
 
 
@@ -158,6 +246,21 @@ def patch_admin_payment(
     db: Session = Depends(get_db),
 ) -> AdminPaymentItem:
     updated = update_admin_payment(db, payment_id, payload)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Paiement introuvable.")
+    return updated
+
+
+@router.post("/payments/{payment_id}/reminders", response_model=AdminPaymentItem)
+def post_admin_payment_reminder(
+    payment_id: int,
+    db: Session = Depends(get_db),
+) -> AdminPaymentItem:
+    try:
+        updated = remind_admin_payment(db, payment_id)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
     if updated is None:
         raise HTTPException(status_code=404, detail="Paiement introuvable.")
     return updated

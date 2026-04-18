@@ -6,6 +6,11 @@ import SiteHeader from "../components/SiteHeader";
 
 export default function PublicLayout() {
   const location = useLocation();
+  const isDiagnostic = location.pathname === "/diagnostic";
+
+  if (isDiagnostic) {
+    return <Outlet />;
+  }
 
   return (
     <div className="app-shell">

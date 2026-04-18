@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   FaCalendarAlt,
   FaChartLine,
@@ -10,6 +10,7 @@ import {
   FaEdit,
   FaEye,
   FaFire,
+  FaImage,
   FaLaptop,
   FaMapMarkerAlt,
   FaMoneyBillWave,
@@ -23,11 +24,26 @@ import {
   FaUsers,
   FaVideo,
 } from "react-icons/fa";
+import {
+  BadgeDollarSign,
+  BookOpen,
+  GalleryHorizontalEnd,
+  ImagePlus,
+  LayoutTemplate,
+  PackageOpen,
+  Save,
+  Tag,
+  X,
+} from "lucide-react";
 
 import {
+  type AdminEnrollment,
   type AdminFormation,
   createAdminOnsiteSession,
+  fetchAdminEnrollments,
   createAdminFormation,
+  sendAdminPaymentReminder,
+  updateAdminEnrollment,
   fetchAdminFormations,
   fetchAdminOnsiteSessions,
   fetchAdminOrders,
@@ -39,8 +55,10 @@ import {
   updateAdminPayment,
   updateAdminUser,
   updateAdminFormation,
+  uploadAdminAsset,
   type AdminFormationSessionCreatePayload,
   type AdminFormationCreatePayload,
+  type AdminEnrollmentUpdatePayload,
   type AdminOnsiteSession,
   type AdminOnsiteSessionUpdatePayload,
   type AdminOrder,
@@ -50,6 +68,7 @@ import {
   type AdminPaymentUpdatePayload,
   type AdminUser,
   type AdminUserUpdatePayload,
+  type EnrollmentStatus,
   type FormationFaq,
   type FormationFormat,
   type FormationModule,
@@ -63,6 +82,7 @@ import {
   type UserStatus,
 } from "../lib/catalogApi";
 import type { AdminDashboardOutletContext } from "../admin/adminDashboardContext";
+import { trainers } from "../data/ecommerceHomeData";
 
 type DraftValues = {
   title: string;
@@ -81,14 +101,12 @@ type DraftValues = {
   mentorName: string;
   mentorLabel: string;
   mentorImage: string;
-  includedText: string;
-  objectivesText: string;
-  projectsText: string;
+  included: string[];
+  objectives: string[];
+  projects: FormationProject[];
   audienceText: string;
-  certificateCopy: string;
-  certificateImage: string;
-  modulesText: string;
-  faqsText: string;
+  modules: FormationModule[];
+  faqs: FormationFaq[];
 };
 
 type Feedback = {
@@ -110,6 +128,7 @@ type SessionDraft = {
   seatCapacity: string;
   teacherName: string;
   status: SessionStatus;
+  meetingLink: string;
 };
 
 type SessionCreateDraft = {
@@ -121,10 +140,15 @@ type SessionCreateDraft = {
   seatCapacity: string;
   teacherName: string;
   status: SessionStatus;
+  meetingLink: string;
 };
 
 type OrderDraft = {
   status: OrderStatus;
+};
+
+type EnrollmentDraft = {
+  status: EnrollmentStatus;
 };
 
 type PaymentDraft = {
@@ -135,11 +159,37 @@ type PaymentDraft = {
 type CatalogDisplayFilter = "all" | "featured";
 
 const marketingBadges: MarketingBadge[] = ["premium", "populaire"];
+const formationFormatOptions: Array<{
+  value: FormationFormat;
+  label: string;
+  subtitle: string;
+  image: string;
+}> = [
+  {
+    value: "live",
+    label: "Live",
+    subtitle: "Sessions animees en direct",
+    image: "/Microsoft_Office_Teams.webp",
+  },
+  {
+    value: "ligne",
+    label: "En ligne",
+    subtitle: "Parcours classique a suivre a distance",
+    image: "/Flyers/Figma-Image.jpg",
+  },
+  {
+    value: "presentiel",
+    label: "Presentiel",
+    subtitle: "Cohorte accompagnee sur place",
+    image: "/banner_catalogue_formation.jpg",
+  },
+];
 const userRoles: UserRole[] = ["student", "teacher", "admin"];
 const userStatuses: UserStatus[] = ["active", "suspended"];
+const enrollmentStatuses: EnrollmentStatus[] = ["pending", "active", "suspended", "completed", "cancelled"];
 const sessionStatuses: SessionStatus[] = ["planned", "open", "completed", "cancelled"];
 const orderStatuses: OrderStatus[] = ["pending", "paid", "partially_paid", "failed", "cancelled"];
-const paymentStatuses: PaymentStatus[] = ["pending", "confirmed", "failed"];
+const paymentStatuses: PaymentStatus[] = ["pending", "late", "confirmed", "failed", "cancelled"];
 
 function badgeIcon(badge: string) {
   if (badge === "premium") {
@@ -254,110 +304,113 @@ function slugify(value: string) {
     .slice(0, 255);
 }
 
-function joinTextLines(items: string[]) {
-  return items.join("\n");
+function trimValue(value: string | null | undefined) {
+  return (value ?? "").trim();
 }
 
-function serializeProjects(projects: FormationProject[]) {
-  return projects
-    .map((project) =>
-      [
-        project.title,
-        project.image,
-        project.kind === "video" ? "video" : "image",
-        project.poster ?? "",
-      ]
-        .filter((part, index) => index < 2 || part)
-        .join(" || "),
-    )
-    .join("\n");
+function updateItemAtIndex<T>(items: T[], index: number, nextItem: T) {
+  return items.map((item, itemIndex) => (itemIndex === index ? nextItem : item));
 }
 
-function serializeModules(modules: FormationModule[]) {
-  return modules
-    .map((module) => [module.title, ...(module.lessons ?? [])].join("\n"))
-    .join("\n\n");
+function removeItemAtIndex<T>(items: T[], index: number) {
+  return items.filter((_, itemIndex) => itemIndex !== index);
 }
 
-function serializeFaqs(faqs: FormationFaq[]) {
-  return faqs
-    .map((faq) => [faq.question, faq.answer].join("\n"))
-    .join("\n\n");
+function emptyProject(): FormationProject {
+  return {
+    title: "",
+    image: "",
+    kind: "image",
+    poster: "",
+  };
 }
 
-function parseLineList(value: string) {
-  return value
-    .split(/\r?\n/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+function emptyModule(): FormationModule {
+  return {
+    title: "",
+    summary: "",
+    duration: "",
+    lessons: [],
+  };
 }
 
-function parseProjects(value: string): FormationProject[] {
-  const lines = parseLineList(value);
-  return lines.map((line) => {
-    const [title = "", image = "", kindRaw = "", poster = ""] = line
-      .split("||")
-      .map((part) => part.trim());
+function emptyFaq(): FormationFaq {
+  return {
+    question: "",
+    answer: "",
+  };
+}
 
-    if (!title || !image) {
-      throw new Error(
-        "Chaque projet doit suivre le format : titre || media || type optionnel || poster optionnel.",
-      );
+function normalizeStringList(items: string[]) {
+  return items.map((item) => item.trim()).filter(Boolean);
+}
+
+function normalizeProjects(projects: FormationProject[]) {
+  return projects.reduce<FormationProject[]>((accumulator, project) => {
+    const title = trimValue(project.title);
+    const image = trimValue(project.image);
+    const poster = trimValue(project.poster);
+    const kind = project.kind === "video" ? "video" : "image";
+
+    if (!title && !image && !poster) {
+      return accumulator;
     }
 
-    return {
+    if (!title || !image) {
+      throw new Error("Chaque projet doit avoir un titre et un media.");
+    }
+
+    accumulator.push({
       title,
       image,
-      kind: kindRaw === "video" ? "video" : "image",
-      poster: poster || undefined,
-    };
-  });
+      kind,
+      ...(poster ? { poster } : {}),
+    });
+    return accumulator;
+  }, []);
 }
 
-function parseModules(value: string): FormationModule[] {
-  const blocks = value
-    .split(/\r?\n\s*\r?\n/)
-    .map((block) => block.trim())
-    .filter(Boolean);
+function normalizeModules(modules: FormationModule[]) {
+  return modules.reduce<FormationModule[]>((accumulator, module) => {
+    const title = trimValue(module.title);
+    const summary = trimValue(module.summary);
+    const duration = trimValue(module.duration);
+    const lessons = normalizeStringList(module.lessons ?? []);
 
-  return blocks.map((block) => {
-    const [title = "", ...lessons] = block
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
+    if (!title && !summary && !duration && lessons.length === 0) {
+      return accumulator;
+    }
 
     if (!title) {
       throw new Error("Chaque module doit avoir un titre.");
     }
 
-    return {
+    accumulator.push({
       title,
+      summary,
+      duration,
       lessons,
-      summary: "",
-      duration: "",
-    };
-  });
+    });
+    return accumulator;
+  }, []);
 }
 
-function parseFaqs(value: string): FormationFaq[] {
-  const blocks = value
-    .split(/\r?\n\s*\r?\n/)
-    .map((block) => block.trim())
-    .filter(Boolean);
+function normalizeFaqs(faqs: FormationFaq[]) {
+  return faqs.reduce<FormationFaq[]>((accumulator, faq) => {
+    const question = trimValue(faq.question);
+    const answer = trimValue(faq.answer);
 
-  return blocks.map((block) => {
-    const [question = "", ...answerLines] = block
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-    const answer = answerLines.join(" ");
-
-    if (!question || !answer) {
-      throw new Error("Chaque FAQ doit contenir une question puis une reponse.");
+    if (!question && !answer) {
+      return accumulator;
     }
 
-    return { question, answer };
-  });
+    if (!question || !answer) {
+      throw new Error("Chaque FAQ doit contenir une question et une reponse.");
+    }
+
+    accumulator.push({ question, answer });
+    return accumulator;
+  }, []);
 }
 
 function toggleBadge(
@@ -370,6 +423,604 @@ function toggleBadge(
     : [...currentBadges, badge];
 
   onChange(nextBadges);
+}
+
+function FormatPicker({
+  value,
+  onChange,
+}: {
+  value: FormationFormat;
+  onChange: (value: FormationFormat) => void;
+}) {
+  return (
+    <div className="fe-format-picker" role="radiogroup" aria-label="Format de formation">
+      {formationFormatOptions.map((option) => {
+        const isActive = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={isActive}
+            className={`fe-format-card${isActive ? " is-active" : ""}`}
+            onClick={() => onChange(option.value)}
+          >
+            <span className="fe-format-card__media">
+              <img src={option.image} alt="" />
+            </span>
+            <span className="fe-format-card__copy">
+              <strong>{option.label}</strong>
+              <small>{option.subtitle}</small>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function DetailListEditor({
+  title,
+  hint,
+  items,
+  placeholder,
+  addLabel,
+  onChange,
+}: {
+  title: string;
+  hint: string;
+  items: string[];
+  placeholder: string;
+  addLabel: string;
+  onChange: (items: string[]) => void;
+}) {
+  return (
+    <section className="fe-composer">
+      <div className="fe-composer__head">
+        <div>
+          <h5>{title}</h5>
+          <p>{hint}</p>
+        </div>
+        <button
+          className="fe-add-btn"
+          type="button"
+          onClick={() => onChange([...items, ""])}
+        >
+          <FaPlus />
+          {addLabel}
+        </button>
+      </div>
+
+      {items.length ? (
+        <div className="fe-input-list">
+          {items.map((item, index) => (
+            <div className="fe-input-row" key={`${title}-${index}`}>
+              <span className="fe-index-pill">{index + 1}</span>
+              <input
+                type="text"
+                value={item}
+                placeholder={placeholder}
+                onChange={(event) =>
+                  onChange(updateItemAtIndex(items, index, event.target.value))
+                }
+              />
+              <button
+                aria-label={`Supprimer ${title.toLowerCase()} ${index + 1}`}
+                className="fe-icon-btn fe-icon-btn--danger"
+                type="button"
+                onClick={() => onChange(removeItemAtIndex(items, index))}
+              >
+                <FaTimes />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="fe-empty-card">
+          <p>Aucun element ajoute pour le moment.</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ProjectEditor({
+  projects,
+  onChange,
+}: {
+  projects: FormationProject[];
+  onChange: (projects: FormationProject[]) => void;
+}) {
+  return (
+    <section className="fe-composer">
+      <div className="fe-composer__head">
+        <div>
+          <h5>Projets et livrables</h5>
+          <p>Ajoute les cas pratiques, mockups ou rendus qui doivent apparaitre sur la fiche.</p>
+        </div>
+        <button
+          className="fe-add-btn"
+          type="button"
+          onClick={() => onChange([...projects, emptyProject()])}
+        >
+          <FaPlus />
+          Ajouter un projet
+        </button>
+      </div>
+
+      {projects.length ? (
+        <div className="fe-card-list">
+          {projects.map((project, index) => (
+            <article className="fe-card-block" key={`project-${index}`}>
+              <div className="fe-card-block__head">
+                <div>
+                  <strong>Projet {index + 1}</strong>
+                  <span>Media de vitrine ou livrable du parcours</span>
+                </div>
+                <button
+                  aria-label={`Supprimer le projet ${index + 1}`}
+                  className="fe-icon-btn fe-icon-btn--danger"
+                  type="button"
+                  onClick={() => onChange(removeItemAtIndex(projects, index))}
+                >
+                  <FaTimes />
+                </button>
+              </div>
+
+              <div className="fe-card-block__body fe-card-block__body--grid">
+                <label className="admin-field fe-span-full">
+                  <span>Titre</span>
+                  <input
+                    type="text"
+                    placeholder="Ex : Refonte d'identite pour une marque cosmetique"
+                    value={project.title}
+                    onChange={(event) =>
+                      onChange(
+                        updateItemAtIndex(projects, index, {
+                          ...project,
+                          title: event.target.value,
+                        }),
+                      )
+                    }
+                  />
+                </label>
+
+                <label className="admin-field">
+                  <span>Type</span>
+                  <select
+                    value={project.kind === "video" ? "video" : "image"}
+                    onChange={(event) =>
+                      onChange(
+                        updateItemAtIndex(projects, index, {
+                          ...project,
+                          kind: event.target.value === "video" ? "video" : "image",
+                        }),
+                      )
+                    }
+                  >
+                    <option value="image">Image</option>
+                    <option value="video">Video</option>
+                  </select>
+                </label>
+
+                <div className="fe-span-full">
+                  <CoverUploadZone
+                    value={project.image}
+                    onChange={(url) =>
+                      onChange(
+                        updateItemAtIndex(projects, index, {
+                          ...project,
+                          image: url,
+                        }),
+                      )
+                    }
+                    label="Media"
+                    emptyTitle={
+                      project.kind === "video"
+                        ? "Uploader la video du projet"
+                        : "Uploader le visuel du projet"
+                    }
+                    accept={project.kind === "video" ? "video/*" : "image/*"}
+                    mediaKind={project.kind === "video" ? "video" : "image"}
+                    helperText={project.kind === "video" ? "MP4 · WebM · OGG" : "PNG · JPG · WebP"}
+                  />
+                </div>
+
+                {project.kind === "video" ? (
+                  <div className="fe-span-full">
+                    <CoverUploadZone
+                      value={project.poster ?? ""}
+                      onChange={(url) =>
+                        onChange(
+                          updateItemAtIndex(projects, index, {
+                            ...project,
+                            poster: url,
+                          }),
+                        )
+                      }
+                      label="Poster video"
+                      emptyTitle="Uploader l'image d'aperçu"
+                      accept="image/*"
+                      mediaKind="image"
+                      helperText="PNG · JPG · WebP"
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="fe-empty-card">
+          <p>Aucun projet n'est encore rattache a cette formation.</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ModuleEditor({
+  modules,
+  onChange,
+}: {
+  modules: FormationModule[];
+  onChange: (modules: FormationModule[]) => void;
+}) {
+  return (
+    <section className="fe-composer">
+      <div className="fe-composer__head">
+        <div>
+          <h5>Programme</h5>
+          <p>Structure chaque module avec son resume, sa duree et ses lecons principales.</p>
+        </div>
+        <button
+          className="fe-add-btn"
+          type="button"
+          onClick={() => onChange([...modules, emptyModule()])}
+        >
+          <FaPlus />
+          Ajouter un module
+        </button>
+      </div>
+
+      {modules.length ? (
+        <div className="fe-card-list">
+          {modules.map((module, index) => (
+            <article className="fe-card-block" key={`module-${index}`}>
+              <div className="fe-card-block__head">
+                <div>
+                  <strong>Module {index + 1}</strong>
+                  <span>Organisation pedagogique du parcours</span>
+                </div>
+                <button
+                  aria-label={`Supprimer le module ${index + 1}`}
+                  className="fe-icon-btn fe-icon-btn--danger"
+                  type="button"
+                  onClick={() => onChange(removeItemAtIndex(modules, index))}
+                >
+                  <FaTimes />
+                </button>
+              </div>
+
+              <div className="fe-card-block__body">
+                <div className="fe-inline-grid">
+                  <label className="admin-field fe-span-full">
+                    <span>Titre du module</span>
+                    <input
+                      type="text"
+                      placeholder="Ex : Module 1 - Fondations et methode"
+                      value={module.title}
+                      onChange={(event) =>
+                        onChange(
+                          updateItemAtIndex(modules, index, {
+                            ...module,
+                            title: event.target.value,
+                          }),
+                        )
+                      }
+                    />
+                  </label>
+
+                  <label className="admin-field">
+                    <span>Duree</span>
+                    <input
+                      type="text"
+                      placeholder="Ex : 2h 30"
+                      value={module.duration ?? ""}
+                      onChange={(event) =>
+                        onChange(
+                          updateItemAtIndex(modules, index, {
+                            ...module,
+                            duration: event.target.value,
+                          }),
+                        )
+                      }
+                    />
+                  </label>
+
+                  <label className="admin-field fe-span-full">
+                    <span>Resume</span>
+                    <textarea
+                      rows={3}
+                      placeholder="Explique l'objectif et le resultat attendu du module."
+                      value={module.summary ?? ""}
+                      onChange={(event) =>
+                        onChange(
+                          updateItemAtIndex(modules, index, {
+                            ...module,
+                            summary: event.target.value,
+                          }),
+                        )
+                      }
+                    />
+                  </label>
+                </div>
+
+                <DetailListEditor
+                  title="Lecons"
+                  hint="Une ligne correspond a une lecon ou un point aborde dans le module."
+                  items={module.lessons}
+                  placeholder="Ex : Analyse des references et construction du systeme graphique"
+                  addLabel="Ajouter une lecon"
+                  onChange={(lessons) =>
+                    onChange(
+                      updateItemAtIndex(modules, index, {
+                        ...module,
+                        lessons,
+                      }),
+                    )
+                  }
+                />
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="fe-empty-card">
+          <p>Aucun module n'est encore defini.</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function FaqEditor({
+  faqs,
+  onChange,
+}: {
+  faqs: FormationFaq[];
+  onChange: (faqs: FormationFaq[]) => void;
+}) {
+  return (
+    <section className="fe-composer">
+      <div className="fe-composer__head">
+        <div>
+          <h5>FAQ</h5>
+          <p>Prepare les reponses visibles sur la page detail pour lever les freins d'achat.</p>
+        </div>
+        <button
+          className="fe-add-btn"
+          type="button"
+          onClick={() => onChange([...faqs, emptyFaq()])}
+        >
+          <FaPlus />
+          Ajouter une question
+        </button>
+      </div>
+
+      {faqs.length ? (
+        <div className="fe-card-list">
+          {faqs.map((faq, index) => (
+            <article className="fe-card-block" key={`faq-${index}`}>
+              <div className="fe-card-block__head">
+                <div>
+                  <strong>Question {index + 1}</strong>
+                  <span>Bloc d'information public</span>
+                </div>
+                <button
+                  aria-label={`Supprimer la question ${index + 1}`}
+                  className="fe-icon-btn fe-icon-btn--danger"
+                  type="button"
+                  onClick={() => onChange(removeItemAtIndex(faqs, index))}
+                >
+                  <FaTimes />
+                </button>
+              </div>
+
+              <div className="fe-card-block__body fe-card-block__body--grid">
+                <label className="admin-field fe-span-full">
+                  <span>Question</span>
+                  <input
+                    type="text"
+                    placeholder="Ex : Quand l'acces est-il active ?"
+                    value={faq.question}
+                    onChange={(event) =>
+                      onChange(
+                        updateItemAtIndex(faqs, index, {
+                          ...faq,
+                          question: event.target.value,
+                        }),
+                      )
+                    }
+                  />
+                </label>
+
+                <label className="admin-field fe-span-full">
+                  <span>Reponse</span>
+                  <textarea
+                    rows={4}
+                    placeholder="Explique la reponse de maniere claire et concise."
+                    value={faq.answer}
+                    onChange={(event) =>
+                      onChange(
+                        updateItemAtIndex(faqs, index, {
+                          ...faq,
+                          answer: event.target.value,
+                        }),
+                      )
+                    }
+                  />
+                </label>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="fe-empty-card">
+          <p>Aucune FAQ n'a encore ete preparee.</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CoverUploadZone({
+  value,
+  onChange,
+  label = "Image / cover",
+  emptyTitle = "Glisser-déposer une image ici",
+  accept = "image/*",
+  mediaKind = "image",
+  helperText = "PNG · JPG · WebP",
+}: {
+  value: string;
+  onChange: (url: string) => void;
+  label?: string;
+  emptyTitle?: string;
+  accept?: string;
+  mediaKind?: "image" | "video";
+  helperText?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [localPreview, setLocalPreview] = useState("");
+
+  useEffect(() => {
+    return () => {
+      if (localPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(localPreview);
+      }
+    };
+  }, [localPreview]);
+
+  async function handleFile(file: File) {
+    const objectUrl = URL.createObjectURL(file);
+    if (localPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(localPreview);
+    }
+
+    setLocalPreview(objectUrl);
+    setUploadError("");
+    setUploading(true);
+
+    try {
+      const uploaded = await uploadAdminAsset(file);
+      if (objectUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(objectUrl);
+      }
+      setLocalPreview(uploaded.public_url);
+      onChange(uploaded.public_url);
+    } catch (error) {
+      setUploadError(
+        error instanceof Error
+          ? error.message
+          : "Upload impossible pour le moment.",
+      );
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      void handleFile(file);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (mediaKind === "image" && !file.type.startsWith("image/")) {
+      setUploadError("Selectionne une image valide.");
+      return;
+    }
+
+    if (mediaKind === "video" && !file.type.startsWith("video/")) {
+      setUploadError("Selectionne une video valide.");
+      return;
+    }
+
+    void handleFile(file);
+  }
+
+  const previewValue = localPreview || value;
+  const isPreview = Boolean(previewValue);
+
+  return (
+    <div className="admin-cover-upload">
+      <span className="admin-cover-upload__label">{label}</span>
+
+      <div
+        className={`admin-cover-upload__drop${isDragOver ? " is-over" : ""}`}
+        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={handleDrop}
+        onClick={() => !uploading && !isPreview && inputRef.current?.click()}
+      >
+        <input ref={inputRef} type="file" accept={accept} onChange={handleFileInput} style={{ display: "none" }} />
+
+        {isPreview ? (
+          <>
+            {mediaKind === "video" ? (
+              <video className="admin-cover-upload__preview-media" src={previewValue} controls muted playsInline />
+            ) : (
+              <img className="admin-cover-upload__preview-media" src={previewValue} alt="Preview" />
+            )}
+            <div className="admin-cover-upload__preview-bar">
+              <span>{uploading ? "Televersement en cours..." : "Fichier televerse"}</span>
+              <button type="button" className="admin-cover-upload__clear" onClick={(e) => {
+                e.stopPropagation();
+                if (localPreview.startsWith("blob:")) {
+                  URL.revokeObjectURL(localPreview);
+                }
+                setLocalPreview("");
+                setUploadError("");
+                onChange("");
+              }}>
+                Supprimer
+              </button>
+              <button type="button" className="admin-cover-upload__clear" style={{ background: "#f0fdf4", color: "#15803d", borderColor: "rgba(34,197,94,0.25)" }} onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}>
+                Changer
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="admin-cover-upload__empty">
+            <span className="admin-cover-upload__icon"><FaImage /></span>
+            <strong>{emptyTitle}</strong>
+            <span>{uploading ? "Televersement..." : "cliquer pour parcourir"}</span>
+            <div className="admin-cover-upload__specs">
+              <span className="admin-cover-upload__spec-tag">1280 × 720 px recommandé</span>
+              <span className="admin-cover-upload__spec-tag">{helperText}</span>
+              <span className="admin-cover-upload__spec-tag">{mediaKind === "video" ? "max 50 Mo" : "max 5 Mo"}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {uploadError ? (
+        <p className="admin-feedback admin-feedback--error">{uploadError}</p>
+      ) : null}
+    </div>
+  );
 }
 
 function AdminModal({
@@ -403,7 +1054,7 @@ function AdminModal({
 
           <button
             aria-label="Fermer le panneau"
-            className="admin-icon-button admin-icon-button--ghost"
+            className="admin-icon-button admin-icon-button--close"
             type="button"
             onClick={onClose}
           >
@@ -446,7 +1097,7 @@ function AdminDrawer({
 
           <button
             aria-label="Fermer le panneau"
-            className="admin-icon-button admin-icon-button--ghost"
+            className="admin-icon-button admin-icon-button--close"
             type="button"
             onClick={onClose}
           >
@@ -480,14 +1131,25 @@ function buildDraftFromFormation(formation: AdminFormation): DraftValues {
     mentorName: formation.mentor_name,
     mentorLabel: formation.mentor_label,
     mentorImage: formation.mentor_image,
-    includedText: joinTextLines(formation.included),
-    objectivesText: joinTextLines(formation.objectives),
-    projectsText: serializeProjects(formation.projects),
+    included: [...formation.included],
+    objectives: [...formation.objectives],
+    projects: formation.projects.map((project) => ({
+      title: project.title,
+      image: project.image,
+      kind: project.kind === "video" ? "video" : "image",
+      poster: project.poster ?? "",
+    })),
     audienceText: formation.audience_text,
-    certificateCopy: formation.certificate_copy,
-    certificateImage: formation.certificate_image,
-    modulesText: serializeModules(formation.modules),
-    faqsText: serializeFaqs(formation.faqs),
+    modules: formation.modules.map((module) => ({
+      title: module.title,
+      summary: module.summary ?? "",
+      duration: module.duration ?? "",
+      lessons: [...module.lessons],
+    })),
+    faqs: formation.faqs.map((faq) => ({
+      question: faq.question,
+      answer: faq.answer,
+    })),
   };
 }
 
@@ -509,14 +1171,12 @@ function emptyCreateDraft(): DraftValues {
     mentorName: "",
     mentorLabel: "",
     mentorImage: "",
-    includedText: "",
-    objectivesText: "",
-    projectsText: "",
+    included: [],
+    objectives: [],
+    projects: [],
     audienceText: "",
-    certificateCopy: "",
-    certificateImage: "",
-    modulesText: "",
-    faqsText: "",
+    modules: [],
+    faqs: [],
   };
 }
 
@@ -530,6 +1190,7 @@ function emptySessionCreateDraft(): SessionCreateDraft {
     seatCapacity: "0",
     teacherName: "",
     status: "planned",
+    meetingLink: "",
   };
 }
 
@@ -580,13 +1241,19 @@ function buildPayloadFromDraft(
     throw new Error("L'ordre d'affichage accueil doit etre un entier positif ou nul.");
   }
 
+  const included = normalizeStringList(draft.included);
+  const objectives = normalizeStringList(draft.objectives);
+  const projects = normalizeProjects(draft.projects);
+  const modules = normalizeModules(draft.modules);
+  const faqs = normalizeFaqs(draft.faqs);
+
   return {
     currentPrice,
     payload: {
-      title: draft.title.trim(),
-      category: draft.category.trim(),
-      level: draft.level.trim(),
-      image: draft.image.trim(),
+      title: trimValue(draft.title),
+      category: trimValue(draft.category),
+      level: trimValue(draft.level),
+      image: trimValue(draft.image),
       format_type: draft.formatType,
       rating,
       reviews,
@@ -595,18 +1262,16 @@ function buildPayloadFromDraft(
       is_featured_home: draft.isFeaturedHome,
       home_feature_rank: homeFeatureRank,
       badges: draft.badges,
-      intro: draft.intro.trim(),
-      mentor_name: draft.mentorName.trim(),
-      mentor_label: draft.mentorLabel.trim(),
-      mentor_image: draft.mentorImage.trim(),
-      included: parseLineList(draft.includedText),
-      objectives: parseLineList(draft.objectivesText),
-      projects: parseProjects(draft.projectsText),
-      audience_text: draft.audienceText.trim(),
-      certificate_copy: draft.certificateCopy.trim(),
-      certificate_image: draft.certificateImage.trim(),
-      modules: parseModules(draft.modulesText),
-      faqs: parseFaqs(draft.faqsText),
+      intro: trimValue(draft.intro),
+      mentor_name: trimValue(draft.mentorName),
+      mentor_label: trimValue(draft.mentorLabel),
+      mentor_image: trimValue(draft.mentorImage),
+      included,
+      objectives,
+      projects,
+      audience_text: trimValue(draft.audienceText),
+      modules,
+      faqs,
     },
   };
 }
@@ -628,12 +1293,19 @@ function buildSessionDraft(session: AdminOnsiteSession): SessionDraft {
     seatCapacity: session.seat_capacity.toString(),
     teacherName: session.teacher_name,
     status: session.status,
+    meetingLink: session.meeting_link ?? "",
   };
 }
 
 function buildOrderDraft(order: AdminOrder): OrderDraft {
   return {
     status: order.status,
+  };
+}
+
+function buildEnrollmentDraft(enrollment: AdminEnrollment): EnrollmentDraft {
+  return {
+    status: enrollment.status,
   };
 }
 
@@ -649,120 +1321,109 @@ function FormationDetailFields({
   onChange,
 }: {
   draft: DraftValues;
-  onChange: (field: keyof DraftValues, value: string) => void;
+  onChange: <K extends keyof DraftValues>(field: K, value: DraftValues[K]) => void;
 }) {
   return (
-    <div className="admin-detail-editor">
-      <div className="admin-detail-editor__heading">
-        <h4>Fiche detail</h4>
-        <p>
-          Ces contenus alimentent directement la page description. Une ligne =
-          un point. Un bloc vide entre deux elements separe une FAQ ou un
-          module.
-        </p>
+    <div className="fe-detail-stack">
+      <div className="admin-detail-editor">
+        <div className="admin-detail-editor__heading">
+          <h4>Fiche detail</h4>
+          <p>
+            Structure la page publique avec des sections claires, des listes utiles
+            et un programme vraiment exploitable.
+          </p>
+        </div>
+
+        <div className="fe-detail-grid">
+          <label className="admin-field fe-span-full">
+            <span>Introduction</span>
+            <textarea
+              rows={4}
+              placeholder="Resume la promesse de la formation, son rythme et le resultat attendu."
+              value={draft.intro}
+              onChange={(event) => onChange("intro", event.target.value)}
+            />
+          </label>
+
+          <label className="admin-field fe-span-full">
+            <span>Formateur assigné</span>
+            <select
+              value={trainers.find((t) => t.name === draft.mentorName)?.name ?? ""}
+              onChange={(event) => {
+                const trainer = trainers.find((t) => t.name === event.target.value);
+                if (trainer) {
+                  onChange("mentorName", trainer.name);
+                  onChange("mentorLabel", trainer.label);
+                  onChange("mentorImage", trainer.image);
+                } else {
+                  onChange("mentorName", "");
+                  onChange("mentorLabel", "");
+                  onChange("mentorImage", "");
+                }
+              }}
+            >
+              <option value="">— Choisir un formateur —</option>
+              {trainers.map((t) => (
+                <option key={t.name} value={t.name}>
+                  {t.name} · {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {draft.mentorName && (
+            <div className="fe-mentor-preview fe-span-full">
+              <img src={draft.mentorImage} alt={draft.mentorName} />
+              <div>
+                <strong>{draft.mentorName}</strong>
+                <span>{draft.mentorLabel}</span>
+              </div>
+            </div>
+          )}
+
+          <label className="admin-field fe-span-full">
+            <span>Public vise</span>
+            <textarea
+              rows={4}
+              placeholder="Explique a qui s'adresse cette formation et ce qu'elle debloque."
+              value={draft.audienceText}
+              onChange={(event) => onChange("audienceText", event.target.value)}
+            />
+          </label>
+        </div>
       </div>
 
-      <div className="admin-formation-form admin-formation-form--details">
-        <label className="admin-field admin-field--span-4">
-          <span>Introduction</span>
-          <textarea
-            value={draft.intro}
-            onChange={(event) => onChange("intro", event.target.value)}
-          />
-        </label>
+      <div className="fe-detail-grid fe-detail-grid--split">
+        <DetailListEditor
+          title="Inclus dans la formation"
+          hint="Liste les ressources, l'accompagnement et les avantages concrets de l'offre."
+          items={draft.included}
+          placeholder="Ex : Acces aux lives et aux replays"
+          addLabel="Ajouter un element"
+          onChange={(items) => onChange("included", items)}
+        />
 
-        <label className="admin-field">
-          <span>Mentor</span>
-          <input
-            type="text"
-            value={draft.mentorName}
-            onChange={(event) => onChange("mentorName", event.target.value)}
-          />
-        </label>
-
-        <label className="admin-field">
-          <span>Poste mentor</span>
-          <input
-            type="text"
-            value={draft.mentorLabel}
-            onChange={(event) => onChange("mentorLabel", event.target.value)}
-          />
-        </label>
-
-        <label className="admin-field admin-field--span-2">
-          <span>Image mentor</span>
-          <input
-            type="text"
-            value={draft.mentorImage}
-            onChange={(event) => onChange("mentorImage", event.target.value)}
-          />
-        </label>
-
-        <label className="admin-field admin-field--span-2">
-          <span>Inclus dans la formation</span>
-          <textarea
-            value={draft.includedText}
-            onChange={(event) => onChange("includedText", event.target.value)}
-          />
-        </label>
-
-        <label className="admin-field admin-field--span-2">
-          <span>Objectifs</span>
-          <textarea
-            value={draft.objectivesText}
-            onChange={(event) => onChange("objectivesText", event.target.value)}
-          />
-        </label>
-
-        <label className="admin-field admin-field--span-4">
-          <span>Projets (titre || media || type optionnel || poster optionnel)</span>
-          <textarea
-            value={draft.projectsText}
-            onChange={(event) => onChange("projectsText", event.target.value)}
-          />
-        </label>
-
-        <label className="admin-field admin-field--span-4">
-          <span>Public vise</span>
-          <textarea
-            value={draft.audienceText}
-            onChange={(event) => onChange("audienceText", event.target.value)}
-          />
-        </label>
-
-        <label className="admin-field admin-field--span-2">
-          <span>Texte certificat</span>
-          <textarea
-            value={draft.certificateCopy}
-            onChange={(event) => onChange("certificateCopy", event.target.value)}
-          />
-        </label>
-
-        <label className="admin-field admin-field--span-2">
-          <span>Image certificat</span>
-          <input
-            type="text"
-            value={draft.certificateImage}
-            onChange={(event) => onChange("certificateImage", event.target.value)}
-          />
-        </label>
-
-        <label className="admin-field admin-field--span-2">
-          <span>Modules (1 bloc = 1 module, 1re ligne = titre, lignes suivantes = lecons)</span>
-          <textarea
-            value={draft.modulesText}
-            onChange={(event) => onChange("modulesText", event.target.value)}
-          />
-        </label>
-
-        <label className="admin-field admin-field--span-2">
-          <span>FAQ (1 bloc = question puis reponse)</span>
-          <textarea
-            value={draft.faqsText}
-            onChange={(event) => onChange("faqsText", event.target.value)}
-          />
-        </label>
+        <DetailListEditor
+          title="Objectifs pedagogiques"
+          hint="Formule les competences ou resultats visibles en fin de parcours."
+          items={draft.objectives}
+          placeholder="Ex : Construire une direction artistique coherente"
+          addLabel="Ajouter un objectif"
+          onChange={(items) => onChange("objectives", items)}
+        />
       </div>
+
+      <ProjectEditor
+        projects={draft.projects}
+        onChange={(projects) => onChange("projects", projects)}
+      />
+
+      <ModuleEditor
+        modules={draft.modules}
+        onChange={(modules) => onChange("modules", modules)}
+      />
+
+      <FaqEditor faqs={draft.faqs} onChange={(faqs) => onChange("faqs", faqs)} />
     </div>
   );
 }
@@ -772,11 +1433,13 @@ export default function DashboardPage() {
   const [formations, setFormations] = useState<AdminFormation[]>([]);
   const [sessions, setSessions] = useState<AdminOnsiteSession[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [enrollments, setEnrollments] = useState<AdminEnrollment[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [payments, setPayments] = useState<AdminPayment[]>([]);
   const [drafts, setDrafts] = useState<Record<string, DraftValues>>({});
   const [userDrafts, setUserDrafts] = useState<Record<number, UserDraft>>({});
   const [sessionDrafts, setSessionDrafts] = useState<Record<number, SessionDraft>>({});
+  const [enrollmentDrafts, setEnrollmentDrafts] = useState<Record<number, EnrollmentDraft>>({});
   const [orderDrafts, setOrderDrafts] = useState<Record<number, OrderDraft>>({});
   const [paymentDrafts, setPaymentDrafts] = useState<Record<number, PaymentDraft>>({});
   const [createDraft, setCreateDraft] = useState<DraftValues>(emptyCreateDraft);
@@ -786,6 +1449,7 @@ export default function DashboardPage() {
   const [feedbackBySlug, setFeedbackBySlug] = useState<Record<string, Feedback>>({});
   const [userFeedbackById, setUserFeedbackById] = useState<Record<number, Feedback>>({});
   const [sessionFeedbackById, setSessionFeedbackById] = useState<Record<number, Feedback>>({});
+  const [enrollmentFeedbackById, setEnrollmentFeedbackById] = useState<Record<number, Feedback>>({});
   const [orderFeedbackById, setOrderFeedbackById] = useState<Record<number, Feedback>>({});
   const [paymentFeedbackById, setPaymentFeedbackById] = useState<Record<number, Feedback>>({});
   const [createFeedback, setCreateFeedback] = useState<Feedback | null>(null);
@@ -795,8 +1459,10 @@ export default function DashboardPage() {
   const [savingSlug, setSavingSlug] = useState<string | null>(null);
   const [savingUserId, setSavingUserId] = useState<number | null>(null);
   const [savingSessionId, setSavingSessionId] = useState<number | null>(null);
+  const [savingEnrollmentId, setSavingEnrollmentId] = useState<number | null>(null);
   const [savingOrderId, setSavingOrderId] = useState<number | null>(null);
   const [savingPaymentId, setSavingPaymentId] = useState<number | null>(null);
+  const [remindingPaymentId, setRemindingPaymentId] = useState<number | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [catalogDisplayFilter, setCatalogDisplayFilter] =
@@ -840,12 +1506,15 @@ export default function DashboardPage() {
     () => formations.filter((formation) => formation.format_type !== "ligne"),
     [formations],
   );
-  const availableSessionCreateFormations = useMemo(
+  const teacherUsers = useMemo(
     () =>
-      sessionCapableFormations.filter(
-        (formation) =>
-          formation.session_state === "unscheduled" || formation.session_state === "ended",
-      ),
+      users
+        .filter((user) => user.role === "teacher" && user.status === "active")
+        .sort((left, right) => left.full_name.localeCompare(right.full_name)),
+    [users],
+  );
+  const availableSessionCreateFormations = useMemo(
+    () => sessionCapableFormations,
     [sessionCapableFormations],
   );
   const activeFormation = useMemo(
@@ -875,10 +1544,11 @@ export default function DashboardPage() {
       fetchAdminFormations(),
       fetchAdminOnsiteSessions(),
       fetchAdminUsers(),
+      fetchAdminEnrollments(),
       fetchAdminOrders(),
       fetchAdminPayments(),
     ])
-      .then(([overviewData, formationsData, sessionsData, usersData, ordersData, paymentsData]) => {
+      .then(([overviewData, formationsData, sessionsData, usersData, enrollmentsData, ordersData, paymentsData]) => {
         if (!isMounted) {
           return;
         }
@@ -887,6 +1557,7 @@ export default function DashboardPage() {
         setFormations(formationsData);
         setSessions(sessionsData);
         setUsers(usersData);
+        setEnrollments(enrollmentsData);
         setOrders(ordersData);
         setPayments(paymentsData);
         setDrafts(
@@ -900,6 +1571,11 @@ export default function DashboardPage() {
         setSessionDrafts(
           Object.fromEntries(
             sessionsData.map((session) => [session.id, buildSessionDraft(session)]),
+          ),
+        );
+        setEnrollmentDrafts(
+          Object.fromEntries(
+            enrollmentsData.map((enrollment) => [enrollment.id, buildEnrollmentDraft(enrollment)]),
           ),
         );
         setOrderDrafts(
@@ -931,10 +1607,10 @@ export default function DashboardPage() {
     };
   }, []);
 
-  const syncDraft = (
+  const syncDraft = <K extends keyof DraftValues>(
     slug: string,
-    field: keyof DraftValues,
-    value: string | boolean | MarketingBadge[] | FormationFormat,
+    field: K,
+    value: DraftValues[K],
   ) => {
     setDrafts((current) => ({
       ...current,
@@ -955,9 +1631,9 @@ export default function DashboardPage() {
     });
   };
 
-  const syncCreateDraft = (
-    field: keyof DraftValues,
-    value: string | boolean | MarketingBadge[] | FormationFormat,
+  const syncCreateDraft = <K extends keyof DraftValues>(
+    field: K,
+    value: DraftValues[K],
   ) => {
     setCreateDraft((current) => ({
       ...current,
@@ -1017,6 +1693,24 @@ export default function DashboardPage() {
       }
       const next = { ...current };
       delete next[sessionId];
+      return next;
+    });
+  };
+
+  const syncEnrollmentDraft = (enrollmentId: number, status: EnrollmentStatus) => {
+    setEnrollmentDrafts((current) => ({
+      ...current,
+      [enrollmentId]: {
+        ...(current[enrollmentId] ?? { status }),
+        status,
+      },
+    }));
+    setEnrollmentFeedbackById((current) => {
+      if (!(enrollmentId in current)) {
+        return current;
+      }
+      const next = { ...current };
+      delete next[enrollmentId];
       return next;
     });
   };
@@ -1116,13 +1810,15 @@ export default function DashboardPage() {
   };
 
   const refreshFormationsAndSessions = async () => {
-    const [nextFormations, nextSessions] = await Promise.all([
+    const [nextFormations, nextSessions, nextEnrollments] = await Promise.all([
       fetchAdminFormations(),
       fetchAdminOnsiteSessions(),
+      fetchAdminEnrollments(),
     ]);
 
     setFormations(nextFormations);
     setSessions(nextSessions);
+    setEnrollments(nextEnrollments);
     setDrafts(
       Object.fromEntries(
         nextFormations.map((formation) => [formation.slug, buildDraftFromFormation(formation)]),
@@ -1130,6 +1826,11 @@ export default function DashboardPage() {
     );
     setSessionDrafts(
       Object.fromEntries(nextSessions.map((session) => [session.id, buildSessionDraft(session)])),
+    );
+    setEnrollmentDrafts(
+      Object.fromEntries(
+        nextEnrollments.map((enrollment) => [enrollment.id, buildEnrollmentDraft(enrollment)]),
+      ),
     );
   };
 
@@ -1256,6 +1957,13 @@ export default function DashboardPage() {
         ...current,
         [updated.id]: buildUserDraft(updated),
       }));
+      const refreshedEnrollments = await fetchAdminEnrollments();
+      setEnrollments(refreshedEnrollments);
+      setEnrollmentDrafts(
+        Object.fromEntries(
+          refreshedEnrollments.map((enrollment) => [enrollment.id, buildEnrollmentDraft(enrollment)]),
+        ),
+      );
       setUserFeedbackById((current) => ({
         ...current,
         [user.id]: { type: "success", message: "Utilisateur mis a jour." },
@@ -1270,6 +1978,48 @@ export default function DashboardPage() {
       }));
     } finally {
       setSavingUserId(null);
+    }
+  };
+
+  const handleSaveEnrollment = async (enrollment: AdminEnrollment) => {
+    const draft = enrollmentDrafts[enrollment.id];
+    if (!draft) {
+      return;
+    }
+
+    const payload: AdminEnrollmentUpdatePayload = { status: draft.status };
+    if (draft.status === enrollment.status) {
+      setEnrollmentFeedbackById((current) => ({
+        ...current,
+        [enrollment.id]: { type: "success", message: "Aucun changement a enregistrer." },
+      }));
+      return;
+    }
+
+    try {
+      setSavingEnrollmentId(enrollment.id);
+      const updated = await updateAdminEnrollment(enrollment.id, payload);
+      setEnrollments((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
+      setEnrollmentDrafts((current) => ({
+        ...current,
+        [updated.id]: buildEnrollmentDraft(updated),
+      }));
+      setEnrollmentFeedbackById((current) => ({
+        ...current,
+        [enrollment.id]: { type: "success", message: "Inscription mise a jour." },
+      }));
+    } catch (error) {
+      setEnrollmentFeedbackById((current) => ({
+        ...current,
+        [enrollment.id]: {
+          type: "error",
+          message: error instanceof Error ? error.message : "Echec de mise a jour inscription.",
+        },
+      }));
+    } finally {
+      setSavingEnrollmentId(null);
     }
   };
 
@@ -1293,7 +2043,7 @@ export default function DashboardPage() {
       payload.campus_label = draft.campusLabel.trim();
     }
     if (draft.teacherName !== session.teacher_name) {
-      payload.teacher_name = draft.teacherName.trim();
+      payload.teacher_name = draft.teacherName.trim() || null;
     }
     const seatCapacity = Number.parseInt(draft.seatCapacity, 10);
     if (Number.isInteger(seatCapacity) && seatCapacity !== session.seat_capacity) {
@@ -1301,6 +2051,10 @@ export default function DashboardPage() {
     }
     if (draft.status !== session.status) {
       payload.status = draft.status;
+    }
+    const draftLink = draft.meetingLink.trim() || null;
+    if (draftLink !== (session.meeting_link ?? null)) {
+      payload.meeting_link = draftLink;
     }
     if (Object.keys(payload).length === 0) {
       setSessionFeedbackById((current) => ({
@@ -1372,6 +2126,7 @@ export default function DashboardPage() {
         seat_capacity: seatCapacity,
         teacher_name: createSessionDraft.teacherName.trim() || null,
         status: createSessionDraft.status,
+        meeting_link: createSessionDraft.meetingLink.trim() || null,
       };
 
       setIsCreatingSession(true);
@@ -1428,6 +2183,13 @@ export default function DashboardPage() {
         ...current,
         [updated.id]: buildOrderDraft(updated),
       }));
+      const refreshedEnrollments = await fetchAdminEnrollments();
+      setEnrollments(refreshedEnrollments);
+      setEnrollmentDrafts(
+        Object.fromEntries(
+          refreshedEnrollments.map((enrollment) => [enrollment.id, buildEnrollmentDraft(enrollment)]),
+        ),
+      );
       await refreshOverview();
       setOrderFeedbackById((current) => ({
         ...current,
@@ -1473,8 +2235,17 @@ export default function DashboardPage() {
         ...current,
         [updated.id]: buildPaymentDraft(updated),
       }));
-      const refreshedOrders = await fetchAdminOrders();
+      const [refreshedOrders, refreshedEnrollments] = await Promise.all([
+        fetchAdminOrders(),
+        fetchAdminEnrollments(),
+      ]);
       setOrders(refreshedOrders);
+      setEnrollments(refreshedEnrollments);
+      setEnrollmentDrafts(
+        Object.fromEntries(
+          refreshedEnrollments.map((enrollment) => [enrollment.id, buildEnrollmentDraft(enrollment)]),
+        ),
+      );
       await refreshOverview();
       setPaymentFeedbackById((current) => ({
         ...current,
@@ -1490,6 +2261,43 @@ export default function DashboardPage() {
       }));
     } finally {
       setSavingPaymentId(null);
+    }
+  };
+
+  const handleSendPaymentReminder = async (payment: AdminPayment) => {
+    try {
+      setRemindingPaymentId(payment.id);
+      const updated = await sendAdminPaymentReminder(payment.id);
+      setPayments((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      setPaymentDrafts((current) => ({
+        ...current,
+        [updated.id]: buildPaymentDraft(updated),
+      }));
+      const [refreshedOrders, refreshedEnrollments] = await Promise.all([
+        fetchAdminOrders(),
+        fetchAdminEnrollments(),
+      ]);
+      setOrders(refreshedOrders);
+      setEnrollments(refreshedEnrollments);
+      setEnrollmentDrafts(
+        Object.fromEntries(
+          refreshedEnrollments.map((enrollment) => [enrollment.id, buildEnrollmentDraft(enrollment)]),
+        ),
+      );
+      setPaymentFeedbackById((current) => ({
+        ...current,
+        [payment.id]: { type: "success", message: "Relance envoyee." },
+      }));
+    } catch (error) {
+      setPaymentFeedbackById((current) => ({
+        ...current,
+        [payment.id]: {
+          type: "error",
+          message: error instanceof Error ? error.message : "Echec d'envoi de relance.",
+        },
+      }));
+    } finally {
+      setRemindingPaymentId(null);
     }
   };
 
@@ -1522,6 +2330,7 @@ export default function DashboardPage() {
     formations,
     sessions,
     users,
+    enrollments,
     orders,
     payments,
     loading,
@@ -1546,6 +2355,12 @@ export default function DashboardPage() {
     savingUserId,
     handleSaveUser,
     userFeedbackById,
+    enrollmentDrafts,
+    enrollmentStatuses,
+    syncEnrollmentDraft,
+    savingEnrollmentId,
+    handleSaveEnrollment,
+    enrollmentFeedbackById,
     orderDrafts,
     orderStatuses,
     syncOrderDraft,
@@ -1556,7 +2371,9 @@ export default function DashboardPage() {
     paymentStatuses,
     syncPaymentDraft,
     savingPaymentId,
+    remindingPaymentId,
     handleSavePayment,
+    handleSendPaymentReminder,
     paymentFeedbackById,
   };
 
@@ -1578,39 +2395,47 @@ export default function DashboardPage() {
           }
           onClose={closeFormationEditor}
         >
-          <div className="admin-editor-grid">
-            <div className="admin-editor-stack">
-              <section className="admin-editor-card">
-                <div className="admin-editor-card__heading">
+          {/* ── Formation editor layout ── */}
+          <div className="fe-layout">
+
+            {/* ── Left: form ── */}
+            <div className="fe-form">
+
+              {/* Section 1 — Identité */}
+              <section className="fe-section">
+                <div className="fe-section__head">
+                  <span className="fe-section__icon"><PackageOpen size={15} strokeWidth={2} /></span>
                   <div>
-                    <h4>Identite produit</h4>
-                    <p>Le socle principal du catalogue public.</p>
+                    <h4>Identité produit</h4>
+                    <p>Titre, catégorie, format et cover.</p>
                   </div>
                 </div>
 
-                <div className="admin-formation-form">
-                  <label className="admin-field admin-field--span-2">
-                    <span>Titre</span>
+                <div className="fe-fields">
+                  <label className="admin-field fe-span-full">
+                    <span>Titre de la formation</span>
                     <input
                       type="text"
+                      placeholder="Ex : Maîtrisez le Design Packaging de A à Z"
                       value={formationEditorDraft.title}
-                      onChange={(event) =>
+                      onChange={(e) =>
                         formationEditorState.mode === "create"
-                          ? syncCreateDraft("title", event.target.value)
-                          : syncDraft(formationEditorState.slug, "title", event.target.value)
+                          ? syncCreateDraft("title", e.target.value)
+                          : syncDraft(formationEditorState.slug, "title", e.target.value)
                       }
                     />
                   </label>
 
                   <label className="admin-field">
-                    <span>Categorie</span>
+                    <span>Catégorie</span>
                     <input
                       type="text"
+                      placeholder="Ex : Design graphique"
                       value={formationEditorDraft.category}
-                      onChange={(event) =>
+                      onChange={(e) =>
                         formationEditorState.mode === "create"
-                          ? syncCreateDraft("category", event.target.value)
-                          : syncDraft(formationEditorState.slug, "category", event.target.value)
+                          ? syncCreateDraft("category", e.target.value)
+                          : syncDraft(formationEditorState.slug, "category", e.target.value)
                       }
                     />
                   </label>
@@ -1619,125 +2444,114 @@ export default function DashboardPage() {
                     <span>Niveau</span>
                     <input
                       type="text"
+                      placeholder="Ex : Débutant"
                       value={formationEditorDraft.level}
-                      onChange={(event) =>
+                      onChange={(e) =>
                         formationEditorState.mode === "create"
-                          ? syncCreateDraft("level", event.target.value)
-                          : syncDraft(formationEditorState.slug, "level", event.target.value)
+                          ? syncCreateDraft("level", e.target.value)
+                          : syncDraft(formationEditorState.slug, "level", e.target.value)
                       }
                     />
                   </label>
 
-                  <label className="admin-field">
-                    <span>Format</span>
-                    <select
-                      value={formationEditorDraft.formatType}
-                      onChange={(event) =>
-                        formationEditorState.mode === "create"
-                          ? syncCreateDraft("formatType", event.target.value as FormationFormat)
-                          : syncDraft(
-                              formationEditorState.slug,
-                              "formatType",
-                              event.target.value as FormationFormat,
-                            )
-                      }
-                    >
-                      <option value="live">Live</option>
-                      <option value="ligne">Ligne</option>
-                      <option value="presentiel">Presentiel</option>
-                    </select>
-                  </label>
+          <label className="admin-field">
+            <span>Format</span>
+            <FormatPicker
+              value={formationEditorDraft.formatType}
+              onChange={(value) =>
+                formationEditorState.mode === "create"
+                  ? syncCreateDraft("formatType", value)
+                  : syncDraft(formationEditorState.slug, "formatType", value)
+              }
+            />
+          </label>
 
-                  <label className="admin-field">
-                    <span>Dashboard derive</span>
-                    <input
-                      type="text"
-                      value={dashboardTypeLabel(formationEditorDraft.formatType)}
-                      disabled
-                    />
-                  </label>
+          <label className="admin-field">
+            <span>Libelle format</span>
+            <input type="text" value={formatTypeLabel(formationEditorDraft.formatType)} disabled />
+          </label>
 
-                  <label className="admin-field admin-field--span-2">
-                    <span>Image / cover</span>
-                    <input
-                      type="text"
+          <label className="admin-field">
+            <span>Dashboard derive</span>
+            <input type="text" value={dashboardTypeLabel(formationEditorDraft.formatType)} disabled />
+          </label>
+
+                  {/* Cover upload — full width */}
+                  <div className="fe-span-full">
+                    <p className="fe-field-label">Image / Cover</p>
+                    <CoverUploadZone
                       value={formationEditorDraft.image}
-                      onChange={(event) =>
+                      onChange={(url) =>
                         formationEditorState.mode === "create"
-                          ? syncCreateDraft("image", event.target.value)
-                          : syncDraft(formationEditorState.slug, "image", event.target.value)
+                          ? syncCreateDraft("image", url)
+                          : syncDraft(formationEditorState.slug, "image", url)
                       }
                     />
-                  </label>
+                  </div>
                 </div>
               </section>
 
-              <section className="admin-editor-card">
-                <div className="admin-editor-card__heading">
+              {/* Section 2 — Prix & vitrine */}
+              <section className="fe-section">
+                <div className="fe-section__head">
+                  <span className="fe-section__icon"><BadgeDollarSign size={15} strokeWidth={2} /></span>
                   <div>
-                    <h4>Tarification et vitrine</h4>
-                    <p>Prix, avis, badges et mise en avant accueil.</p>
+                    <h4>Prix &amp; vitrine</h4>
+                    <p>Tarification, mise en avant et badges marketing.</p>
                   </div>
                 </div>
 
-                <div className="admin-formation-form">
+                <div className="fe-fields">
                   <label className="admin-field">
-                    <span>Prix actuel</span>
+                    <span>Prix actuel (FCFA)</span>
                     <input
-                      type="number"
-                      min="0"
-                      step="1"
+                      type="number" min="0" step="1"
+                      placeholder="50000"
                       value={formationEditorDraft.currentPrice}
-                      onChange={(event) =>
+                      onChange={(e) =>
                         formationEditorState.mode === "create"
-                          ? syncCreateDraft("currentPrice", event.target.value)
-                          : syncDraft(formationEditorState.slug, "currentPrice", event.target.value)
+                          ? syncCreateDraft("currentPrice", e.target.value)
+                          : syncDraft(formationEditorState.slug, "currentPrice", e.target.value)
                       }
                     />
                   </label>
 
                   <label className="admin-field">
-                    <span>Prix barre</span>
+                    <span>Prix barré (FCFA)</span>
                     <input
-                      type="number"
-                      min="0"
-                      step="1"
+                      type="number" min="0" step="1"
+                      placeholder="75000"
                       value={formationEditorDraft.originalPrice}
-                      onChange={(event) =>
+                      onChange={(e) =>
                         formationEditorState.mode === "create"
-                          ? syncCreateDraft("originalPrice", event.target.value)
-                          : syncDraft(formationEditorState.slug, "originalPrice", event.target.value)
+                          ? syncCreateDraft("originalPrice", e.target.value)
+                          : syncDraft(formationEditorState.slug, "originalPrice", e.target.value)
                       }
                     />
                   </label>
 
                   <label className="admin-field">
-                    <span>Note</span>
+                    <span>Note (/ 5)</span>
                     <input
-                      type="number"
-                      min="0"
-                      max="5"
-                      step="0.5"
+                      type="number" min="0" max="5" step="0.5"
                       value={formationEditorDraft.rating}
-                      onChange={(event) =>
+                      onChange={(e) =>
                         formationEditorState.mode === "create"
-                          ? syncCreateDraft("rating", event.target.value)
-                          : syncDraft(formationEditorState.slug, "rating", event.target.value)
+                          ? syncCreateDraft("rating", e.target.value)
+                          : syncDraft(formationEditorState.slug, "rating", e.target.value)
                       }
                     />
                   </label>
 
                   <label className="admin-field">
-                    <span>Avis</span>
+                    <span>Nombre d'avis</span>
                     <input
-                      type="number"
-                      min="0"
-                      step="1"
+                      type="number" min="0" step="1"
                       value={formationEditorDraft.reviews}
-                      onChange={(event) =>
+                      onChange={(e) =>
                         formationEditorState.mode === "create"
-                          ? syncCreateDraft("reviews", event.target.value)
-                          : syncDraft(formationEditorState.slug, "reviews", event.target.value)
+                          ? syncCreateDraft("reviews", e.target.value)
+                          : syncDraft(formationEditorState.slug, "reviews", e.target.value)
                       }
                     />
                   </label>
@@ -1746,169 +2560,222 @@ export default function DashboardPage() {
                     <span>Vedette accueil</span>
                     <select
                       value={formationEditorDraft.isFeaturedHome ? "oui" : "non"}
-                      onChange={(event) =>
+                      onChange={(e) =>
                         formationEditorState.mode === "create"
-                          ? syncCreateDraft("isFeaturedHome", event.target.value === "oui")
-                          : syncDraft(
-                              formationEditorState.slug,
-                              "isFeaturedHome",
-                              event.target.value === "oui",
-                            )
+                          ? syncCreateDraft("isFeaturedHome", e.target.value === "oui")
+                          : syncDraft(formationEditorState.slug, "isFeaturedHome", e.target.value === "oui")
                       }
                     >
                       <option value="non">Non</option>
-                      <option value="oui">Oui</option>
+                      <option value="oui">Oui — affiché en accueil</option>
                     </select>
                   </label>
 
                   <label className="admin-field">
                     <span>Ordre accueil</span>
                     <input
-                      type="number"
-                      min="0"
-                      step="1"
+                      type="number" min="0" step="1"
                       value={formationEditorDraft.homeFeatureRank}
-                      onChange={(event) =>
+                      onChange={(e) =>
                         formationEditorState.mode === "create"
-                          ? syncCreateDraft("homeFeatureRank", event.target.value)
-                          : syncDraft(
-                              formationEditorState.slug,
-                              "homeFeatureRank",
-                              event.target.value,
-                            )
+                          ? syncCreateDraft("homeFeatureRank", e.target.value)
+                          : syncDraft(formationEditorState.slug, "homeFeatureRank", e.target.value)
                       }
                     />
                   </label>
                 </div>
 
-                <div className="admin-badge-config">
-                  <div className="admin-badge-list">
+                {/* Badges */}
+                <div className="fe-badges-block">
+                  <p className="fe-field-label">Badges marketing</p>
+                  <div className="fe-badges-row">
                     {marketingBadges.map((badge) => (
                       <button
-                        className={
-                          formationEditorDraft.badges.includes(badge)
-                            ? `admin-badge admin-badge--${badge} is-selected`
-                            : `admin-badge admin-badge--${badge}`
-                        }
                         key={badge}
                         type="button"
+                        className={`fe-badge-btn fe-badge-btn--${badge}${formationEditorDraft.badges.includes(badge) ? " is-on" : ""}`}
                         onClick={() =>
-                          toggleBadge(formationEditorDraft.badges, badge, (nextBadges) =>
+                          toggleBadge(formationEditorDraft.badges, badge, (next) =>
                             formationEditorState.mode === "create"
-                              ? syncCreateDraft("badges", nextBadges)
-                              : syncDraft(formationEditorState.slug, "badges", nextBadges),
+                              ? syncCreateDraft("badges", next)
+                              : syncDraft(formationEditorState.slug, "badges", next)
                           )
                         }
                       >
-                        {badgeIcon(badge)}
-                        {badgeLabel(badge)}
+                        {badgeIcon(badge)} {badgeLabel(badge)}
                       </button>
                     ))}
                   </div>
-                  <p className="admin-hint">
-                    `promo` reste derive automatiquement du couple prix actuel / prix barre.
-                  </p>
+                  <p className="fe-hint">Le badge <em>Promo</em> est automatique si prix barré &gt; prix actuel.</p>
                 </div>
 
-                {formationEditorFeedback ? (
+                {formationEditorFeedback && (
                   <p className={`admin-feedback admin-feedback--${formationEditorFeedback.type}`}>
                     {formationEditorFeedback.message}
                   </p>
-                ) : null}
+                )}
               </section>
 
-              <FormationDetailFields
-                draft={formationEditorDraft}
-                onChange={(field, value) =>
-                  formationEditorState.mode === "create"
-                    ? syncCreateDraft(field, value)
-                    : syncDraft(formationEditorState.slug, field, value)
-                }
-              />
+              {/* Section 3 — Détail / contenu */}
+              <section className="fe-section">
+                <div className="fe-section__head">
+                  <span className="fe-section__icon"><BookOpen size={15} strokeWidth={2} /></span>
+                  <div>
+                    <h4>Contenu &amp; détails</h4>
+                    <p>Description, programme, objectifs pédagogiques.</p>
+                  </div>
+                </div>
+                <div className="fe-fields">
+                  <FormationDetailFields
+                    draft={formationEditorDraft}
+                    onChange={(field, value) =>
+                      formationEditorState.mode === "create"
+                        ? syncCreateDraft(field, value)
+                        : syncDraft(formationEditorState.slug, field, value)
+                    }
+                  />
+                </div>
+              </section>
+
+              <div className="fe-form__footer">
+                <button className="admin-secondary-button" type="button" onClick={closeFormationEditor}>
+                  <X size={15} /> Annuler
+                </button>
+                <button
+                  className="admin-action-button"
+                  type="button"
+                  disabled={
+                    formationEditorState.mode === "create"
+                      ? isCreating
+                      : savingSlug === formationEditorState.slug
+                  }
+                  onClick={() => {
+                    void (async () => {
+                      const ok =
+                        formationEditorState.mode === "create"
+                          ? await handleCreate()
+                          : activeFormation
+                            ? await handleSave(activeFormation)
+                            : false;
+                      if (ok) closeFormationEditor();
+                    })();
+                  }}
+                >
+                  <Save size={15} />
+                  {formationEditorState.mode === "create"
+                    ? isCreating ? "Création…" : "Créer la formation"
+                    : savingSlug === formationEditorState.slug ? "Sauvegarde…" : "Enregistrer"}
+                </button>
+              </div>
+
             </div>
 
-            <aside className="admin-editor-preview">
-              <div className="admin-editor-preview__image">
-                {formationEditorDraft.image ? (
-                  <img src={formationEditorDraft.image} alt={formationEditorDraft.title || "Formation"} />
-                ) : (
-                  <div className="admin-editor-preview__placeholder">Apercu cover</div>
+            {/* ── Right: live preview ── */}
+            <aside className="fe-preview">
+              <p className="fe-preview__label"><GalleryHorizontalEnd size={13} /> Aperçu vitrine</p>
+
+              <div className="fe-preview__card">
+                {/* Cover */}
+                <div className="fe-preview__cover">
+                  {formationEditorDraft.image
+                    ? <img src={formationEditorDraft.image} alt="" />
+                    : <div className="fe-preview__cover-empty"><ImagePlus size={28} strokeWidth={1.5} /><span>Aucune image</span></div>
+                  }
+                </div>
+
+                {/* Info */}
+                <div className="fe-preview__body">
+                  <span className={`adm-format-pill adm-format-pill--${formationEditorDraft.formatType}`}>
+                    {formatTypeLabel(formationEditorDraft.formatType)}
+                  </span>
+                  <h4 className="fe-preview__title">
+                    {formationEditorDraft.title || <span className="fe-preview__placeholder">Titre de la formation</span>}
+                  </h4>
+                  <p className="fe-preview__slug">
+                    /formations/{slugify(formationEditorDraft.title) || "slug-genere-automatiquement"}
+                  </p>
+                  <p className="fe-preview__meta">
+                    {formationEditorDraft.category || "Catégorie"} · {formationEditorDraft.level || "Niveau"}
+                  </p>
+                  {formationEditorDraft.intro ? (
+                    <p className="fe-preview__excerpt">{formationEditorDraft.intro}</p>
+                  ) : null}
+                  <div className="fe-preview__price">
+                    <strong>
+                      {formationEditorDraft.currentPrice
+                        ? `${Number.parseInt(formationEditorDraft.currentPrice || "0", 10).toLocaleString("fr-FR")} FCFA`
+                        : "Prix à définir"}
+                    </strong>
+                    {formationEditorDraft.originalPrice && (
+                      <small>
+                        {Number.parseInt(formationEditorDraft.originalPrice || "0", 10).toLocaleString("fr-FR")} FCFA
+                      </small>
+                    )}
+                  </div>
+                  {formationEditorDraft.badges.length > 0 && (
+                    <div className="fe-preview__badges">
+                      {formationEditorDraft.badges.map((b) => (
+                        <span key={b} className={`adm-market-badge adm-market-badge--${b}`}>
+                          {badgeIcon(b)} {badgeLabel(b)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Meta indicators */}
+              <div className="fe-preview__meta-pills">
+                <span className="fe-meta-pill">
+                  <LayoutTemplate size={12} />
+                  {dashboardTypeLabel(formationEditorDraft.formatType)}
+                </span>
+                {formationEditorDraft.isFeaturedHome && (
+                  <span className="fe-meta-pill fe-meta-pill--star">
+                    <Tag size={12} />
+                    Accueil #{formationEditorDraft.homeFeatureRank}
+                  </span>
                 )}
               </div>
-              <div className="admin-editor-preview__body">
-                <span className={`admin-format-pill admin-format-pill--${formationEditorDraft.formatType}`}>
-                  {formationEditorDraft.formatType === "live" ? <FaVideo /> : formationEditorDraft.formatType === "presentiel" ? <FaMapMarkerAlt /> : <FaLaptop />}
-                  {formatTypeLabel(formationEditorDraft.formatType)}
-                </span>
-                <h4>{formationEditorDraft.title || "Titre de la formation"}</h4>
-                <p>{formationEditorDraft.category || "Categorie"} · {formationEditorDraft.level || "Niveau"}</p>
-                <div className="admin-editor-preview__price">
-                  <strong>
-                    {formationEditorDraft.currentPrice
-                      ? `${Number.parseInt(formationEditorDraft.currentPrice || "0", 10).toLocaleString("fr-FR")} FCFA`
-                      : "Prix a definir"}
-                  </strong>
-                  {formationEditorDraft.originalPrice ? (
-                    <small>
-                      {Number.parseInt(formationEditorDraft.originalPrice || "0", 10).toLocaleString("fr-FR")} FCFA
-                    </small>
-                  ) : null}
+
+              <div className="fe-preview__stats">
+                <div className="fe-preview__stat">
+                  <span>Inclus</span>
+                  <strong>{normalizeStringList(formationEditorDraft.included).length}</strong>
                 </div>
-                <div className="admin-table-badges">
-                  {formationEditorDraft.badges.map((badge) => (
-                    <span className={`admin-market-badge admin-market-badge--${badge}`} key={badge}>
-                      {badgeIcon(badge)}
-                      {badgeLabel(badge)}
-                    </span>
-                  ))}
-                  {formationEditorDraft.originalPrice &&
-                  Number.parseInt(formationEditorDraft.originalPrice || "0", 10) >
-                    Number.parseInt(formationEditorDraft.currentPrice || "0", 10) ? (
-                    <span className="admin-market-badge admin-market-badge--promo">
-                      <FaTag />
-                      Promo
-                    </span>
-                  ) : null}
+                <div className="fe-preview__stat">
+                  <span>Projets</span>
+                  <strong>
+                    {formationEditorDraft.projects.filter(
+                      (project) =>
+                        trimValue(project.title) ||
+                        trimValue(project.image) ||
+                        trimValue(project.poster),
+                    ).length}
+                  </strong>
+                </div>
+                <div className="fe-preview__stat">
+                  <span>Modules</span>
+                  <strong>
+                    {formationEditorDraft.modules.filter(
+                      (module) =>
+                        trimValue(module.title) ||
+                        trimValue(module.summary) ||
+                        trimValue(module.duration) ||
+                        normalizeStringList(module.lessons ?? []).length > 0,
+                    ).length}
+                  </strong>
+                </div>
+                <div className="fe-preview__stat">
+                  <span>FAQ</span>
+                  <strong>
+                    {formationEditorDraft.faqs.filter(
+                      (faq) => trimValue(faq.question) || trimValue(faq.answer),
+                    ).length}
+                  </strong>
                 </div>
               </div>
             </aside>
-          </div>
-
-          <div className="admin-modal__footer">
-            <button className="admin-secondary-button" type="button" onClick={closeFormationEditor}>
-              Annuler
-            </button>
-            <button
-              className="admin-action-button"
-              type="button"
-              disabled={
-                formationEditorState.mode === "create"
-                  ? isCreating
-                  : savingSlug === formationEditorState.slug
-              }
-              onClick={() => {
-                void (async () => {
-                  const ok =
-                    formationEditorState.mode === "create"
-                      ? await handleCreate()
-                      : activeFormation
-                        ? await handleSave(activeFormation)
-                        : false;
-                  if (ok) {
-                    closeFormationEditor();
-                  }
-                })();
-              }}
-            >
-              <FaSave />
-              {formationEditorState.mode === "create"
-                ? isCreating
-                  ? "Creation..."
-                  : "Creer la formation"
-                : savingSlug === formationEditorState.slug
-                  ? "Sauvegarde..."
-                  : "Enregistrer"}
-            </button>
           </div>
         </AdminDrawer>
       ) : null}
@@ -1929,7 +2796,7 @@ export default function DashboardPage() {
               <div className="admin-editor-card__heading">
                 <div>
                   <h4>Parametres de session</h4>
-                  <p>Une seule session non terminee par formation.</p>
+                  <p>Une formation peut avoir plusieurs cohortes avec leurs propres dates.</p>
                 </div>
               </div>
 
@@ -2022,15 +2889,25 @@ export default function DashboardPage() {
 
                 <label className="admin-field">
                   <span>Intervenant</span>
-                  <input
-                    type="text"
+                  <select
                     value={sessionEditorDraft.teacherName}
                     onChange={(event) =>
                       sessionEditorState.mode === "create"
                         ? syncCreateSessionDraft("teacherName", event.target.value)
                         : syncSessionDraft(activeSession!.id, "teacherName", event.target.value)
                     }
-                  />
+                  >
+                    <option value="">Non assigné</option>
+                    {sessionEditorDraft.teacherName &&
+                      !teacherUsers.some((teacher) => teacher.full_name === sessionEditorDraft.teacherName) && (
+                        <option value={sessionEditorDraft.teacherName}>{sessionEditorDraft.teacherName}</option>
+                      )}
+                    {teacherUsers.map((teacher) => (
+                      <option key={teacher.id} value={teacher.full_name}>
+                        {teacher.full_name}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label className="admin-field">
@@ -2049,6 +2926,20 @@ export default function DashboardPage() {
                       </option>
                     ))}
                   </select>
+                </label>
+
+                <label className="admin-field fe-span-full">
+                  <span>Lien Jitsi (généré automatiquement si vide)</span>
+                  <input
+                    type="url"
+                    placeholder="https://meet.jit.si/..."
+                    value={sessionEditorDraft.meetingLink}
+                    onChange={(event) =>
+                      sessionEditorState.mode === "create"
+                        ? syncCreateSessionDraft("meetingLink", event.target.value)
+                        : syncSessionDraft(activeSession!.id, "meetingLink", event.target.value)
+                    }
+                  />
                 </label>
               </div>
 
@@ -2170,8 +3061,8 @@ export default function DashboardPage() {
               `premium` et `populaire` restent marketing et modifiables par
               l'admin. `promo` est maintenant derive du couple prix actuel /
               prix barre. `live` et `presentiel` pointent vers un dashboard
-              guide, `ligne` vers un dashboard classique. Une formation ne peut
-              avoir qu'une seule session non terminee a la fois.
+              guide, `ligne` vers un dashboard classique. Une formation peut
+              porter plusieurs sessions, chacune avec sa propre periode.
             </p>
           </div>
 
@@ -2814,13 +3705,23 @@ export default function DashboardPage() {
 
                 <label className="admin-field">
                   <span>Formateur</span>
-                  <input
-                    type="text"
+                  <select
                     value={createSessionDraft.teacherName}
                     onChange={(event) =>
                       syncCreateSessionDraft("teacherName", event.target.value)
                     }
-                  />
+                  >
+                    <option value="">Non assigné</option>
+                    {createSessionDraft.teacherName &&
+                      !teacherUsers.some((teacher) => teacher.full_name === createSessionDraft.teacherName) && (
+                        <option value={createSessionDraft.teacherName}>{createSessionDraft.teacherName}</option>
+                      )}
+                    {teacherUsers.map((teacher) => (
+                      <option key={teacher.id} value={teacher.full_name}>
+                        {teacher.full_name}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label className="admin-field">
@@ -2841,6 +3742,18 @@ export default function DashboardPage() {
                     ))}
                   </select>
                 </label>
+
+                <label className="admin-field fe-span-full">
+                  <span>Lien Jitsi (généré automatiquement si vide)</span>
+                  <input
+                    type="url"
+                    placeholder="https://meet.jit.si/..."
+                    value={createSessionDraft.meetingLink}
+                    onChange={(event) =>
+                      syncCreateSessionDraft("meetingLink", event.target.value)
+                    }
+                  />
+                </label>
               </div>
 
               {createSessionFeedback ? (
@@ -2850,9 +3763,7 @@ export default function DashboardPage() {
               ) : null}
               {availableSessionCreateFormations.length === 0 ? (
                 <p className="admin-hint">
-                  Toutes les formations live et presentiel ont deja une session
-                  non terminee. Cloturez d'abord la session en cours avant d'en
-                  programmer une nouvelle.
+                  Aucune formation live ou présentiel n'est disponible pour créer une session.
                 </p>
               ) : null}
             </article>
@@ -2938,13 +3849,29 @@ export default function DashboardPage() {
                       </label>
                       <label className="admin-field">
                         <span>Formateur</span>
-                        <input
-                          type="text"
+                        <select
                           value={sessionDrafts[session.id]?.teacherName ?? session.teacher_name}
                           onChange={(event) =>
                             syncSessionDraft(session.id, "teacherName", event.target.value)
                           }
-                        />
+                        >
+                          <option value="">Non assigné</option>
+                          {(sessionDrafts[session.id]?.teacherName ?? session.teacher_name) &&
+                            !teacherUsers.some(
+                              (teacher) =>
+                                teacher.full_name ===
+                                (sessionDrafts[session.id]?.teacherName ?? session.teacher_name),
+                            ) && (
+                              <option value={sessionDrafts[session.id]?.teacherName ?? session.teacher_name}>
+                                {sessionDrafts[session.id]?.teacherName ?? session.teacher_name}
+                              </option>
+                            )}
+                          {teacherUsers.map((teacher) => (
+                            <option key={teacher.id} value={teacher.full_name}>
+                              {teacher.full_name}
+                            </option>
+                          ))}
+                        </select>
                       </label>
                       <label className="admin-field">
                         <span>Statut</span>

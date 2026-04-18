@@ -1,15 +1,75 @@
-from fastapi import APIRouter, Depends
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
+from app.core.security import hash_password, verify_password
 from app.db.session import get_db
-from app.models.entities import UserRecord
-from app.schemas.commerce import EnrollmentView, NotificationView, StudentDashboardSummary
+from app.models.entities import (
+    AssignmentRecord,
+    AssignmentSubmissionRecord,
+    AttendanceRecord,
+    ChapterRecord,
+    CourseRecord,
+    EnrollmentRecord,
+    FormationRecord,
+    FormationSessionRecord,
+    GradeRecord,
+    LessonCompletionRecord,
+    LessonProgressRecord,
+    LessonRecord,
+    OrderRecord,
+    PaymentRecord,
+    QuizAttemptRecord,
+    QuizQuestionRecord,
+    QuizRecord,
+    ResourceRecord,
+    SessionCourseDayRecord,
+    SessionLiveEventRecord,
+    UserRecord,
+)
+from app.schemas.commerce import (
+    AssignmentStudentStatus,
+    AssignmentSubmitPayload,
+    AttemptStatus,
+    CertificateView,
+    EnrollmentProgress,
+    EnrollmentView,
+    LessonKey,
+    NotificationView,
+    QuizAnswerPayload,
+    StudentAssignmentView,
+    StudentDashboardSummary,
+    StudentOrderView,
+    StudentPaymentLineView,
+    StudentChapterView,
+    StudentCourseView,
+    StudentLessonView,
+    StudentQuizAttemptView,
+    StudentQuizQuestionView,
+    StudentQuizView,
+    StudentSessionView,
+    StudentResourceView,
+)
+from app.schemas.teacher import StudentLiveEventView
+from app.services.badge import (
+    compute_enrollment_badge_progress,
+)
+from app.services.catalog import format_fcfa
 from app.services.commerce import (
     get_student_dashboard_summary,
     list_user_enrollments,
     list_user_notifications,
 )
+from app.services.payments import payment_due_label, refresh_payment_states
+
+QUIZ_RETRY_HOURS = 8
+QUIZ_PASS_PCT = 80.0
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -36,3 +96,1049 @@ def read_my_notifications(
     current_user: UserRecord = Depends(get_current_user),
 ) -> list[NotificationView]:
     return list_user_notifications(db, current_user)
+
+
+@router.get("/sessions", response_model=list[StudentSessionView])
+def read_my_sessions(
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> list[StudentSessionView]:
+    from datetime import date as date_type
+    from sqlalchemy import select as sa_select
+    rows = db.execute(
+        sa_select(FormationSessionRecord, FormationRecord)
+        .join(EnrollmentRecord, EnrollmentRecord.session_id == FormationSessionRecord.id)
+        .join(FormationRecord, FormationRecord.id == FormationSessionRecord.formation_id)
+        .where(
+            EnrollmentRecord.user_id == current_user.id,
+            EnrollmentRecord.status.in_(["active", "pending"]),
+            FormationSessionRecord.status.notin_(["cancelled"]),
+        )
+        .order_by(FormationSessionRecord.start_date.asc())
+    ).all()
+    return [
+        StudentSessionView(
+            id=s.id,
+            formation_id=f.id,
+            formation_title=f.title,
+            formation_slug=f.slug,
+            format_type=f.format_type,  # type: ignore[arg-type]
+            label=s.label,
+            start_date=s.start_date,
+            end_date=s.end_date,
+            teacher_name=s.teacher_name,
+            campus_label=s.campus_label,
+            meeting_link=s.meeting_link,
+            status=s.status,
+        )
+        for s, f in rows
+    ]
+
+
+_AVATAR_ROOT = Path(__file__).resolve().parents[3] / "uploads" / "avatars"
+_AVATAR_ROOT.mkdir(parents=True, exist_ok=True)
+_AVATAR_MAX_BYTES = 2 * 1024 * 1024
+_AVATAR_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
+_AVATAR_CONTENT_TYPES = {"image/png", "image/jpeg", "image/webp"}
+
+
+class UpdateProfilePayload(BaseModel):
+    full_name: str
+    phone: str | None = None
+
+
+class UpdateProfileResponse(BaseModel):
+    id: int
+    full_name: str
+    email: str
+    phone: str | None
+
+
+@router.patch("/profile", response_model=UpdateProfileResponse)
+def update_profile(
+    payload: UpdateProfilePayload,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> UpdateProfileResponse:
+    name = payload.full_name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Le nom ne peut pas être vide.")
+    current_user.full_name = name
+    current_user.phone = payload.phone.strip() if payload.phone else None
+    db.add(current_user)
+    db.commit()
+    return UpdateProfileResponse(
+        id=current_user.id,
+        full_name=current_user.full_name,
+        email=current_user.email,
+        phone=current_user.phone,
+    )
+
+
+class ChangePasswordPayload(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password", status_code=204)
+def change_password(
+    payload: ChangePasswordPayload,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> None:
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect.")
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Le nouveau mot de passe doit contenir au moins 8 caractères.")
+    current_user.password_hash = hash_password(payload.new_password)
+    db.add(current_user)
+    db.commit()
+
+
+class AvatarResponse(BaseModel):
+    avatar_url: str
+
+
+@router.post("/avatar", response_model=AvatarResponse)
+async def upload_avatar(
+    request: Request,
+    filename: str = Query(min_length=1, max_length=255),
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> AvatarResponse:
+    raw = await request.body()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Aucun fichier reçu.")
+
+    extension = Path(filename).suffix.lower()
+    content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
+
+    if extension not in _AVATAR_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Format non supporté. Utilisez PNG, JPG ou WebP.")
+    if content_type not in _AVATAR_CONTENT_TYPES:
+        raise HTTPException(status_code=400, detail="Type MIME invalide.")
+    if len(raw) > _AVATAR_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="Image trop volumineuse (max 2 Mo).")
+
+    # Delete old avatar file if stored locally
+    if current_user.avatar_url and current_user.avatar_url.startswith("/uploads/avatars/"):
+        old_file = _AVATAR_ROOT / Path(current_user.avatar_url).name
+        if old_file.exists():
+            old_file.unlink(missing_ok=True)
+
+    stored_name = f"{uuid4().hex}{extension}"
+    (_AVATAR_ROOT / stored_name).write_bytes(raw)
+
+    public_path = f"/uploads/avatars/{stored_name}"
+    public_url = f"{str(request.base_url).rstrip('/')}{public_path}"
+
+    current_user.avatar_url = public_url
+    db.add(current_user)
+    db.commit()
+
+    return AvatarResponse(avatar_url=public_url)
+
+
+def _get_enrollment_or_404(
+    db: Session, enrollment_id: int, user_id: int
+) -> EnrollmentRecord:
+    enrollment = db.scalar(
+        select(EnrollmentRecord).where(
+            EnrollmentRecord.id == enrollment_id,
+            EnrollmentRecord.user_id == user_id,
+            EnrollmentRecord.status.in_(["active", "completed"]),
+        )
+    )
+    if not enrollment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inscription introuvable.")
+    return enrollment
+
+
+def _count_total_lessons(db: Session, formation_id: int) -> int:
+    formation = db.scalar(select(FormationRecord).where(FormationRecord.id == formation_id))
+    if not formation or not formation.module_items:
+        return 0
+    return sum(len(m.get("lessons", [])) for m in formation.module_items)
+
+
+def _build_progress(
+    db: Session, enrollment: EnrollmentRecord
+) -> EnrollmentProgress:
+    rows = db.scalars(
+        select(LessonCompletionRecord).where(
+            LessonCompletionRecord.enrollment_id == enrollment.id
+        )
+    ).all()
+    total = _count_total_lessons(db, enrollment.formation_id)
+    completed_count = len(rows)
+    progress_pct = round((completed_count / total) * 100) if total > 0 else 0
+    return EnrollmentProgress(
+        enrollment_id=enrollment.id,
+        completed=[LessonKey(module_index=r.module_index, lesson_index=r.lesson_index) for r in rows],
+        total_lessons=total,
+        completed_count=completed_count,
+        progress_pct=progress_pct,
+    )
+
+
+@router.get("/enrollments/{enrollment_id}/progress", response_model=EnrollmentProgress)
+def read_enrollment_progress(
+    enrollment_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> EnrollmentProgress:
+    enrollment = _get_enrollment_or_404(db, enrollment_id, current_user.id)
+    return _build_progress(db, enrollment)
+
+
+@router.get("/enrollments/{enrollment_id}/certificate", response_model=CertificateView)
+def read_enrollment_certificate(
+    enrollment_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> CertificateView:
+    from datetime import date as date_type
+    enrollment = _get_enrollment_or_404(db, enrollment_id, current_user.id)
+
+    # Eligibility check
+    if enrollment.dashboard_type == "classic":
+        prog = _build_progress(db, enrollment)
+        if prog.progress_pct < 100:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Certificat non disponible : parcours incomplet.",
+            )
+    else:
+        if enrollment.status != "completed":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Certificat non disponible : parcours non validé.",
+            )
+
+    formation = db.scalar(select(FormationRecord).where(FormationRecord.id == enrollment.formation_id))
+    mentor_name = formation.mentor_name if formation else ""
+    level = formation.level if formation else ""
+
+    today = date_type.today()
+    issued_date = today.strftime("%d %B %Y").lstrip("0")
+    certificate_number = f"AC-{today.year}-{enrollment_id:05d}"
+
+    return CertificateView(
+        enrollment_id=enrollment_id,
+        certificate_number=certificate_number,
+        student_name=current_user.full_name,
+        formation_title=enrollment.formation_title,
+        format_type=enrollment.format_type,
+        dashboard_type=enrollment.dashboard_type,
+        mentor_name=mentor_name,
+        level=level,
+        session_label=formation.session_label if formation else "",
+        issued_date=issued_date,
+    )
+
+
+@router.get("/orders", response_model=list[StudentOrderView])
+def read_my_orders(
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> list[StudentOrderView]:
+    refresh_payment_states(db)
+    orders = db.scalars(
+        select(OrderRecord)
+        .where(OrderRecord.user_id == current_user.id)
+        .order_by(OrderRecord.created_at.desc())
+    ).all()
+    result: list[StudentOrderView] = []
+    for order in orders:
+        payments = db.scalars(
+            select(PaymentRecord)
+            .where(PaymentRecord.order_reference == order.reference)
+            .order_by(PaymentRecord.installment_number.nullsfirst(), PaymentRecord.id)
+        ).all()
+        result.append(StudentOrderView(
+            reference=order.reference,
+            formation_title=order.formation_title,
+            format_type=order.format_type,
+            total_amount=order.total_amount,
+            total_amount_label=format_fcfa(order.total_amount) or f"{order.total_amount} {order.currency}",
+            currency=order.currency,
+            status=order.status,
+            installment_plan=order.installment_plan,
+            created_at=order.created_at,
+            payments=[
+                StudentPaymentLineView(
+                    id=p.id,
+                    installment_number=p.installment_number,
+                    amount=p.amount,
+                    amount_label=format_fcfa(p.amount) or f"{p.amount} {p.currency}",
+                    currency=p.currency,
+                    status=p.status,
+                    due_date=p.due_date,
+                    paid_at=p.paid_at,
+                    due_label=payment_due_label(p),
+                )
+                for p in payments
+            ],
+        ))
+    return result
+
+
+# ── helpers: student enrollment → session ids ──────────────────────────────
+
+def _enrolled_session_ids(db: Session, user_id: int) -> list[int]:
+    rows = db.scalars(
+        select(EnrollmentRecord.session_id)
+        .where(
+            EnrollmentRecord.user_id == user_id,
+            EnrollmentRecord.session_id.isnot(None),
+            EnrollmentRecord.status.in_(["active", "completed"]),
+        )
+    ).all()
+    return [r for r in rows if r is not None]
+
+
+def _enrollment_for_session(db: Session, user_id: int, session_id: int) -> EnrollmentRecord | None:
+    return db.scalar(
+        select(EnrollmentRecord).where(
+            EnrollmentRecord.user_id == user_id,
+            EnrollmentRecord.session_id == session_id,
+            EnrollmentRecord.status.in_(["active", "completed"]),
+        )
+    )
+
+
+def _session_label(db: Session, session_id: int) -> str:
+    s = db.get(FormationSessionRecord, session_id)
+    return s.label if s else f"Session {session_id}"
+
+
+def _formation_title_for_session(db: Session, session_id: int) -> str:
+    s = db.get(FormationSessionRecord, session_id)
+    if s is None:
+        return ""
+    f = db.get(FormationRecord, s.formation_id)
+    return f.title if f else ""
+
+
+# ── quizzes ────────────────────────────────────────────────────────────────
+
+def _build_attempt_status(
+    attempts: list[QuizAttemptRecord],
+    now: datetime,
+) -> tuple[AttemptStatus, datetime | None]:
+    if not attempts:
+        return "not_started", None
+
+    best = max(a.score_pct for a in attempts)
+    if best >= QUIZ_PASS_PCT:
+        return "passed", None
+
+    last = max(attempts, key=lambda a: a.attempt_number)
+    if last.attempt_number == 1:
+        return "failed_retry_now", None
+    if last.attempt_number == 2:
+        unlock_at = last.submitted_at + timedelta(hours=QUIZ_RETRY_HOURS)
+        if now < unlock_at:
+            return "failed_retry_after", unlock_at
+        return "failed_retry_now", None
+    return "failed_no_retry", None
+
+
+@router.get("/quizzes", response_model=list[StudentQuizView])
+def read_my_quizzes(
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> list[StudentQuizView]:
+    session_ids = _enrolled_session_ids(db, current_user.id)
+    if not session_ids:
+        return []
+
+    now = datetime.now(UTC)
+    quizzes = db.scalars(
+        select(QuizRecord)
+        .where(QuizRecord.session_id.in_(session_ids))
+        .order_by(QuizRecord.scheduled_at.nullslast(), QuizRecord.created_at)
+    ).all()
+
+    result: list[StudentQuizView] = []
+    for quiz in quizzes:
+        enrollment = _enrollment_for_session(db, current_user.id, quiz.session_id)
+        if not enrollment:
+            continue
+
+        attempts = db.scalars(
+            select(QuizAttemptRecord).where(
+                QuizAttemptRecord.quiz_id == quiz.id,
+                QuizAttemptRecord.enrollment_id == enrollment.id,
+            ).order_by(QuizAttemptRecord.attempt_number)
+        ).all()
+
+        attempt_status, next_at = _build_attempt_status(list(attempts), now)
+        best_score = max((a.score_pct for a in attempts), default=None)
+
+        questions_raw = db.scalars(
+            select(QuizQuestionRecord)
+            .where(QuizQuestionRecord.quiz_id == quiz.id)
+            .order_by(QuizQuestionRecord.order_index)
+        ).all()
+
+        # Only expose questions if quiz is active
+        questions: list[StudentQuizQuestionView] = []
+        if quiz.status == "active":
+            questions = [
+                StudentQuizQuestionView(id=q.id, order_index=q.order_index, text=q.text, options=q.options)
+                for q in questions_raw
+            ]
+
+        correct_by_id = {q.id: q.correct_index for q in questions_raw}
+
+        result.append(StudentQuizView(
+            id=quiz.id,
+            session_id=quiz.session_id,
+            session_label=_session_label(db, quiz.session_id),
+            formation_title=_formation_title_for_session(db, quiz.session_id),
+            title=quiz.title,
+            scheduled_at=quiz.scheduled_at,
+            duration_minutes=quiz.duration_minutes,
+            status=quiz.status,
+            attempt_status=attempt_status,
+            next_attempt_available_at=next_at,
+            best_score_pct=best_score,
+            attempts=[
+                StudentQuizAttemptView(
+                    attempt_number=a.attempt_number,
+                    score_pct=a.score_pct,
+                    submitted_at=a.submitted_at,
+                    correct_answers=[correct_by_id.get(q.id, 0) for q in questions_raw],
+                )
+                for a in attempts
+            ],
+            questions=questions,
+        ))
+
+    return result
+
+
+@router.post("/quizzes/{quiz_id}/attempt", response_model=StudentQuizView)
+def submit_quiz_attempt(
+    quiz_id: int,
+    payload: QuizAnswerPayload,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> StudentQuizView:
+    now = datetime.now(UTC)
+    quiz = db.get(QuizRecord, quiz_id)
+    if not quiz:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quiz introuvable.")
+    if quiz.status != "active":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ce quiz n'est pas ouvert.")
+
+    enrollment = _enrollment_for_session(db, current_user.id, quiz.session_id)
+    if not enrollment:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Vous n'êtes pas inscrit à cette session.")
+
+    attempts = db.scalars(
+        select(QuizAttemptRecord).where(
+            QuizAttemptRecord.quiz_id == quiz_id,
+            QuizAttemptRecord.enrollment_id == enrollment.id,
+        ).order_by(QuizAttemptRecord.attempt_number)
+    ).all()
+    attempts_list = list(attempts)
+
+    attempt_status, next_at = _build_attempt_status(attempts_list, now)
+    if attempt_status in ("passed", "failed_no_retry"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Aucune tentative disponible.")
+    if attempt_status == "failed_retry_after":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Réessayez après {next_at.isoformat() if next_at else '8h'}.",
+        )
+
+    questions = db.scalars(
+        select(QuizQuestionRecord)
+        .where(QuizQuestionRecord.quiz_id == quiz_id)
+        .order_by(QuizQuestionRecord.order_index)
+    ).all()
+    questions_list = list(questions)
+
+    if len(payload.answers) != len(questions_list):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Attendu {len(questions_list)} réponses, reçu {len(payload.answers)}.",
+        )
+
+    correct = sum(
+        1 for q, ans in zip(questions_list, payload.answers) if q.correct_index == ans
+    )
+    score_pct = round((correct / len(questions_list)) * 100, 1) if questions_list else 0.0
+
+    next_attempt_number = (max(a.attempt_number for a in attempts_list) + 1) if attempts_list else 1
+    db.add(QuizAttemptRecord(
+        quiz_id=quiz_id,
+        enrollment_id=enrollment.id,
+        attempt_number=next_attempt_number,
+        answers=payload.answers,
+        score_pct=score_pct,
+        submitted_at=now,
+    ))
+    best_score_pct = max([a.score_pct for a in attempts_list] + [score_pct])
+    grade_label = f"Quiz: {quiz.title}"
+    grade_query = select(GradeRecord).where(
+        GradeRecord.session_id == quiz.session_id,
+        GradeRecord.enrollment_id == enrollment.id,
+        GradeRecord.label == grade_label,
+    )
+    if quiz.course_day_id is not None:
+        grade_query = grade_query.where(GradeRecord.course_day_id == quiz.course_day_id)
+    else:
+        grade_query = grade_query.where(GradeRecord.course_day_id.is_(None))
+    grade = db.scalar(grade_query)
+    normalized_score = round((best_score_pct / 100) * 20, 2)
+    if grade:
+        grade.score = normalized_score
+        grade.max_score = 20
+        grade.note = "Note automatique depuis le quiz."
+    else:
+        db.add(GradeRecord(
+            session_id=quiz.session_id,
+            enrollment_id=enrollment.id,
+            course_day_id=quiz.course_day_id,
+            label=grade_label,
+            score=normalized_score,
+            max_score=20,
+            note="Note automatique depuis le quiz.",
+        ))
+    db.commit()
+
+    # Re-fetch and return full quiz view
+    return next(
+        (q for q in read_my_quizzes(db=db, current_user=current_user) if q.id == quiz_id),
+        None,  # type: ignore[return-value]
+    )
+
+
+# ── resources ──────────────────────────────────────────────────────────────
+
+@router.get("/resources", response_model=list[StudentResourceView])
+def read_my_resources(
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> list[StudentResourceView]:
+    session_ids = _enrolled_session_ids(db, current_user.id)
+    if not session_ids:
+        return []
+
+    now = datetime.now(UTC)
+    resources = db.scalars(
+        select(ResourceRecord)
+        .where(
+            ResourceRecord.session_id.in_(session_ids),
+            (ResourceRecord.published_at.is_(None)) | (ResourceRecord.published_at <= now),
+        )
+        .order_by(ResourceRecord.created_at.desc())
+    ).all()
+
+    return [
+        StudentResourceView(
+            id=r.id,
+            session_id=r.session_id,
+            session_label=_session_label(db, r.session_id),
+            formation_title=_formation_title_for_session(db, r.session_id),
+            title=r.title,
+            resource_type=r.resource_type,
+            url=r.url,
+            published_at=r.published_at,
+            created_at=r.created_at,
+        )
+        for r in resources
+    ]
+
+
+# ── assignments ────────────────────────────────────────────────────────────
+
+def _assignment_student_status(
+    assignment: AssignmentRecord,
+    submission: AssignmentSubmissionRecord | None,
+    now: datetime,
+) -> AssignmentStudentStatus:
+    if submission:
+        return "reviewed" if submission.is_reviewed else "submitted"
+    if now > assignment.due_date:
+        return "late"
+    return "pending"
+
+
+@router.get("/assignments", response_model=list[StudentAssignmentView])
+def read_my_assignments(
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> list[StudentAssignmentView]:
+    session_ids = _enrolled_session_ids(db, current_user.id)
+    if not session_ids:
+        return []
+
+    now = datetime.now(UTC)
+    assignments = db.scalars(
+        select(AssignmentRecord)
+        .where(AssignmentRecord.session_id.in_(session_ids))
+        .order_by(AssignmentRecord.due_date)
+    ).all()
+
+    result: list[StudentAssignmentView] = []
+    for assignment in assignments:
+        enrollment = _enrollment_for_session(db, current_user.id, assignment.session_id)
+        if not enrollment:
+            continue
+        submission = db.scalar(
+            select(AssignmentSubmissionRecord).where(
+                AssignmentSubmissionRecord.assignment_id == assignment.id,
+                AssignmentSubmissionRecord.enrollment_id == enrollment.id,
+            )
+        )
+        result.append(StudentAssignmentView(
+            id=assignment.id,
+            session_id=assignment.session_id,
+            session_label=_session_label(db, assignment.session_id),
+            formation_title=_formation_title_for_session(db, assignment.session_id),
+            title=assignment.title,
+            instructions=assignment.instructions,
+            due_date=assignment.due_date,
+            is_final_project=assignment.is_final_project,
+            student_status=_assignment_student_status(assignment, submission, now),
+            submitted_at=submission.submitted_at if submission else None,
+            file_url=submission.file_url if submission else None,
+            is_reviewed=submission.is_reviewed if submission else False,
+            review_score=submission.review_score if submission else None,
+            review_max_score=submission.review_max_score if submission else 20,
+        ))
+
+    return result
+
+
+@router.post("/assignments/{assignment_id}/submit", response_model=StudentAssignmentView)
+def submit_assignment(
+    assignment_id: int,
+    payload: AssignmentSubmitPayload,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> StudentAssignmentView:
+    now = datetime.now(UTC)
+    assignment = db.get(AssignmentRecord, assignment_id)
+    if not assignment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Devoir introuvable.")
+
+    enrollment = _enrollment_for_session(db, current_user.id, assignment.session_id)
+    if not enrollment:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Vous n'êtes pas inscrit à cette session.")
+
+    if now > assignment.due_date:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La date limite de remise est dépassée.")
+
+    existing = db.scalar(
+        select(AssignmentSubmissionRecord).where(
+            AssignmentSubmissionRecord.assignment_id == assignment_id,
+            AssignmentSubmissionRecord.enrollment_id == enrollment.id,
+        )
+    )
+    if existing:
+        existing.file_url = payload.file_url
+        existing.submitted_at = now
+        existing.is_reviewed = False
+        db.add(existing)
+        submission = existing
+    else:
+        submission = AssignmentSubmissionRecord(
+            assignment_id=assignment_id,
+            enrollment_id=enrollment.id,
+            file_url=payload.file_url,
+            submitted_at=now,
+        )
+        db.add(submission)
+    db.commit()
+    db.refresh(submission)
+
+    return StudentAssignmentView(
+        id=assignment.id,
+        session_id=assignment.session_id,
+        session_label=_session_label(db, assignment.session_id),
+        formation_title=_formation_title_for_session(db, assignment.session_id),
+        title=assignment.title,
+        instructions=assignment.instructions,
+        due_date=assignment.due_date,
+        is_final_project=assignment.is_final_project,
+        student_status=_assignment_student_status(assignment, submission, now),
+        submitted_at=submission.submitted_at,
+        file_url=submission.file_url,
+        is_reviewed=submission.is_reviewed,
+        review_score=submission.review_score,
+        review_max_score=submission.review_max_score,
+    )
+
+
+@router.post(
+    "/enrollments/{enrollment_id}/lessons/{module_index}/{lesson_index}/toggle",
+    response_model=EnrollmentProgress,
+)
+def toggle_lesson_completion(
+    enrollment_id: int,
+    module_index: int,
+    lesson_index: int,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> EnrollmentProgress:
+    enrollment = _get_enrollment_or_404(db, enrollment_id, current_user.id)
+
+    existing = db.scalar(
+        select(LessonCompletionRecord).where(
+            LessonCompletionRecord.enrollment_id == enrollment_id,
+            LessonCompletionRecord.module_index == module_index,
+            LessonCompletionRecord.lesson_index == lesson_index,
+        )
+    )
+    if existing:
+        db.delete(existing)
+    else:
+        db.add(LessonCompletionRecord(
+            enrollment_id=enrollment_id,
+            module_index=module_index,
+            lesson_index=lesson_index,
+        ))
+    db.commit()
+    return _build_progress(db, enrollment)
+
+
+# ── Student results : attendance & grades for own enrollments ──────────────
+
+class StudentAttendanceRow(BaseModel):
+    course_day_id: int | None = None
+    course_day_title: str | None = None
+    course_day_scheduled_at: datetime | None = None
+    status: str
+    note: str | None = None
+
+class StudentGradeRow(BaseModel):
+    course_day_id: int | None = None
+    course_day_title: str | None = None
+    course_day_scheduled_at: datetime | None = None
+    label: str
+    score: float
+    max_score: float
+    note: str | None = None
+
+class StudentEnrollmentResults(BaseModel):
+    attendance: list[StudentAttendanceRow]
+    grades: list[StudentGradeRow]
+
+
+@router.get("/enrollments/{enrollment_id}/results", response_model=StudentEnrollmentResults)
+def read_enrollment_results(
+    enrollment_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> StudentEnrollmentResults:
+    enrollment = _get_enrollment_or_404(db, enrollment_id, current_user.id)
+    if not enrollment.session_id:
+        return StudentEnrollmentResults(attendance=[], grades=[])
+
+    attendance_rows = db.scalars(
+        select(AttendanceRecord).where(
+            AttendanceRecord.session_id == enrollment.session_id,
+            AttendanceRecord.enrollment_id == enrollment.id,
+        )
+    ).all()
+
+    grade_rows = db.scalars(
+        select(GradeRecord).where(
+            GradeRecord.session_id == enrollment.session_id,
+            GradeRecord.enrollment_id == enrollment.id,
+        ).order_by(GradeRecord.label)
+    ).all()
+    course_day_ids = {
+        row.course_day_id
+        for row in [*attendance_rows, *grade_rows]
+        if row.course_day_id is not None
+    }
+    course_days = {
+        day.id: day
+        for day in db.scalars(
+            select(SessionCourseDayRecord).where(SessionCourseDayRecord.id.in_(course_day_ids))
+        ).all()
+    } if course_day_ids else {}
+
+    return StudentEnrollmentResults(
+        attendance=[
+            StudentAttendanceRow(
+                course_day_id=r.course_day_id,
+                course_day_title=course_days[r.course_day_id].title if r.course_day_id in course_days else None,
+                course_day_scheduled_at=course_days[r.course_day_id].scheduled_at if r.course_day_id in course_days else None,
+                status=r.status,
+                note=r.note,
+            )
+            for r in attendance_rows
+        ],
+        grades=[
+            StudentGradeRow(
+                course_day_id=g.course_day_id,
+                course_day_title=course_days[g.course_day_id].title if g.course_day_id in course_days else None,
+                course_day_scheduled_at=course_days[g.course_day_id].scheduled_at if g.course_day_id in course_days else None,
+                label=g.label,
+                score=g.score,
+                max_score=g.max_score,
+                note=g.note,
+            )
+            for g in grade_rows
+        ],
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COURSES
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _resolve_student_lesson(
+    db: Session, lesson: LessonRecord, completed_ids: set[int]
+) -> StudentLessonView:
+    quiz_title = assignment_title = resource_title = None
+    if lesson.quiz_id:
+        q = db.get(QuizRecord, lesson.quiz_id)
+        quiz_title = q.title if q else None
+    if lesson.assignment_id:
+        a = db.get(AssignmentRecord, lesson.assignment_id)
+        assignment_title = a.title if a else None
+    if lesson.resource_id:
+        r = db.get(ResourceRecord, lesson.resource_id)
+        resource_title = r.title if r else None
+    return StudentLessonView(
+        id=lesson.id,
+        chapter_id=lesson.chapter_id,
+        title=lesson.title,
+        lesson_type=lesson.lesson_type,
+        order_index=lesson.order_index,
+        content=lesson.content,
+        video_url=lesson.video_url,
+        file_url=lesson.file_url,
+        quiz_id=lesson.quiz_id,
+        assignment_id=lesson.assignment_id,
+        resource_id=lesson.resource_id,
+        quiz_title=quiz_title,
+        assignment_title=assignment_title,
+        resource_title=resource_title,
+        is_completed=lesson.id in completed_ids,
+    )
+
+
+@router.get("/courses", response_model=list[StudentCourseView])
+def read_my_courses(
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> list[StudentCourseView]:
+    session_ids = _enrolled_session_ids(db, current_user.id)
+    if not session_ids:
+        return []
+
+    # Fetch enrollment id for progress lookup
+    enrollments = db.scalars(
+        select(EnrollmentRecord).where(
+            EnrollmentRecord.user_id == current_user.id,
+            EnrollmentRecord.status.in_(["active", "completed"]),
+        )
+    ).all()
+    enrollment_id_by_session = {e.session_id: e.id for e in enrollments}
+
+    courses = db.scalars(
+        select(CourseRecord)
+        .where(CourseRecord.session_id.in_(session_ids))
+        .order_by(CourseRecord.created_at)
+    ).all()
+    course_session_ids = {course.session_id for course in courses}
+
+    result: list[StudentCourseView] = []
+    for course in courses:
+        enrollment_id = enrollment_id_by_session.get(course.session_id)
+
+        # Collect completed lesson ids for this enrollment
+        completed_ids: set[int] = set()
+        if enrollment_id:
+            rows = db.scalars(
+                select(LessonProgressRecord.lesson_id).where(
+                    LessonProgressRecord.enrollment_id == enrollment_id
+                )
+            ).all()
+            completed_ids = set(rows)
+
+        chapters = db.scalars(
+            select(ChapterRecord)
+            .where(ChapterRecord.course_id == course.id)
+            .order_by(ChapterRecord.order_index)
+        ).all()
+
+        chapter_views: list[StudentChapterView] = []
+        total_lessons = 0
+        for ch in chapters:
+            lessons = db.scalars(
+                select(LessonRecord)
+                .where(LessonRecord.chapter_id == ch.id)
+                .order_by(LessonRecord.order_index)
+            ).all()
+            total_lessons += len(lessons)
+            chapter_views.append(StudentChapterView(
+                id=ch.id,
+                title=ch.title,
+                order_index=ch.order_index,
+                lessons=[_resolve_student_lesson(db, l, completed_ids) for l in lessons],
+            ))
+
+        completed_lessons = len(completed_ids)
+        progress_pct = round((completed_lessons / total_lessons * 100) if total_lessons > 0 else 0, 1)
+
+        _enrollment = next((e for e in enrollments if e.id == enrollment_id), None)
+        badge_progress = (
+            compute_enrollment_badge_progress(
+                db,
+                _enrollment,
+                course.session_id,
+                total_lessons,
+                completed_lessons,
+                progress_pct,
+            )
+            if _enrollment else None
+        )
+
+        result.append(StudentCourseView(
+            id=course.id,
+            session_id=course.session_id,
+            title=course.title,
+            description=course.description,
+            chapters=chapter_views,
+            total_lessons=total_lessons,
+            completed_lessons=completed_lessons,
+            progress_pct=progress_pct,
+            badge_level=badge_progress.level if badge_progress else "aventurier",
+            badge_ring_pct=badge_progress.ring_pct if badge_progress else 0,
+            badge_hint=badge_progress.hint if badge_progress else None,
+            final_project_validated=badge_progress.final_project_validated if badge_progress else False,
+        ))
+
+    for enrollment in enrollments:
+        if not enrollment.session_id or enrollment.session_id not in session_ids:
+            continue
+        if enrollment.session_id in course_session_ids:
+            continue
+        session = db.get(FormationSessionRecord, enrollment.session_id)
+        formation = db.get(FormationRecord, enrollment.formation_id)
+        if not session or not formation:
+            continue
+        progress_pct = 0.0
+        badge_progress = compute_enrollment_badge_progress(
+            db,
+            enrollment,
+            session.id,
+            0,
+            0,
+            progress_pct,
+        )
+        result.append(StudentCourseView(
+            id=-enrollment.id,
+            session_id=session.id,
+            title=formation.title,
+            description="Cours en préparation.",
+            chapters=[],
+            total_lessons=0,
+            completed_lessons=0,
+            progress_pct=progress_pct,
+            badge_level=badge_progress.level,
+            badge_ring_pct=badge_progress.ring_pct,
+            badge_hint=badge_progress.hint,
+            final_project_validated=badge_progress.final_project_validated,
+        ))
+
+    return result
+
+
+@router.post("/courses/lessons/{lesson_id}/complete", response_model=StudentCourseView)
+def complete_lesson(
+    lesson_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> StudentCourseView:
+    lesson = db.get(LessonRecord, lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Leçon introuvable.")
+
+    chapter = db.get(ChapterRecord, lesson.chapter_id)
+    course = db.get(CourseRecord, chapter.course_id)  # type: ignore[union-attr]
+
+    enrollment = db.scalar(
+        select(EnrollmentRecord).where(
+            EnrollmentRecord.user_id == current_user.id,
+            EnrollmentRecord.session_id == course.session_id,
+            EnrollmentRecord.status.in_(["active", "completed"]),
+        )
+    )
+    if not enrollment:
+        raise HTTPException(status_code=403, detail="Vous n'êtes pas inscrit à ce cours.")
+
+    # Upsert progress (ignore if already done)
+    existing = db.scalar(
+        select(LessonProgressRecord).where(
+            LessonProgressRecord.enrollment_id == enrollment.id,
+            LessonProgressRecord.lesson_id == lesson_id,
+        )
+    )
+    if not existing:
+        db.add(LessonProgressRecord(enrollment_id=enrollment.id, lesson_id=lesson_id))
+        db.commit()
+
+    # Return updated course view
+    courses = read_my_courses(db=db, current_user=current_user)
+    course_view = next((c for c in courses if c.id == course.id), None)
+    if not course_view:
+        raise HTTPException(status_code=404, detail="Cours introuvable.")
+    return course_view
+
+
+# ── Live events (séances live de l'étudiant) ───────────────────────────────────
+
+@router.get("/live-events", response_model=list[StudentLiveEventView])
+def get_my_live_events(
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> list[StudentLiveEventView]:
+    """Retourne toutes les séances live des sessions où l'étudiant est inscrit."""
+    enrollments = db.scalars(
+        select(EnrollmentRecord).where(
+            EnrollmentRecord.user_id == current_user.id,
+            EnrollmentRecord.status.in_(("active", "completed")),
+        )
+    ).all()
+
+    session_ids = [e.session_id for e in enrollments if e.session_id is not None]
+    if not session_ids:
+        return []
+
+    rows = db.execute(
+        select(SessionLiveEventRecord, FormationSessionRecord, FormationRecord)
+        .join(FormationSessionRecord, FormationSessionRecord.id == SessionLiveEventRecord.session_id)
+        .join(FormationRecord, FormationRecord.id == FormationSessionRecord.formation_id)
+        .where(
+            SessionLiveEventRecord.session_id.in_(session_ids),
+            SessionLiveEventRecord.status.in_(("scheduled", "live")),
+        )
+        .order_by(SessionLiveEventRecord.scheduled_at)
+    ).all()
+
+    return [
+        StudentLiveEventView(
+            id=r.SessionLiveEventRecord.id,
+            session_id=r.SessionLiveEventRecord.session_id,
+            formation_title=r.FormationRecord.title,
+            formation_slug=r.FormationRecord.slug,
+            session_label=r.FormationSessionRecord.label,
+            meeting_link=r.FormationSessionRecord.meeting_link,
+            title=r.SessionLiveEventRecord.title,
+            scheduled_at=r.SessionLiveEventRecord.scheduled_at,
+            duration_minutes=r.SessionLiveEventRecord.duration_minutes,
+            status=r.SessionLiveEventRecord.status,  # type: ignore[arg-type]
+        )
+        for r in rows
+    ]

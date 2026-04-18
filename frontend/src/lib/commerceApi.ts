@@ -13,16 +13,22 @@ export type CartItem = {
   dashboard_type: DashboardType;
   session_label: string;
   level: string;
+  mentor_name: string | null;
   current_price_amount: number;
   current_price_label: string;
   original_price_label: string | null;
   allow_installments: boolean;
+  can_purchase: boolean;
+  purchase_message: string | null;
 };
 
 export type CartSnapshot = {
   items: CartItem[];
   total_amount: number;
   total_amount_label: string;
+  allow_installments: boolean;
+  installment_threshold_amount: number;
+  installment_threshold_label: string;
   live_items_count: number;
   ligne_items_count: number;
   presentiel_items_count: number;
@@ -54,11 +60,42 @@ export type FavoriteSnapshot = {
   total_count: number;
 };
 
+export type InstallmentLine = {
+  number: number;
+  amount: number;
+  amount_label: string;
+  due_date: string; // ISO date
+  status: string;
+};
+
 export type CheckoutResult = {
   message: string;
   redirect_path: string;
+  external_redirect_url?: string | null;
+  payment_provider?: string | null;
   processed_items: number;
   order_references: string[];
+  installment_schedules: Record<string, InstallmentLine[]>;
+  payment_links?: {
+    whatsapp_link?: string | null;
+    telegram_link?: string | null;
+    dikalo_link?: string | null;
+    sms_link?: string | null;
+  } | null;
+};
+
+export type StripeCheckoutConfirmation = {
+  status: string;
+  matched_orders: string[];
+  newly_confirmed_orders: string[];
+  message: string;
+};
+
+export type PaymentProvider = "tara" | "stripe";
+
+export type CheckoutOptions = {
+  useInstallments?: boolean;
+  paymentProvider?: PaymentProvider;
 };
 
 export type Enrollment = {
@@ -125,9 +162,26 @@ export async function removeFromCart(
   });
 }
 
-export async function checkoutCart(): Promise<CheckoutResult> {
+export async function checkoutCart(
+  options: CheckoutOptions = {},
+): Promise<CheckoutResult> {
   return apiRequest<CheckoutResult>("/cart/checkout", {
     method: "POST",
+    body: JSON.stringify({
+      use_installments: options.useInstallments ?? false,
+      payment_provider: options.paymentProvider ?? null,
+    }),
+    timeoutMs: 30000,
+  });
+}
+
+export async function confirmStripeCheckoutSession(
+  sessionId: string,
+): Promise<StripeCheckoutConfirmation> {
+  return apiRequest<StripeCheckoutConfirmation>("/stripe/checkout/confirm", {
+    method: "POST",
+    body: JSON.stringify({ session_id: sessionId }),
+    timeoutMs: 30000,
   });
 }
 
@@ -162,4 +216,23 @@ export async function fetchStudentEnrollments(): Promise<Enrollment[]> {
 
 export async function fetchNotifications(): Promise<NotificationItem[]> {
   return apiRequest<NotificationItem[]>("/me/notifications");
+}
+
+export type StudentSession = {
+  id: number;
+  formation_id: number;
+  formation_title: string;
+  formation_slug: string;
+  format_type: "live" | "ligne" | "presentiel";
+  label: string;
+  start_date: string;
+  end_date: string;
+  teacher_name: string | null;
+  campus_label: string | null;
+  meeting_link: string | null;
+  status: string;
+};
+
+export async function fetchMySessions(): Promise<StudentSession[]> {
+  return apiRequest<StudentSession[]>("/me/sessions");
 }

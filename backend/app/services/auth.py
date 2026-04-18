@@ -43,6 +43,7 @@ def serialize_auth_user(user: UserRecord) -> AuthUser:
         role=user.role,  # type: ignore[arg-type]
         status=user.status,
         avatar_initials=build_avatar_initials(user.full_name),
+        avatar_url=user.avatar_url,
         dashboard_path=get_dashboard_path(user.role),
     )
 

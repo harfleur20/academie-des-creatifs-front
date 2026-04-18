@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Body, Depends
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.entities import UserRecord
-from app.schemas.commerce import CartItemPayload, CartSnapshot, CheckoutResponse
+from app.schemas.commerce import CartItemPayload, CartSnapshot, CheckoutPayload, CheckoutResponse
 from app.services.commerce import (
     add_item_to_cart,
     checkout_cart,
@@ -43,7 +43,14 @@ def delete_cart_item(
 
 @router.post("/checkout", response_model=CheckoutResponse)
 def checkout(
+    payload: CheckoutPayload = Body(default_factory=CheckoutPayload),
     db: Session = Depends(get_db),
     current_user: UserRecord = Depends(get_current_user),
 ) -> CheckoutResponse:
-    return checkout_cart(db, current_user)
+    return checkout_cart(
+        db,
+        current_user,
+        payload.installment_slugs,
+        payload.use_installments,
+        payload.payment_provider,
+    )

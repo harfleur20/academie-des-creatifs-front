@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaCalendarAlt, FaMapMarkerAlt, FaUsers } from "react-icons/fa";
+import { FaCalendarAlt, FaChalkboardTeacher, FaMapMarkerAlt, FaUsers } from "react-icons/fa";
 
 import { useAuth } from "../auth/AuthContext";
 import { fetchTeacherOverview, type TeacherOverview } from "../lib/teacherApi";
@@ -129,6 +129,12 @@ export default function TeacherDashboardPage() {
                     </span>
                   </li>
                 </ul>
+                <Link
+                  to={`/espace/enseignant/session/${session.id}`}
+                  className="button button--primary button--sm teacher-session-card__cta"
+                >
+                  <FaChalkboardTeacher /> Gérer la session
+                </Link>
               </article>
             ))}
           </div>

@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import Literal
+from datetime import date, datetime
+from typing import Literal, Annotated
 
 from pydantic import BaseModel, Field
 
@@ -24,16 +24,22 @@ class CartItemView(BaseModel):
     dashboard_type: DashboardType
     session_label: str
     level: str
+    mentor_name: str | None = None
     current_price_amount: int
     current_price_label: str
     original_price_label: str | None = None
     allow_installments: bool
+    can_purchase: bool = True
+    purchase_message: str | None = None
 
 
 class CartSnapshot(BaseModel):
     items: list[CartItemView]
     total_amount: int
     total_amount_label: str
+    allow_installments: bool = False
+    installment_threshold_amount: int = 100000
+    installment_threshold_label: str = "100 000 FCFA"
     live_items_count: int
     ligne_items_count: int
     presentiel_items_count: int
@@ -65,11 +71,36 @@ class FavoriteSnapshot(BaseModel):
     total_count: int
 
 
+class InstallmentLine(BaseModel):
+    number: int
+    amount: int
+    amount_label: str
+    due_date: date
+    status: str
+
+
+class CheckoutPayload(BaseModel):
+    installment_slugs: list[str] = Field(default_factory=list)
+    use_installments: bool = False
+    payment_provider: str | None = None
+
+
+class TaraPaymentLinksView(BaseModel):
+    whatsapp_link: str | None = None
+    telegram_link: str | None = None
+    dikalo_link: str | None = None
+    sms_link: str | None = None
+
+
 class CheckoutResponse(BaseModel):
     message: str
     redirect_path: str
+    external_redirect_url: str | None = None
+    payment_provider: str | None = None
     processed_items: int
     order_references: list[str]
+    installment_schedules: dict[str, list[InstallmentLine]] = Field(default_factory=dict)
+    payment_links: TaraPaymentLinksView | None = None
 
 
 class EnrollmentView(BaseModel):
@@ -98,6 +129,34 @@ class StudentDashboardSummary(BaseModel):
     guided_enrollments: list[EnrollmentView]
 
 
+class LessonKey(BaseModel):
+    module_index: int
+    lesson_index: int
+
+
+class EnrollmentProgress(BaseModel):
+    enrollment_id: int
+    completed: list[LessonKey]
+    total_lessons: int
+    completed_count: int
+    progress_pct: int
+
+
+class StudentSessionView(BaseModel):
+    id: int
+    formation_id: int
+    formation_title: str
+    formation_slug: str
+    format_type: FormatType
+    label: str
+    start_date: date
+    end_date: date
+    teacher_name: str | None = None
+    campus_label: str | None = None
+    meeting_link: str | None = None
+    status: str
+
+
 class NotificationView(BaseModel):
     id: str
     title: str
@@ -107,3 +166,166 @@ class NotificationView(BaseModel):
     created_at: datetime
     action_label: str | None = None
     action_path: str | None = None
+
+
+class CertificateView(BaseModel):
+    enrollment_id: int
+    certificate_number: str
+    student_name: str
+    formation_title: str
+    format_type: str
+    dashboard_type: str
+    mentor_name: str
+    level: str
+    session_label: str
+    issued_date: str
+
+
+# ── Student quiz schemas ───────────────────────────────────────────────────────
+
+class StudentQuizQuestionView(BaseModel):
+    id: int
+    order_index: int
+    text: str
+    options: list[str]
+    # correct_index intentionally omitted — only sent after attempt
+
+
+class StudentQuizAttemptView(BaseModel):
+    attempt_number: int
+    score_pct: float
+    submitted_at: datetime
+    correct_answers: list[int]   # correct_index per question, revealed after attempt
+
+
+AttemptStatus = Literal["not_started", "passed", "failed_retry_now", "failed_retry_after", "failed_no_retry"]
+
+
+class StudentQuizView(BaseModel):
+    id: int
+    session_id: int
+    session_label: str
+    formation_title: str
+    title: str
+    scheduled_at: datetime | None
+    duration_minutes: int | None
+    status: str                          # draft | active | closed
+    attempt_status: AttemptStatus
+    next_attempt_available_at: datetime | None   # set when retry is blocked 8h
+    best_score_pct: float | None
+    attempts: list[StudentQuizAttemptView]
+    questions: list[StudentQuizQuestionView]     # empty until quiz is active
+
+
+class QuizAnswerPayload(BaseModel):
+    answers: list[int] = Field(min_length=1)   # one chosen index per question
+
+
+# ── Student resource schemas ───────────────────────────────────────────────────
+
+class StudentResourceView(BaseModel):
+    id: int
+    session_id: int
+    session_label: str
+    formation_title: str
+    title: str
+    resource_type: str
+    url: str
+    published_at: datetime | None
+    created_at: datetime
+
+
+# ── Student assignment schemas ─────────────────────────────────────────────────
+
+AssignmentStudentStatus = Literal["pending", "submitted", "late", "reviewed"]
+
+
+class StudentAssignmentView(BaseModel):
+    id: int
+    session_id: int
+    session_label: str
+    formation_title: str
+    title: str
+    instructions: str
+    due_date: datetime
+    is_final_project: bool = False
+    student_status: AssignmentStudentStatus
+    submitted_at: datetime | None
+    file_url: str | None
+    is_reviewed: bool
+    review_score: float | None = None
+    review_max_score: float = 20
+
+
+class AssignmentSubmitPayload(BaseModel):
+    file_url: str = Field(min_length=1, max_length=512)
+
+
+# ── Student course schemas ─────────────────────────────────────────────────────
+
+class StudentLessonView(BaseModel):
+    id: int
+    chapter_id: int
+    title: str
+    lesson_type: str   # text | video | pdf | quiz | assignment | resource
+    order_index: int
+    content: str | None
+    video_url: str | None
+    file_url: str | None
+    quiz_id: int | None
+    assignment_id: int | None
+    resource_id: int | None
+    quiz_title: str | None = None
+    assignment_title: str | None = None
+    resource_title: str | None = None
+    is_completed: bool = False
+
+
+class StudentChapterView(BaseModel):
+    id: int
+    title: str
+    order_index: int
+    lessons: list[StudentLessonView] = []
+
+
+class StudentCourseView(BaseModel):
+    id: int
+    session_id: int
+    title: str
+    description: str
+    chapters: list[StudentChapterView] = []
+    total_lessons: int
+    completed_lessons: int
+    progress_pct: float
+    # Badge progression
+    badge_level: str | None = None          # aventurier | debutant | intermediaire | semi_pro | professionnel
+    badge_ring_pct: float = 0.0             # 0-100, drives SVG ring animation
+    badge_hint: str | None = None           # "Plus que X% pour atteindre Intermédiaire"
+    final_project_validated: bool = False
+
+
+# ── Student payment schemas ────────────────────────────────────────────────────
+
+class StudentPaymentLineView(BaseModel):
+    id: int
+    installment_number: int | None
+    amount: int
+    amount_label: str
+    currency: str
+    status: str
+    due_date: date | None
+    paid_at: datetime | None
+    due_label: str | None
+
+
+class StudentOrderView(BaseModel):
+    reference: str
+    formation_title: str
+    format_type: str
+    total_amount: int
+    total_amount_label: str
+    currency: str
+    status: str
+    installment_plan: str
+    created_at: datetime
+    payments: list[StudentPaymentLineView]

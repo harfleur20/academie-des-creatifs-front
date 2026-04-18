@@ -136,6 +136,10 @@ export const albumItems = [
     image: "/Album/album-8.jpg",
     title: "Melvine, gagnante de la coupe des Créatifs",
   },
+  {
+    image: "/Album/coupecreatif.jpg",
+    title: "Loic, gagnant de la coupe des Créatifs",
+  },
 ];
 
 export const videos = [

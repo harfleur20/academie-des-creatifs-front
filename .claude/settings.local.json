@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm install:*)",
+      "Bash(wc -l /c/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/pages/*.tsx)",
+      "Bash(grep -l \"export default\" /c/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/pages/*.tsx)",
+      "Bash(python -c \"from app.services.email import send_welcome_email, send_order_confirmation, OrderEmailData; print\\('OK'\\)\")",
+      "Bash(python -c \"from app.services.commerce import checkout_cart; print\\('OK'\\)\")",
+      "Bash(python -c \"from app.api.routes.auth import router; print\\('OK'\\)\")",
+      "Bash(.venv/Scripts/pip install:*)",
+      "Bash(DATABASE_URL=\"postgresql+psycopg://postgres:Kenne%402014@localhost:5432/academie_creatifs\" .venv/Scripts/python -c \"from app.main import app\")",
+      "Bash(DATABASE_URL=\"postgresql+psycopg://postgres:Kenne%402014@localhost:5432/academie_creatifs\" .venv/Scripts/python -c \"from app.main import app; print\\('OK'\\)\")",
+      "Bash(.venv/Scripts/python -c ':*)",
+      "WebSearch",
+      "WebFetch(domain:www.api-hub.ai)",
+      "Bash(python -c ' *)"
+    ]
+  }
+}

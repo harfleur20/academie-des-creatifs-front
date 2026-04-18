@@ -1,0 +1,4 @@
+INFO:     127.0.0.1:61665 - "GET /health HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61666 - "GET /api/v1/meta/platform HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61667 - "GET /api/v1/blog HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:61668 - "GET /api/v1/blog/featured HTTP/1.1" 500 Internal Server Error

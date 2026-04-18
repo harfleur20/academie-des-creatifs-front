@@ -8,7 +8,14 @@ from app.db.base import Base
 import app.models  # noqa: F401
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
+
+db_url = settings.database_url or config.get_main_option("sqlalchemy.url")
+if not db_url:
+    raise RuntimeError(
+        "DATABASE_URL is not set. Export it before running alembic:\n"
+        '  $env:DATABASE_URL="postgresql+psycopg://user:pass@host/db"'
+    )
+config.set_main_option("sqlalchemy.url", db_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

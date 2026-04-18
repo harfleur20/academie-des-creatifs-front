@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 
 from app.models.entities import FormationRecord, FormationSessionRecord, UserRecord
 from app.schemas.teacher import TeacherOverview, TeacherSessionItem
-from app.services.formation_sessions import get_session_presentation
 
 
 def list_teacher_sessions(db: Session, user: UserRecord) -> list[TeacherSessionItem]:
@@ -23,11 +22,7 @@ def list_teacher_sessions(db: Session, user: UserRecord) -> list[TeacherSessionI
             seat_capacity=record.seat_capacity,
             enrolled_count=record.enrolled_count,
             teacher_name=record.teacher_name or "",
-            status=get_session_presentation(
-                db,
-                formation_id=formation.id,
-                format_type=formation.format_type,
-            ).state,
+            status=record.status,  # "planned" | "open" | "completed" | "cancelled"
         )
         for record, formation in records
     ]
@@ -35,8 +30,8 @@ def list_teacher_sessions(db: Session, user: UserRecord) -> list[TeacherSessionI
 
 def get_teacher_overview(db: Session, user: UserRecord) -> TeacherOverview:
     sessions = list_teacher_sessions(db, user)
-    planned_sessions_count = sum(1 for item in sessions if item.status == "upcoming")
-    open_sessions_count = sum(1 for item in sessions if item.status == "started_open")
+    planned_sessions_count = sum(1 for item in sessions if item.status == "planned")
+    open_sessions_count = sum(1 for item in sessions if item.status == "open")
     total_students_count = sum(item.enrolled_count for item in sessions)
 
     return TeacherOverview(

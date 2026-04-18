@@ -817,8 +817,8 @@ export default function AdminDashboardContent({
               <article className="admin-panel">
                 <div className="admin-panel__heading">
                   <div>
-                    <h3>Formations eligibles</h3>
-                    <p>Seulement celles sans session ou avec session terminee.</p>
+                    <h3>Formations planifiables</h3>
+                    <p>Ajoutez une nouvelle cohorte à chaque période.</p>
                   </div>
                   <span>{availableSessionCreateFormations.length}</span>
                 </div>
@@ -842,7 +842,7 @@ export default function AdminDashboardContent({
                   </div>
                 ) : (
                   <div className="admin-empty-table">
-                    <p>Aucune formation live ou presentiel n'est actuellement eligible.</p>
+                    <p>Aucune formation live ou presentiel n'est disponible.</p>
                   </div>
                 )}
               </article>

@@ -1,10 +1,12 @@
 from app.core.security import utc_now
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.models.entities import (
+    EnrollmentRecord,
     FormationRecord,
     FormationSessionRecord,
+    FormationTeacherRecord,
     OrderRecord,
     PaymentRecord,
     UserRecord,
@@ -13,6 +15,8 @@ from app.schemas.catalog import (
     AdminFormationItem,
     AdminFormationSessionCreate,
     AdminDashboardOverview,
+    AdminEnrollmentItem,
+    AdminEnrollmentUpdate,
     AdminFormationCreate,
     AdminFormationUpdate,
     AdminOnsiteSessionItem,
@@ -33,9 +37,23 @@ from app.schemas.catalog import (
     FormatType,
 )
 from app.services.formation_sessions import (
-    assert_can_create_session,
+    create_formation_session,
+    get_single_session_presentation,
     get_session_presentation,
-    supports_sessions,
+    refresh_session_enrolled_count,
+    update_formation_session,
+)
+from app.services.order_access import sync_order_enrollment_access
+from app.services.payments import (
+    payment_can_send_reminder,
+    refresh_payment_states,
+    send_manual_payment_reminder,
+)
+
+DEFAULT_CERTIFICATE_IMAGE = "/certicate.jpg"
+DEFAULT_CERTIFICATE_COPY = (
+    "Une attestation de fin de parcours peut etre delivree apres validation des exigences "
+    "de la formation et completion des etapes obligatoires du programme."
 )
 
 
@@ -52,7 +70,7 @@ def get_dashboard_type_for_format(format_type: FormatType) -> DashboardType:
 
 
 def should_allow_installments(format_type: FormatType, current_price_amount: int) -> bool:
-    return format_type == "presentiel" and current_price_amount > 90000
+    return current_price_amount >= 100000
 
 
 def normalize_marketing_badges(
@@ -121,7 +139,7 @@ def _default_included_items(record: FormationRecord) -> list[str]:
         "Encadrement par l'equipe Academie des Creatifs",
         "Acces au certificat ou a l'attestation de fin de parcours",
     ]
-    if record.allow_installments:
+    if should_allow_installments(record.format_type, record.current_price_amount):  # type: ignore[arg-type]
         items.append("Paiement en tranches selon les conditions de l'offre")
     else:
         items.append("Paiement simple avec acces immediat a la formule choisie")
@@ -230,10 +248,8 @@ def build_formation_detail_content(record: FormationRecord) -> dict[str, object]
     audience_text = _normalize_text(record.audience_text) or (
         "Cette formation s'adresse aux creatifs, graphistes, freelances et profils en reconversion qui veulent progresser dans un cadre plus clair, plus concret et plus professionnalisant."
     )
-    certificate_copy = _normalize_text(record.certificate_copy) or (
-        "Une attestation de fin de parcours peut etre delivree apres validation des exigences de la formation et completion des etapes obligatoires du programme."
-    )
-    certificate_image = _normalize_text(record.certificate_image) or "/certicate.jpg"
+    certificate_copy = DEFAULT_CERTIFICATE_COPY
+    certificate_image = DEFAULT_CERTIFICATE_IMAGE
     modules = (
         [FormationModuleItem.model_validate(item) for item in (record.module_items or [])]
         if record.module_items
@@ -294,7 +310,7 @@ def serialize_catalog_item(db: Session, record: FormationRecord) -> FormationCat
         original_price_amount=original_price,
         original_price_label=format_fcfa(original_price),
         price_currency=record.price_currency,
-        allow_installments=record.allow_installments,
+        allow_installments=should_allow_installments(format_type, current_price),
         is_featured_home=record.is_featured_home,
         home_feature_rank=record.home_feature_rank,
         rating=record.rating,
@@ -372,8 +388,8 @@ def create_catalog_entry(
         objective_items=list(payload.objectives or []),
         project_items=[item.model_dump() for item in (payload.projects or [])],
         audience_text=payload.audience_text or "",
-        certificate_copy=payload.certificate_copy or "",
-        certificate_image=payload.certificate_image or "",
+        certificate_copy="",
+        certificate_image="",
         module_items=[item.model_dump() for item in (payload.modules or [])],
         faq_items=[item.model_dump() for item in (payload.faqs or [])],
         format_type=payload.format_type,
@@ -442,12 +458,6 @@ def update_catalog_entry(
     if "audience_text" in payload.model_fields_set and payload.audience_text is not None:
         record.audience_text = payload.audience_text
 
-    if "certificate_copy" in payload.model_fields_set and payload.certificate_copy is not None:
-        record.certificate_copy = payload.certificate_copy
-
-    if "certificate_image" in payload.model_fields_set and payload.certificate_image is not None:
-        record.certificate_image = payload.certificate_image
-
     if "modules" in payload.model_fields_set and payload.modules is not None:
         record.module_items = [item.model_dump() for item in payload.modules]
 
@@ -496,6 +506,9 @@ def update_catalog_entry(
 
 
 def get_admin_overview(db: Session) -> AdminDashboardOverview:
+    refresh_payment_states(db)
+    db.commit()
+
     formations_count = db.scalar(select(func.count()).select_from(FormationRecord)) or 0
     live_formations_count = (
         db.scalar(
@@ -541,6 +554,12 @@ def get_admin_overview(db: Session) -> AdminDashboardOverview:
         )
         or 0
     )
+    late_payments_count = (
+        db.scalar(
+            select(func.count()).select_from(PaymentRecord).where(PaymentRecord.status == "late")
+        )
+        or 0
+    )
     total_confirmed_revenue_amount = (
         db.scalar(
             select(func.coalesce(func.sum(PaymentRecord.amount), 0)).where(
@@ -561,6 +580,7 @@ def get_admin_overview(db: Session) -> AdminDashboardOverview:
         pending_orders_count=pending_orders_count,
         confirmed_payments_count=confirmed_payments_count,
         pending_payments_count=pending_payments_count,
+        late_payments_count=late_payments_count,
         total_confirmed_revenue_amount=int(total_confirmed_revenue_amount),
         total_confirmed_revenue_label=format_fcfa(int(total_confirmed_revenue_amount)) or "0 FCFA",
     )
@@ -568,13 +588,23 @@ def get_admin_overview(db: Session) -> AdminDashboardOverview:
 
 def list_admin_users(db: Session) -> list[AdminUserItem]:
     records = db.scalars(select(UserRecord).order_by(UserRecord.created_at.desc())).all()
+    # Count enrollments per user in one query
+    enrollment_counts: dict[int, int] = dict(
+        db.execute(
+            select(EnrollmentRecord.user_id, func.count(EnrollmentRecord.id))
+            .group_by(EnrollmentRecord.user_id)
+        ).all()
+    )
     return [
         AdminUserItem(
             id=record.id,
             full_name=record.full_name,
             email=record.email,
+            phone=record.phone,
             role=record.role,
             status=record.status,
+            student_code=record.student_code,
+            enrollments_count=enrollment_counts.get(record.id, 0),
             created_at=record.created_at,
         )
         for record in records
@@ -599,14 +629,154 @@ def update_admin_user(
     db.add(record)
     db.commit()
     db.refresh(record)
+    enrollments_count = db.scalar(
+        select(func.count(EnrollmentRecord.id)).where(EnrollmentRecord.user_id == record.id)
+    ) or 0
     return AdminUserItem(
         id=record.id,
         full_name=record.full_name,
         email=record.email,
+        phone=record.phone,
         role=record.role,  # type: ignore[arg-type]
         status=record.status,  # type: ignore[arg-type]
+        student_code=record.student_code,
+        enrollments_count=enrollments_count,
         created_at=record.created_at,
     )
+
+
+def _admin_enrollment_rows(db: Session, enrollment_id: int | None = None):
+    refresh_payment_states(db)
+    db.commit()
+
+    payment_stats = (
+        select(
+            PaymentRecord.order_reference.label("order_reference"),
+            func.count(PaymentRecord.id).label("payments_count"),
+            func.sum(case((PaymentRecord.status == "confirmed", 1), else_=0)).label(
+                "confirmed_payments_count"
+            ),
+            func.sum(case((PaymentRecord.status == "pending", 1), else_=0)).label(
+                "pending_payments_count"
+            ),
+            func.sum(case((PaymentRecord.status == "late", 1), else_=0)).label(
+                "late_payments_count"
+            ),
+            func.sum(case((PaymentRecord.status == "failed", 1), else_=0)).label(
+                "failed_payments_count"
+            ),
+            func.sum(case((PaymentRecord.status == "cancelled", 1), else_=0)).label(
+                "cancelled_payments_count"
+            ),
+        )
+        .group_by(PaymentRecord.order_reference)
+        .subquery()
+    )
+
+    statement = (
+        select(
+            EnrollmentRecord,
+            UserRecord,
+            FormationRecord,
+            FormationSessionRecord,
+            OrderRecord,
+            payment_stats.c.payments_count,
+            payment_stats.c.confirmed_payments_count,
+            payment_stats.c.pending_payments_count,
+            payment_stats.c.late_payments_count,
+            payment_stats.c.failed_payments_count,
+            payment_stats.c.cancelled_payments_count,
+        )
+        .join(UserRecord, UserRecord.id == EnrollmentRecord.user_id)
+        .join(FormationRecord, FormationRecord.id == EnrollmentRecord.formation_id)
+        .outerjoin(FormationSessionRecord, FormationSessionRecord.id == EnrollmentRecord.session_id)
+        .outerjoin(OrderRecord, OrderRecord.reference == EnrollmentRecord.order_reference)
+        .outerjoin(payment_stats, payment_stats.c.order_reference == EnrollmentRecord.order_reference)
+        .order_by(EnrollmentRecord.created_at.desc(), EnrollmentRecord.id.desc())
+    )
+
+    if enrollment_id is not None:
+        statement = statement.where(EnrollmentRecord.id == enrollment_id)
+
+    return db.execute(statement).all()
+
+
+def _serialize_admin_enrollment_row(row) -> AdminEnrollmentItem:
+    (
+        enrollment,
+        user,
+        formation,
+        session,
+        order,
+        payments_count,
+        confirmed_payments_count,
+        pending_payments_count,
+        late_payments_count,
+        failed_payments_count,
+        cancelled_payments_count,
+    ) = row
+
+    session_label = None
+    if session is not None:
+        session_label = session.label
+    elif formation.format_type == "ligne":
+        session_label = "Acces immediat"
+
+    return AdminEnrollmentItem(
+        id=enrollment.id,
+        user_id=user.id,
+        student_name=user.full_name,
+        student_email=user.email,
+        student_phone=user.phone,
+        student_code=user.student_code,
+        user_status=user.status,  # type: ignore[arg-type]
+        formation_id=formation.id,
+        formation_slug=formation.slug,
+        formation_title=formation.title,
+        format_type=enrollment.format_type,  # type: ignore[arg-type]
+        dashboard_type=enrollment.dashboard_type,  # type: ignore[arg-type]
+        order_reference=enrollment.order_reference,
+        order_status=order.status if order is not None else None,  # type: ignore[arg-type]
+        payments_count=int(payments_count or 0),
+        confirmed_payments_count=int(confirmed_payments_count or 0),
+        pending_payments_count=int(pending_payments_count or 0),
+        late_payments_count=int(late_payments_count or 0),
+        failed_payments_count=int(failed_payments_count or 0),
+        cancelled_payments_count=int(cancelled_payments_count or 0),
+        session_id=session.id if session is not None else None,
+        session_label=session_label,
+        session_start_date=session.start_date if session is not None else None,
+        session_end_date=session.end_date if session is not None else None,
+        campus_label=session.campus_label if session is not None else None,
+        teacher_name=session.teacher_name if session is not None else None,
+        status=enrollment.status,  # type: ignore[arg-type]
+        created_at=enrollment.created_at,
+    )
+
+
+def list_admin_enrollments(db: Session) -> list[AdminEnrollmentItem]:
+    return [_serialize_admin_enrollment_row(row) for row in _admin_enrollment_rows(db)]
+
+
+def update_admin_enrollment(
+    db: Session,
+    enrollment_id: int,
+    payload: AdminEnrollmentUpdate,
+) -> AdminEnrollmentItem | None:
+    record = db.get(EnrollmentRecord, enrollment_id)
+    if record is None:
+        return None
+
+    record.status = payload.status
+    db.add(record)
+    if record.session_id is not None:
+        refresh_session_enrolled_count(db, record.session_id)
+    db.commit()
+
+    row = next(iter(_admin_enrollment_rows(db, enrollment_id)), None)
+    if row is None:
+        return None
+    return _serialize_admin_enrollment_row(row)
 
 
 def list_admin_onsite_sessions(db: Session) -> list[AdminOnsiteSessionItem]:
@@ -621,6 +791,37 @@ def list_admin_onsite_sessions(db: Session) -> list[AdminOnsiteSessionItem]:
     ]
 
 
+def ensure_session_teacher_assignment(
+    db: Session,
+    *,
+    formation_id: int,
+    teacher_name: str | None,
+) -> None:
+    teacher_label = _normalize_text(teacher_name)
+    if not teacher_label:
+        return
+
+    teacher = db.scalar(
+        select(UserRecord).where(
+            UserRecord.full_name == teacher_label,
+            UserRecord.role == "teacher",
+            UserRecord.status == "active",
+        )
+    )
+    if teacher is None:
+        raise ValueError("Selectionnez un enseignant actif existant pour cette session.")
+
+    existing_link = db.scalar(
+        select(FormationTeacherRecord).where(
+            FormationTeacherRecord.formation_id == formation_id,
+            FormationTeacherRecord.teacher_id == teacher.id,
+        )
+    )
+    if existing_link is None:
+        db.add(FormationTeacherRecord(formation_id=formation_id, teacher_id=teacher.id))
+        db.flush()
+
+
 def update_admin_onsite_session(
     db: Session,
     session_id: int,
@@ -630,37 +831,41 @@ def update_admin_onsite_session(
     if record is None:
         return None
 
-    if payload.label is not None:
-        record.label = payload.label
-    if payload.start_date is not None:
-        record.start_date = payload.start_date
-    if payload.end_date is not None:
-        record.end_date = payload.end_date
-    if payload.campus_label is not None:
-        record.campus_label = payload.campus_label
-    if payload.seat_capacity is not None:
-        record.seat_capacity = payload.seat_capacity
-    if payload.teacher_name is not None:
-        record.teacher_name = payload.teacher_name
-    if payload.status is not None:
-        record.status = payload.status
-
-    if record.end_date < record.start_date:
-        raise ValueError("La date de fin doit etre posterieure ou egale a la date de debut.")
-
-    if record.status != "cancelled":
-        assert_can_create_session(
-            db,
-            formation_id=record.formation_id,
-            exclude_session_id=record.id,
-        )
-
-    db.add(record)
-    db.commit()
-    db.refresh(record)
     formation = db.get(FormationRecord, record.formation_id)
     if formation is None:
         return None
+
+    changes: dict[str, object] = {}
+    if "label" in payload.model_fields_set and payload.label is not None:
+        changes["label"] = payload.label
+    if "start_date" in payload.model_fields_set and payload.start_date is not None:
+        changes["start_date"] = payload.start_date
+    if "end_date" in payload.model_fields_set and payload.end_date is not None:
+        changes["end_date"] = payload.end_date
+    if "campus_label" in payload.model_fields_set:
+        changes["campus_label"] = payload.campus_label
+    if "seat_capacity" in payload.model_fields_set and payload.seat_capacity is not None:
+        changes["seat_capacity"] = payload.seat_capacity
+    if "teacher_name" in payload.model_fields_set:
+        changes["teacher_name"] = payload.teacher_name
+    if "status" in payload.model_fields_set and payload.status is not None:
+        changes["status"] = payload.status
+    if "meeting_link" in payload.model_fields_set:
+        changes["meeting_link"] = payload.meeting_link
+
+    if "teacher_name" in payload.model_fields_set:
+        ensure_session_teacher_assignment(
+            db,
+            formation_id=record.formation_id,
+            teacher_name=payload.teacher_name,
+        )
+
+    record = update_formation_session(
+        db,
+        session=record,
+        formation=formation,
+        **changes,
+    )
     return serialize_admin_formation_session(db, record, formation)
 
 
@@ -672,25 +877,24 @@ def create_admin_onsite_session(
     if formation is None:
         raise ValueError("Formation introuvable.")
 
-    if not supports_sessions(formation.format_type):
-        raise ValueError("Seules les formations live et presentiel peuvent recevoir des sessions.")
-
-    assert_can_create_session(db, formation_id=formation.id)
-
-    record = FormationSessionRecord(
+    ensure_session_teacher_assignment(
+        db,
         formation_id=formation.id,
+        teacher_name=payload.teacher_name,
+    )
+
+    record = create_formation_session(
+        db,
+        formation=formation,
         label=payload.label,
         start_date=payload.start_date,
         end_date=payload.end_date,
         campus_label=payload.campus_label,
         seat_capacity=payload.seat_capacity,
-        enrolled_count=0,
         teacher_name=payload.teacher_name,
         status=payload.status,
+        meeting_link=payload.meeting_link,
     )
-    db.add(record)
-    db.commit()
-    db.refresh(record)
     return serialize_admin_formation_session(db, record, formation)
 
 
@@ -699,10 +903,9 @@ def serialize_admin_formation_session(
     session_record: FormationSessionRecord,
     formation_record: FormationRecord,
 ) -> AdminOnsiteSessionItem:
-    presentation = get_session_presentation(
-        db,
-        formation_id=formation_record.id,
+    presentation = get_single_session_presentation(
         format_type=formation_record.format_type,
+        session=session_record,
     )
     return AdminOnsiteSessionItem(
         id=session_record.id,
@@ -721,10 +924,13 @@ def serialize_admin_formation_session(
         session_state=presentation.state,  # type: ignore[arg-type]
         can_purchase=presentation.can_purchase,
         session_label=presentation.session_label,
+        meeting_link=session_record.meeting_link,
     )
 
 
 def list_admin_orders(db: Session) -> list[AdminOrderItem]:
+    refresh_payment_states(db)
+    db.commit()
     records = db.scalars(select(OrderRecord).order_by(OrderRecord.created_at.desc())).all()
     return [
         AdminOrderItem(
@@ -753,6 +959,7 @@ def update_admin_order(
 
     record.status = payload.status
     db.add(record)
+    sync_order_enrollment_access(db, record.reference)
     db.commit()
     db.refresh(record)
     return AdminOrderItem(
@@ -768,23 +975,34 @@ def update_admin_order(
     )
 
 
+def _serialize_admin_payment(db: Session, record: PaymentRecord) -> AdminPaymentItem:
+    order = db.scalar(select(OrderRecord).where(OrderRecord.reference == record.order_reference))
+    return AdminPaymentItem(
+        id=record.id,
+        order_reference=record.order_reference,
+        payer_name=record.payer_name,
+        amount=record.amount,
+        amount_label=format_fcfa(record.amount) or "",
+        currency=record.currency,
+        order_status=order.status if order is not None else None,  # type: ignore[arg-type]
+        installment_plan=order.installment_plan if order is not None else None,
+        installment_number=record.installment_number,
+        due_date=record.due_date,
+        provider_code=record.provider_code,
+        status=record.status,  # type: ignore[arg-type]
+        reminder_count=record.reminder_count,
+        last_reminded_at=record.last_reminded_at,
+        can_send_reminder=payment_can_send_reminder(record),
+        paid_at=record.paid_at,
+        created_at=record.created_at,
+    )
+
+
 def list_admin_payments(db: Session) -> list[AdminPaymentItem]:
+    refresh_payment_states(db)
+    db.commit()
     records = db.scalars(select(PaymentRecord).order_by(PaymentRecord.created_at.desc())).all()
-    return [
-        AdminPaymentItem(
-            id=record.id,
-            order_reference=record.order_reference,
-            payer_name=record.payer_name,
-            amount=record.amount,
-            amount_label=format_fcfa(record.amount) or "",
-            currency=record.currency,
-            provider_code=record.provider_code,
-            status=record.status,
-            paid_at=record.paid_at,
-            created_at=record.created_at,
-        )
-        for record in records
-    ]
+    return [_serialize_admin_payment(db, record) for record in records]
 
 
 def update_admin_payment(
@@ -806,32 +1024,30 @@ def update_admin_payment(
         if payload.status != "confirmed":
             record.paid_at = None
 
-        order = db.scalar(
-            select(OrderRecord).where(OrderRecord.reference == record.order_reference)
-        )
-        if order is not None:
-            if payload.status == "confirmed":
-                order.status = "paid"
-                db.add(order)
-            elif payload.status == "failed":
-                order.status = "failed"
-                db.add(order)
-            elif payload.status == "pending":
-                order.status = "pending"
-                db.add(order)
-
     db.add(record)
+    db.flush()
+    refresh_payment_states(db, order_reference=record.order_reference)
+    sync_order_enrollment_access(db, record.order_reference)
     db.commit()
     db.refresh(record)
-    return AdminPaymentItem(
-        id=record.id,
-        order_reference=record.order_reference,
-        payer_name=record.payer_name,
-        amount=record.amount,
-        amount_label=format_fcfa(record.amount) or "",
-        currency=record.currency,
-        provider_code=record.provider_code,
-        status=record.status,  # type: ignore[arg-type]
-        paid_at=record.paid_at,
-        created_at=record.created_at,
-    )
+    return _serialize_admin_payment(db, record)
+
+
+def remind_admin_payment(
+    db: Session,
+    payment_id: int,
+) -> AdminPaymentItem | None:
+    record = db.get(PaymentRecord, payment_id)
+    if record is None:
+        return None
+
+    refresh_payment_states(db, order_reference=record.order_reference)
+    db.flush()
+    record = db.get(PaymentRecord, payment_id)
+    if record is None:
+        return None
+
+    send_manual_payment_reminder(db, record)
+    db.commit()
+    db.refresh(record)
+    return _serialize_admin_payment(db, record)
