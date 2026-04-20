@@ -22,14 +22,14 @@ const ACCEPTED: Record<string, string> = {
   pdf:   ".pdf",
 };
 const MAX_SIZES: Record<string, number> = {
-  image: 5   * 1024 * 1024,
-  video: 200 * 1024 * 1024,
-  pdf:   20  * 1024 * 1024,
+  image: 2  * 1024 * 1024,
+  video: 30 * 1024 * 1024,
+  pdf:   5  * 1024 * 1024,
 };
 const MAX_LABELS: Record<string, string> = {
-  image: "5 Mo",
-  video: "200 Mo",
-  pdf:   "20 Mo",
+  image: "2 Mo",
+  video: "30 Mo",
+  pdf:   "5 Mo",
 };
 
 function ResourceIcon({ type }: { type: string }) {

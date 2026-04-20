@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Literal, Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 FormatType = Literal["live", "ligne", "presentiel"]
@@ -277,6 +277,7 @@ class StudentResourceView(BaseModel):
 # ── Student assignment schemas ─────────────────────────────────────────────────
 
 AssignmentStudentStatus = Literal["pending", "submitted", "late", "reviewed"]
+AssignmentCommentAuthorRole = Literal["student", "teacher"]
 
 
 class StudentAssignmentView(BaseModel):
@@ -294,10 +295,38 @@ class StudentAssignmentView(BaseModel):
     is_reviewed: bool
     review_score: float | None = None
     review_max_score: float = 20
+    comment_count: int = 0
 
 
 class AssignmentSubmitPayload(BaseModel):
     file_url: str = Field(min_length=1, max_length=512)
+
+
+class AssignmentCommentView(BaseModel):
+    id: int
+    assignment_id: int
+    enrollment_id: int
+    author_role: AssignmentCommentAuthorRole
+    author_name: str
+    author_avatar_url: str | None = None
+    body: str
+    attachment_url: str | None = None
+    created_at: datetime
+
+
+class AssignmentCommentCreate(BaseModel):
+    body: str | None = Field(default=None, max_length=2000)
+    attachment_url: str | None = Field(default=None, max_length=512)
+
+    @model_validator(mode="after")
+    def ensure_message_or_attachment(self) -> "AssignmentCommentCreate":
+        body = (self.body or "").strip()
+        attachment_url = (self.attachment_url or "").strip()
+        if not body and not attachment_url:
+            raise ValueError("Ajoutez un message ou une pièce jointe.")
+        self.body = body or None
+        self.attachment_url = attachment_url or None
+        return self
 
 
 # ── Student course schemas ─────────────────────────────────────────────────────

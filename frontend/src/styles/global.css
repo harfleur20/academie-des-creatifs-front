@@ -18631,3 +18631,166 @@ button.button--disabled:disabled {
 .help-contact-card span { font-size: 0.8rem; color: #6b7280; }
 .help-contact-card__btn { margin-top: 0.75rem; padding: 0.45rem 1rem; background: #1c8480; color: #fff; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: background 150ms ease; }
 .help-contact-card__btn:hover { background: #155f5d; }
+
+/* Assignment conversations */
+.asg-submit-modal,
+.asg-thread-modal,
+.asg-submissions-modal { width: min(960px, calc(100vw - 32px)); }
+
+.asg-submit-upload {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.asg-submit-upload__copy { display: grid; gap: 4px; }
+.asg-submit-upload__copy strong { font-size: 0.95rem; color: #0f172a; }
+.asg-submit-upload__copy span,
+.asg-submit-upload__done { font-size: 0.84rem; color: #475569; }
+.asg-submit-upload__actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.asg-thread { display: grid; gap: 14px; }
+.asg-thread__stream {
+  display: grid;
+  gap: 12px;
+  max-height: min(58vh, 620px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.asg-thread__message {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.asg-thread__message.is-mine .asg-thread__bubble {
+  background: #eff6ff;
+  border-color: rgba(59, 130, 246, 0.18);
+}
+
+.asg-thread__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #e2e8f0;
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.asg-thread__avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.asg-thread__bubble {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.asg-thread__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  font-size: 0.76rem;
+  color: #64748b;
+}
+
+.asg-thread__meta strong { color: #0f172a; font-size: 0.82rem; }
+.asg-thread__bubble p {
+  margin: 0;
+  color: #1e293b;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.asg-thread__attachment-wrap,
+.asg-thread__attachment { display: grid; gap: 10px; }
+
+.asg-thread__attachment-image,
+.asg-thread__attachment-video {
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #0f172a;
+}
+
+.asg-thread__attachment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #0f766e;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.asg-thread__composer {
+  display: grid;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.asg-thread__emoji-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.asg-thread__emoji-btn {
+  min-width: 40px;
+  height: 34px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.asg-thread__emoji-btn:hover { background: #f8fafc; }
+.asg-thread__textarea { min-height: 120px; }
+
+.asg-thread__toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.asg-thread__pending-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  color: #334155;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 700px) {
+  .asg-submit-modal,
+  .asg-thread-modal,
+  .asg-submissions-modal { width: calc(100vw - 20px); }
+
+  .asg-thread__message { grid-template-columns: 32px minmax(0, 1fr); }
+  .asg-thread__avatar { width: 32px; height: 32px; }
+  .asg-thread__stream { max-height: 48vh; }
+}

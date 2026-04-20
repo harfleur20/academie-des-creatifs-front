@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import require_roles
 from app.db.session import get_db
 from app.models.entities import (
+    AssignmentCommentRecord,
     AssignmentRecord,
     AssignmentSubmissionRecord,
     AttendanceRecord,
@@ -27,6 +28,7 @@ from app.models.entities import (
     UserRecord,
 )
 from app.schemas.catalog import AdminUploadedAsset
+from app.schemas.commerce import AssignmentCommentCreate, AssignmentCommentView
 from app.schemas.teacher import (
     AssignmentCreate,
     AssignmentReviewPayload,
@@ -74,14 +76,29 @@ TEACHER_UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 _ALLOWED_IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp"}
 _ALLOWED_VIDEO_EXT = {".mp4", ".webm", ".mov"}
 _ALLOWED_PDF_EXT   = {".pdf"}
+_ALLOWED_ARCHIVE_EXT = {".zip", ".rar"}
+_ALLOWED_DOC_EXT = {".docx"}
 
 _IMAGE_CT = {"image/png", "image/jpeg", "image/webp"}
 _VIDEO_CT = {"video/mp4", "video/webm", "video/quicktime"}
 _PDF_CT   = {"application/pdf"}
+_ARCHIVE_CT = {
+    "application/zip",
+    "application/x-zip-compressed",
+    "application/x-rar-compressed",
+    "application/vnd.rar",
+    "application/octet-stream",
+}
+_DOC_CT = {
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/octet-stream",
+}
 
-MAX_IMAGE_BYTES = 5  * 1024 * 1024   #   5 MB
-MAX_VIDEO_BYTES = 200 * 1024 * 1024  # 200 MB
-MAX_PDF_BYTES   = 20  * 1024 * 1024  #  20 MB
+MAX_IMAGE_BYTES = 2  * 1024 * 1024   #   2 MB
+MAX_VIDEO_BYTES = 30 * 1024 * 1024   #  30 MB
+MAX_PDF_BYTES   = 5  * 1024 * 1024   #   5 MB
+MAX_ARCHIVE_BYTES = 50 * 1024 * 1024  #  50 MB
+MAX_DOC_BYTES = 10 * 1024 * 1024      #  10 MB
 
 
 @router.get("/overview", response_model=TeacherOverview)
@@ -870,10 +887,6 @@ def _get_assignment_for_teacher(
 
 
 def _serialize_assignment(db: Session, assignment: AssignmentRecord) -> AssignmentView:
-    count = db.scalar(
-        select(AssignmentSubmissionRecord)
-        .where(AssignmentSubmissionRecord.assignment_id == assignment.id)
-    )
     submissions_count = db.query(AssignmentSubmissionRecord).filter(
         AssignmentSubmissionRecord.assignment_id == assignment.id
     ).count()
@@ -887,6 +900,47 @@ def _serialize_assignment(db: Session, assignment: AssignmentRecord) -> Assignme
         is_final_project=assignment.is_final_project,
         submissions_count=submissions_count,
         created_at=assignment.created_at,
+    )
+
+
+def _assignment_comment_count(db: Session, assignment_id: int, enrollment_id: int) -> int:
+    return db.query(AssignmentCommentRecord).filter(
+        AssignmentCommentRecord.assignment_id == assignment_id,
+        AssignmentCommentRecord.enrollment_id == enrollment_id,
+    ).count()
+
+
+def _serialize_assignment_submission(
+    db: Session,
+    submission: AssignmentSubmissionRecord,
+    student_name: str,
+) -> AssignmentSubmissionView:
+    return AssignmentSubmissionView(
+        id=submission.id,
+        enrollment_id=submission.enrollment_id,
+        student_name=student_name,
+        file_url=submission.file_url,
+        submitted_at=submission.submitted_at,
+        is_reviewed=submission.is_reviewed,
+        review_score=submission.review_score,
+        review_max_score=submission.review_max_score,
+        comment_count=_assignment_comment_count(db, submission.assignment_id, submission.enrollment_id),
+    )
+
+
+def _serialize_assignment_comment(db: Session, comment: AssignmentCommentRecord) -> AssignmentCommentView:
+    author = db.get(UserRecord, comment.author_user_id)
+    fallback_name = "Formateur" if comment.author_role == "teacher" else "Étudiant"
+    return AssignmentCommentView(
+        id=comment.id,
+        assignment_id=comment.assignment_id,
+        enrollment_id=comment.enrollment_id,
+        author_role=comment.author_role,  # type: ignore[arg-type]
+        author_name=author.full_name if author else fallback_name,
+        author_avatar_url=author.avatar_url if author else None,
+        body=comment.body,
+        attachment_url=comment.attachment_url,
+        created_at=comment.created_at,
     )
 
 
@@ -989,16 +1043,7 @@ def list_assignment_submissions(
         .order_by(AssignmentSubmissionRecord.submitted_at)
     ).all()
     return [
-        AssignmentSubmissionView(
-            id=s.id,
-            enrollment_id=s.enrollment_id,
-            student_name=enrollment_to_name.get(s.enrollment_id, "—"),
-            file_url=s.file_url,
-            submitted_at=s.submitted_at,
-            is_reviewed=s.is_reviewed,
-            review_score=s.review_score,
-            review_max_score=s.review_max_score,
-        )
+        _serialize_assignment_submission(db, s, enrollment_to_name.get(s.enrollment_id, "—"))
         for s in submissions
     ]
 
@@ -1321,20 +1366,72 @@ def mark_submission_reviewed(
     db.add(submission)
     db.commit()
     db.refresh(submission)
-    return AssignmentSubmissionView(
-        id=submission.id,
-        enrollment_id=submission.enrollment_id,
-        student_name=enrollment_to_name.get(submission.enrollment_id, "—"),
-        file_url=submission.file_url,
-        submitted_at=submission.submitted_at,
-        is_reviewed=submission.is_reviewed,
-        review_score=submission.review_score,
-        review_max_score=submission.review_max_score,
+    return _serialize_assignment_submission(
+        db,
+        submission,
+        enrollment_to_name.get(submission.enrollment_id, "—"),
     )
 
 
+@router.get(
+    "/assignments/{assignment_id}/enrollments/{enrollment_id}/comments",
+    response_model=list[AssignmentCommentView],
+)
+def list_assignment_comments_for_student(
+    assignment_id: int,
+    enrollment_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(_teacher),
+) -> list[AssignmentCommentView]:
+    assignment = _get_assignment_for_teacher(db, assignment_id, current_user.full_name)
+    enrollment = db.get(EnrollmentRecord, enrollment_id)
+    if not enrollment or enrollment.session_id != assignment.session_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Étudiant introuvable pour ce devoir.")
+
+    comments = db.scalars(
+        select(AssignmentCommentRecord)
+        .where(
+            AssignmentCommentRecord.assignment_id == assignment_id,
+            AssignmentCommentRecord.enrollment_id == enrollment_id,
+        )
+        .order_by(AssignmentCommentRecord.created_at)
+    ).all()
+    return [_serialize_assignment_comment(db, comment) for comment in comments]
+
+
+@router.post(
+    "/assignments/{assignment_id}/enrollments/{enrollment_id}/comments",
+    response_model=AssignmentCommentView,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_assignment_comment_for_student(
+    assignment_id: int,
+    enrollment_id: int,
+    payload: AssignmentCommentCreate,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(_teacher),
+) -> AssignmentCommentView:
+    assignment = _get_assignment_for_teacher(db, assignment_id, current_user.full_name)
+    enrollment = db.get(EnrollmentRecord, enrollment_id)
+    if not enrollment or enrollment.session_id != assignment.session_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Étudiant introuvable pour ce devoir.")
+
+    comment = AssignmentCommentRecord(
+        assignment_id=assignment_id,
+        enrollment_id=enrollment_id,
+        author_user_id=current_user.id,
+        author_role="teacher",
+        body=payload.body or "",
+        attachment_url=payload.attachment_url,
+    )
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    return _serialize_assignment_comment(db, comment)
+
+
 # ══════════════════════════════════════════════════════════════════════════════
-# UPLOADS  (images ≤5MB · PDF ≤20MB · vidéos ≤200MB)
+# UPLOADS  (images ≤2MB · PDF ≤5MB · vidéos ≤30MB · DOCX ≤10MB · ZIP/RAR ≤50MB)
 # ══════════════════════════════════════════════════════════════════════════════
 
 @router.post("/uploads", response_model=AdminUploadedAsset, status_code=status.HTTP_201_CREATED)
@@ -1366,17 +1463,27 @@ async def upload_teacher_asset(
         if content_type not in _PDF_CT:
             raise HTTPException(status_code=400, detail="Type de fichier invalide. Seuls les PDF sont acceptés pour ce format.")
         max_bytes = MAX_PDF_BYTES
+    elif extension in _ALLOWED_ARCHIVE_EXT:
+        if content_type not in _ARCHIVE_CT:
+            raise HTTPException(status_code=400, detail="Type d'archive invalide. Formats acceptés: ZIP, RAR.")
+        max_bytes = MAX_ARCHIVE_BYTES
+    elif extension in _ALLOWED_DOC_EXT:
+        if content_type not in _DOC_CT:
+            raise HTTPException(status_code=400, detail="Type de document invalide. Seuls les fichiers DOCX sont acceptés pour ce format.")
+        max_bytes = MAX_DOC_BYTES
     else:
         raise HTTPException(
             status_code=400,
-            detail="Extension non supportée. Utilisez JPG/PNG/WebP (images), MP4/WebM/MOV (vidéos) ou PDF.",
+            detail="Extension non supportée. Utilisez JPG/PNG/WebP (images), MP4/WebM/MOV (vidéos), PDF, ZIP, RAR ou DOCX.",
         )
 
     if len(raw) > max_bytes:
         limit_label = (
-            "5 Mo" if extension in _ALLOWED_IMAGE_EXT
-            else "20 Mo" if extension in _ALLOWED_PDF_EXT
-            else "200 Mo"
+            "2 Mo" if extension in _ALLOWED_IMAGE_EXT
+            else "5 Mo" if extension in _ALLOWED_PDF_EXT
+            else "30 Mo" if extension in _ALLOWED_VIDEO_EXT
+            else "10 Mo" if extension in _ALLOWED_DOC_EXT
+            else "50 Mo"
         )
         raise HTTPException(status_code=400, detail=f"Fichier trop volumineux. Limite: {limit_label}.")
 

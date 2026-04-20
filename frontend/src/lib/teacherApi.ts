@@ -195,6 +195,19 @@ export type AssignmentSubmission = {
   is_reviewed: boolean;
   review_score: number | null;
   review_max_score: number;
+  comment_count: number;
+};
+
+export type AssignmentComment = {
+  id: number;
+  assignment_id: number;
+  enrollment_id: number;
+  author_role: "student" | "teacher";
+  author_name: string;
+  author_avatar_url: string | null;
+  body: string;
+  attachment_url: string | null;
+  created_at: string;
 };
 
 export type AssignmentCreate = {
@@ -247,6 +260,29 @@ export async function markSubmissionReviewed(
     method: "PATCH",
     body: payload ? JSON.stringify(payload) : undefined,
   });
+}
+
+export async function fetchAssignmentCommentsForEnrollment(
+  assignmentId: number,
+  enrollmentId: number,
+): Promise<AssignmentComment[]> {
+  return apiRequest<AssignmentComment[]>(
+    `/teacher/assignments/${assignmentId}/enrollments/${enrollmentId}/comments`,
+  );
+}
+
+export async function createAssignmentCommentForEnrollment(
+  assignmentId: number,
+  enrollmentId: number,
+  payload: { body?: string | null; attachment_url?: string | null },
+): Promise<AssignmentComment> {
+  return apiRequest<AssignmentComment>(
+    `/teacher/assignments/${assignmentId}/enrollments/${enrollmentId}/comments`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 // ── Courses ──────────────────────────────────────────────────────────────────

@@ -1149,6 +1149,131 @@ class JwtAuthenticationFlowTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertIsInstance(response.json(), list)
 
+    def test_assignment_comments_and_student_upload_flow(self) -> None:
+        student_headers = self.auth_headers(
+            "melvine@example.com",
+            "Student123!",
+        )
+        teacher_headers = self.auth_headers(
+            "alex@academiedescreatifs.com",
+            "Teacher123!",
+        )
+
+        uploaded_file: Path | None = None
+        db = SessionLocal()
+        try:
+            student = db.scalar(select(UserRecord).where(UserRecord.email == "melvine@example.com"))
+            teacher = db.scalar(select(UserRecord).where(UserRecord.email == "alex@academiedescreatifs.com"))
+            formation = db.scalar(select(FormationRecord).where(FormationRecord.slug == "deviens-un-brand-designer"))
+            self.assertIsNotNone(student)
+            self.assertIsNotNone(teacher)
+            self.assertIsNotNone(formation)
+
+            session = FormationSessionRecord(
+                formation_id=formation.id,
+                label="Session devoirs commentaires",
+                start_date=date.today(),
+                end_date=date.today() + timedelta(days=14),
+                campus_label="Jitsi",
+                seat_capacity=25,
+                enrolled_count=1,
+                teacher_name=teacher.full_name,
+                status="planned",
+            )
+            db.add(session)
+            db.flush()
+
+            enrollment = EnrollmentRecord(
+                user_id=student.id,
+                formation_id=formation.id,
+                session_id=session.id,
+                order_reference="ASSIGN-THREAD-001",
+                format_type=formation.format_type,
+                dashboard_type=formation.dashboard_type,
+                status="active",
+            )
+            db.add(enrollment)
+            db.flush()
+
+            assignment = AssignmentRecord(
+                session_id=session.id,
+                title="Devoir avec échanges",
+                instructions="Ajoutez une image si besoin.",
+                due_date=datetime.now(timezone.utc) + timedelta(days=3),
+            )
+            db.add(assignment)
+            db.commit()
+            assignment_id = assignment.id
+            enrollment_id = enrollment.id
+        finally:
+            db.close()
+
+        upload_response = self.client.post(
+            "/api/v1/me/uploads?filename=retour-test.png",
+            headers={**student_headers, "Content-Type": "image/png"},
+            content=b"\x89PNG\r\n\x1a\n" + b"student-upload-test",
+        )
+        self.assertEqual(upload_response.status_code, 201, upload_response.text)
+        upload_payload = upload_response.json()
+        self.assertTrue(upload_payload["path"].startswith("/uploads/student-media/"))
+        uploaded_file = Path(__file__).resolve().parents[1] / upload_payload["path"].lstrip("/").replace("/", os.sep)
+
+        try:
+            student_comment_response = self.client.post(
+                f"/api/v1/me/assignments/{assignment_id}/comments",
+                headers=student_headers,
+                json={
+                    "body": "J'avance bien sur ce rendu ✨",
+                    "attachment_url": upload_payload["public_url"],
+                },
+            )
+            self.assertEqual(student_comment_response.status_code, 201, student_comment_response.text)
+            self.assertEqual(student_comment_response.json()["author_role"], "student")
+
+            teacher_comments_response = self.client.get(
+                f"/api/v1/teacher/assignments/{assignment_id}/enrollments/{enrollment_id}/comments",
+                headers=teacher_headers,
+            )
+            self.assertEqual(teacher_comments_response.status_code, 200, teacher_comments_response.text)
+            self.assertEqual(len(teacher_comments_response.json()), 1)
+            self.assertIn("✨", teacher_comments_response.json()[0]["body"])
+
+            teacher_comment_response = self.client.post(
+                f"/api/v1/teacher/assignments/{assignment_id}/enrollments/{enrollment_id}/comments",
+                headers=teacher_headers,
+                json={"body": "Bravo 👏 continue comme ça."},
+            )
+            self.assertEqual(teacher_comment_response.status_code, 201, teacher_comment_response.text)
+            self.assertEqual(teacher_comment_response.json()["author_role"], "teacher")
+
+            submit_response = self.client.post(
+                f"/api/v1/me/assignments/{assignment_id}/submit",
+                headers=student_headers,
+                json={"file_url": upload_payload["public_url"]},
+            )
+            self.assertEqual(submit_response.status_code, 200, submit_response.text)
+            self.assertEqual(submit_response.json()["comment_count"], 2)
+            self.assertEqual(submit_response.json()["file_url"], upload_payload["public_url"])
+
+            assignments_response = self.client.get("/api/v1/me/assignments", headers=student_headers)
+            self.assertEqual(assignments_response.status_code, 200, assignments_response.text)
+            assignment_payload = next(
+                item for item in assignments_response.json()
+                if item["id"] == assignment_id
+            )
+            self.assertEqual(assignment_payload["comment_count"], 2)
+
+            submissions_response = self.client.get(
+                f"/api/v1/teacher/assignments/{assignment_id}/submissions",
+                headers=teacher_headers,
+            )
+            self.assertEqual(submissions_response.status_code, 200, submissions_response.text)
+            self.assertEqual(len(submissions_response.json()), 1)
+            self.assertEqual(submissions_response.json()[0]["comment_count"], 2)
+        finally:
+            if uploaded_file and uploaded_file.exists():
+                uploaded_file.unlink()
+
     def test_admin_can_create_formation_with_rich_detail_content(self) -> None:
         admin_headers = self.auth_headers(
             "francis@academiedescreatifs.com",

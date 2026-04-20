@@ -11,6 +11,7 @@ from app.api.dependencies import get_current_user
 from app.core.security import hash_password, verify_password
 from app.db.session import get_db
 from app.models.entities import (
+    AssignmentCommentRecord,
     AssignmentRecord,
     AssignmentSubmissionRecord,
     AttendanceRecord,
@@ -33,7 +34,10 @@ from app.models.entities import (
     SessionLiveEventRecord,
     UserRecord,
 )
+from app.schemas.catalog import AdminUploadedAsset
 from app.schemas.commerce import (
+    AssignmentCommentCreate,
+    AssignmentCommentView,
     AssignmentStudentStatus,
     AssignmentSubmitPayload,
     AttemptStatus,
@@ -212,6 +216,33 @@ _AVATAR_MAX_BYTES = 2 * 1024 * 1024
 _AVATAR_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 _AVATAR_CONTENT_TYPES = {"image/png", "image/jpeg", "image/webp"}
 
+_STUDENT_UPLOAD_ROOT = Path(__file__).resolve().parents[3] / "uploads" / "student-media"
+_STUDENT_UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+_ALLOWED_STUDENT_IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp"}
+_ALLOWED_STUDENT_VIDEO_EXT = {".mp4", ".webm", ".mov"}
+_ALLOWED_STUDENT_PDF_EXT = {".pdf"}
+_ALLOWED_STUDENT_ARCHIVE_EXT = {".zip", ".rar"}
+_ALLOWED_STUDENT_DOC_EXT = {".docx"}
+_STUDENT_IMAGE_CT = {"image/png", "image/jpeg", "image/webp"}
+_STUDENT_VIDEO_CT = {"video/mp4", "video/webm", "video/quicktime"}
+_STUDENT_PDF_CT = {"application/pdf"}
+_STUDENT_ARCHIVE_CT = {
+    "application/zip",
+    "application/x-zip-compressed",
+    "application/x-rar-compressed",
+    "application/vnd.rar",
+    "application/octet-stream",
+}
+_STUDENT_DOC_CT = {
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/octet-stream",
+}
+_STUDENT_MAX_IMAGE_BYTES = 2 * 1024 * 1024
+_STUDENT_MAX_VIDEO_BYTES = 30 * 1024 * 1024
+_STUDENT_MAX_PDF_BYTES = 5 * 1024 * 1024
+_STUDENT_MAX_ARCHIVE_BYTES = 50 * 1024 * 1024
+_STUDENT_MAX_DOC_BYTES = 10 * 1024 * 1024
+
 
 class UpdateProfilePayload(BaseModel):
     full_name: str
@@ -308,6 +339,74 @@ async def upload_avatar(
     db.commit()
 
     return AvatarResponse(avatar_url=public_url)
+
+
+@router.post("/uploads", response_model=AdminUploadedAsset, status_code=status.HTTP_201_CREATED)
+async def upload_student_asset(
+    request: Request,
+    filename: str = Query(min_length=1, max_length=255),
+    current_user: UserRecord = Depends(get_current_user),
+) -> AdminUploadedAsset:
+    raw = await request.body()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Aucun fichier reçu.")
+
+    original_name = Path(filename).name.strip()
+    extension = Path(original_name).suffix.lower()
+    content_type = (
+        request.headers.get("content-type", "application/octet-stream")
+        .split(";")[0].strip().lower()
+    )
+
+    if extension in _ALLOWED_STUDENT_IMAGE_EXT:
+        if content_type not in _STUDENT_IMAGE_CT:
+            raise HTTPException(status_code=400, detail="Type d'image invalide. Formats acceptés: JPG, PNG, WebP.")
+        max_bytes = _STUDENT_MAX_IMAGE_BYTES
+    elif extension in _ALLOWED_STUDENT_VIDEO_EXT:
+        if content_type not in _STUDENT_VIDEO_CT:
+            raise HTTPException(status_code=400, detail="Type vidéo invalide. Formats acceptés: MP4, WebM, MOV.")
+        max_bytes = _STUDENT_MAX_VIDEO_BYTES
+    elif extension in _ALLOWED_STUDENT_PDF_EXT:
+        if content_type not in _STUDENT_PDF_CT:
+            raise HTTPException(status_code=400, detail="Type de fichier invalide. Seuls les PDF sont acceptés pour ce format.")
+        max_bytes = _STUDENT_MAX_PDF_BYTES
+    elif extension in _ALLOWED_STUDENT_ARCHIVE_EXT:
+        if content_type not in _STUDENT_ARCHIVE_CT:
+            raise HTTPException(status_code=400, detail="Type d'archive invalide. Formats acceptés: ZIP, RAR.")
+        max_bytes = _STUDENT_MAX_ARCHIVE_BYTES
+    elif extension in _ALLOWED_STUDENT_DOC_EXT:
+        if content_type not in _STUDENT_DOC_CT:
+            raise HTTPException(status_code=400, detail="Type de document invalide. Seuls les fichiers DOCX sont acceptés pour ce format.")
+        max_bytes = _STUDENT_MAX_DOC_BYTES
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Extension non supportée. Utilisez JPG/PNG/WebP, MP4/WebM/MOV, PDF, ZIP, RAR ou DOCX.",
+        )
+
+    if len(raw) > max_bytes:
+        limit_label = (
+            "2 Mo" if extension in _ALLOWED_STUDENT_IMAGE_EXT
+            else "5 Mo" if extension in _ALLOWED_STUDENT_PDF_EXT
+            else "30 Mo" if extension in _ALLOWED_STUDENT_VIDEO_EXT
+            else "10 Mo" if extension in _ALLOWED_STUDENT_DOC_EXT
+            else "50 Mo"
+        )
+        raise HTTPException(status_code=400, detail=f"Fichier trop volumineux. Limite: {limit_label}.")
+
+    stored_name = f"{current_user.id}-{uuid4().hex}{extension}"
+    destination = _STUDENT_UPLOAD_ROOT / stored_name
+    destination.write_bytes(raw)
+
+    public_path = f"/uploads/student-media/{stored_name}"
+    public_url = f"{str(request.base_url).rstrip('/')}{public_path}"
+    return AdminUploadedAsset(
+        filename=original_name,
+        path=public_path,
+        public_url=public_url,
+        content_type=content_type,
+        size=len(raw),
+    )
 
 
 def _get_enrollment_or_404(
@@ -910,9 +1009,62 @@ def _assignment_student_status(
 ) -> AssignmentStudentStatus:
     if submission:
         return "reviewed" if submission.is_reviewed else "submitted"
-    if now > assignment.due_date:
+    if _normalize_datetime(now) > _normalize_datetime(assignment.due_date):
         return "late"
     return "pending"
+
+
+def _normalize_datetime(value: datetime) -> datetime:
+    return value.astimezone(UTC).replace(tzinfo=None) if value.tzinfo else value
+
+
+def _assignment_comment_count(db: Session, assignment_id: int, enrollment_id: int) -> int:
+    return db.query(AssignmentCommentRecord).filter(
+        AssignmentCommentRecord.assignment_id == assignment_id,
+        AssignmentCommentRecord.enrollment_id == enrollment_id,
+    ).count()
+
+
+def _serialize_assignment_comment(db: Session, comment: AssignmentCommentRecord) -> AssignmentCommentView:
+    author = db.get(UserRecord, comment.author_user_id)
+    fallback_name = "Formateur" if comment.author_role == "teacher" else "Étudiant"
+    return AssignmentCommentView(
+        id=comment.id,
+        assignment_id=comment.assignment_id,
+        enrollment_id=comment.enrollment_id,
+        author_role=comment.author_role,  # type: ignore[arg-type]
+        author_name=author.full_name if author else fallback_name,
+        author_avatar_url=author.avatar_url if author else None,
+        body=comment.body,
+        attachment_url=comment.attachment_url,
+        created_at=comment.created_at,
+    )
+
+
+def _serialize_student_assignment(
+    db: Session,
+    assignment: AssignmentRecord,
+    enrollment: EnrollmentRecord,
+    submission: AssignmentSubmissionRecord | None,
+    now: datetime,
+) -> StudentAssignmentView:
+    return StudentAssignmentView(
+        id=assignment.id,
+        session_id=assignment.session_id,
+        session_label=_session_label(db, assignment.session_id),
+        formation_title=_formation_title_for_session(db, assignment.session_id),
+        title=assignment.title,
+        instructions=assignment.instructions,
+        due_date=assignment.due_date,
+        is_final_project=assignment.is_final_project,
+        student_status=_assignment_student_status(assignment, submission, now),
+        submitted_at=submission.submitted_at if submission else None,
+        file_url=submission.file_url if submission else None,
+        is_reviewed=submission.is_reviewed if submission else False,
+        review_score=submission.review_score if submission else None,
+        review_max_score=submission.review_max_score if submission else 20,
+        comment_count=_assignment_comment_count(db, assignment.id, enrollment.id),
+    )
 
 
 @router.get("/assignments", response_model=list[StudentAssignmentView])
@@ -942,22 +1094,7 @@ def read_my_assignments(
                 AssignmentSubmissionRecord.enrollment_id == enrollment.id,
             )
         )
-        result.append(StudentAssignmentView(
-            id=assignment.id,
-            session_id=assignment.session_id,
-            session_label=_session_label(db, assignment.session_id),
-            formation_title=_formation_title_for_session(db, assignment.session_id),
-            title=assignment.title,
-            instructions=assignment.instructions,
-            due_date=assignment.due_date,
-            is_final_project=assignment.is_final_project,
-            student_status=_assignment_student_status(assignment, submission, now),
-            submitted_at=submission.submitted_at if submission else None,
-            file_url=submission.file_url if submission else None,
-            is_reviewed=submission.is_reviewed if submission else False,
-            review_score=submission.review_score if submission else None,
-            review_max_score=submission.review_max_score if submission else 20,
-        ))
+        result.append(_serialize_student_assignment(db, assignment, enrollment, submission, now))
 
     return result
 
@@ -978,7 +1115,7 @@ def submit_assignment(
     if not enrollment:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Vous n'êtes pas inscrit à cette session.")
 
-    if now > assignment.due_date:
+    if _normalize_datetime(now) > _normalize_datetime(assignment.due_date):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La date limite de remise est dépassée.")
 
     existing = db.scalar(
@@ -991,6 +1128,8 @@ def submit_assignment(
         existing.file_url = payload.file_url
         existing.submitted_at = now
         existing.is_reviewed = False
+        existing.review_score = None
+        existing.review_max_score = 20
         db.add(existing)
         submission = existing
     else:
@@ -1003,23 +1142,61 @@ def submit_assignment(
         db.add(submission)
     db.commit()
     db.refresh(submission)
+    return _serialize_student_assignment(db, assignment, enrollment, submission, now)
 
-    return StudentAssignmentView(
-        id=assignment.id,
-        session_id=assignment.session_id,
-        session_label=_session_label(db, assignment.session_id),
-        formation_title=_formation_title_for_session(db, assignment.session_id),
-        title=assignment.title,
-        instructions=assignment.instructions,
-        due_date=assignment.due_date,
-        is_final_project=assignment.is_final_project,
-        student_status=_assignment_student_status(assignment, submission, now),
-        submitted_at=submission.submitted_at,
-        file_url=submission.file_url,
-        is_reviewed=submission.is_reviewed,
-        review_score=submission.review_score,
-        review_max_score=submission.review_max_score,
+
+@router.get("/assignments/{assignment_id}/comments", response_model=list[AssignmentCommentView])
+def read_assignment_comments(
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> list[AssignmentCommentView]:
+    assignment = db.get(AssignmentRecord, assignment_id)
+    if not assignment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Devoir introuvable.")
+
+    enrollment = _enrollment_for_session(db, current_user.id, assignment.session_id)
+    if not enrollment:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Vous n'êtes pas inscrit à cette session.")
+
+    comments = db.scalars(
+        select(AssignmentCommentRecord)
+        .where(
+            AssignmentCommentRecord.assignment_id == assignment_id,
+            AssignmentCommentRecord.enrollment_id == enrollment.id,
+        )
+        .order_by(AssignmentCommentRecord.created_at)
+    ).all()
+    return [_serialize_assignment_comment(db, comment) for comment in comments]
+
+
+@router.post("/assignments/{assignment_id}/comments", response_model=AssignmentCommentView, status_code=status.HTTP_201_CREATED)
+def create_assignment_comment(
+    assignment_id: int,
+    payload: AssignmentCommentCreate,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> AssignmentCommentView:
+    assignment = db.get(AssignmentRecord, assignment_id)
+    if not assignment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Devoir introuvable.")
+
+    enrollment = _enrollment_for_session(db, current_user.id, assignment.session_id)
+    if not enrollment:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Vous n'êtes pas inscrit à cette session.")
+
+    comment = AssignmentCommentRecord(
+        assignment_id=assignment_id,
+        enrollment_id=enrollment.id,
+        author_user_id=current_user.id,
+        author_role="student",
+        body=payload.body or "",
+        attachment_url=payload.attachment_url,
     )
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    return _serialize_assignment_comment(db, comment)
 
 
 @router.post(

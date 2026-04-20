@@ -223,7 +223,7 @@ function LessonViewer({ lesson, onComplete, completing }: {
           <div className="cv-linked-block">
             <ClipboardList size={28} style={{ color: "#0ea5e9" }} />
             <strong>{lesson.assignment_title ?? "Devoir"}</strong>
-            <p>Rendez-vous dans l'onglet <strong>Devoirs</strong> pour remettre ce travail.</p>
+            <p>Rendez-vous dans l'onglet <strong>Devoirs</strong> pour déposer le fichier et échanger avec le formateur.</p>
             <a href="/espace/etudiant/devoirs" className="dsh-btn dsh-btn--primary">Aller aux devoirs</a>
           </div>
         )}

@@ -59,7 +59,7 @@ const CATEGORIES: Category[] = [
     icon: <FaBook />,
     items: [
       { q: "Les cours sont-ils en direct ou en replay ?", a: "Les deux. Certains parcours incluent des sessions live avec le formateur, et tous les cours sont disponibles en replay pour être consultés à tout moment." },
-      { q: "Que faire si je bloque sur un exercice ?", a: "Vous pouvez poser vos questions directement dans l'espace de devoirs ou lors des sessions live. Le formateur répond en général sous 24 heures." },
+      { q: "Que faire si je bloque sur un exercice ?", a: "Ouvrez le devoir concerné, ajoutez votre question dans le fil d'échange et joignez une image si besoin. Le formateur répond en général sous 24 heures." },
       { q: "Les ressources (fichiers, templates) sont-elles incluses ?", a: "Oui. Chaque cours inclut les fichiers sources et ressources utilisés par le formateur, téléchargeables depuis la section « Ressources » de votre espace." },
       { q: "Puis-je télécharger les vidéos ?", a: "Les vidéos sont accessibles en streaming depuis votre espace. Le téléchargement hors ligne n'est pas disponible pour protéger le contenu des formateurs." },
     ],

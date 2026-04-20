@@ -75,6 +75,7 @@ export async function fetchMyResources(): Promise<StudentResource[]> {
 // ── Assignments ──────────────────────────────────────────────────────────────
 
 export type AssignmentStudentStatus = "pending" | "submitted" | "late" | "reviewed";
+export type AssignmentCommentAuthorRole = "student" | "teacher";
 
 export type StudentAssignment = {
   id: number;
@@ -91,6 +92,27 @@ export type StudentAssignment = {
   is_reviewed: boolean;
   review_score: number | null;
   review_max_score: number;
+  comment_count: number;
+};
+
+export type StudentUploadedAsset = {
+  filename: string;
+  path: string;
+  public_url: string;
+  content_type: string;
+  size: number;
+};
+
+export type AssignmentComment = {
+  id: number;
+  assignment_id: number;
+  enrollment_id: number;
+  author_role: AssignmentCommentAuthorRole;
+  author_name: string;
+  author_avatar_url: string | null;
+  body: string;
+  attachment_url: string | null;
+  created_at: string;
 };
 
 export async function fetchMyAssignments(): Promise<StudentAssignment[]> {
@@ -104,6 +126,30 @@ export async function submitAssignment(
   return apiRequest<StudentAssignment>(`/me/assignments/${assignmentId}/submit`, {
     method: "POST",
     body: JSON.stringify({ file_url: fileUrl }),
+  });
+}
+
+export async function uploadStudentAsset(file: File): Promise<StudentUploadedAsset> {
+  const params = new URLSearchParams({ filename: file.name });
+  return apiRequest<StudentUploadedAsset>(`/me/uploads?${params.toString()}`, {
+    method: "POST",
+    body: file,
+    headers: { "Content-Type": file.type || "application/octet-stream" },
+    timeoutMs: 5 * 60 * 1000,
+  });
+}
+
+export async function fetchAssignmentComments(assignmentId: number): Promise<AssignmentComment[]> {
+  return apiRequest<AssignmentComment[]>(`/me/assignments/${assignmentId}/comments`);
+}
+
+export async function createAssignmentComment(
+  assignmentId: number,
+  payload: { body?: string | null; attachment_url?: string | null },
+): Promise<AssignmentComment> {
+  return apiRequest<AssignmentComment>(`/me/assignments/${assignmentId}/comments`, {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 

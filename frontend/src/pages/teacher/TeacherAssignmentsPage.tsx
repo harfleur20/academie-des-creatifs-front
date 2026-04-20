@@ -1,18 +1,32 @@
 import { useEffect, useState } from "react";
-import { CheckCircle, Clock, Plus, Trash2, Users } from "lucide-react";
+import { CheckCircle, Clock, MessageSquare, Plus, Trash2, Users } from "lucide-react";
+import AssignmentConversationPanel from "../../components/AssignmentConversationPanel";
 import {
-  fetchTeacherOverview,
-  fetchSessionCourseDays,
-  fetchSessionAssignments,
   createAssignment,
+  createAssignmentCommentForEnrollment,
   deleteAssignment,
+  fetchAssignmentCommentsForEnrollment,
   fetchAssignmentSubmissions,
+  fetchSessionAssignments,
+  fetchSessionCourseDays,
+  fetchTeacherOverview,
   markSubmissionReviewed,
-  type TeacherSession,
-  type CourseDay,
-  type AssignmentView,
+  uploadTeacherAsset,
+  type AssignmentComment,
   type AssignmentSubmission,
+  type AssignmentView,
+  type CourseDay,
+  type TeacherSession,
 } from "../../lib/teacherApi";
+
+function fileNameFromUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    return decodeURIComponent(parsed.pathname.split("/").pop() || "fichier");
+  } catch {
+    return url.split("/").pop() || "fichier";
+  }
+}
 
 export default function TeacherAssignmentsPage() {
   const [sessions, setSessions] = useState<TeacherSession[]>([]);
@@ -33,13 +47,24 @@ export default function TeacherAssignmentsPage() {
   const [dueDate, setDueDate] = useState("");
   const [isFinalProject, setIsFinalProject] = useState(false);
 
+  const [conversationTarget, setConversationTarget] = useState<AssignmentSubmission | null>(null);
+  const [comments, setComments] = useState<AssignmentComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [commentError, setCommentError] = useState("");
+  const [commentAttachmentUrl, setCommentAttachmentUrl] = useState("");
+  const [commentAttachmentName, setCommentAttachmentName] = useState("");
+  const [commentUploading, setCommentUploading] = useState(false);
+  const [commentUploadError, setCommentUploadError] = useState("");
+
   useEffect(() => {
     fetchTeacherOverview()
-      .then((o) => {
-        setSessions(o.sessions);
-        if (o.sessions.length > 0) setSelectedSessionId(o.sessions[0].id);
+      .then((overview) => {
+        setSessions(overview.sessions);
+        if (overview.sessions.length > 0) setSelectedSessionId(overview.sessions[0].id);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
+      .catch((err) => setError(err instanceof Error ? err.message : "Erreur"))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -57,7 +82,7 @@ export default function TeacherAssignmentsPage() {
         setCourseDays(dayRows);
         setSelectedCourseDayId(dayRows[0]?.id ?? null);
       })
-      .catch(() => {});
+      .catch((err) => setError(err instanceof Error ? err.message : "Impossible de charger les devoirs."));
   }, [selectedSessionId]);
 
   async function handleCreate() {
@@ -65,7 +90,8 @@ export default function TeacherAssignmentsPage() {
       setError("Titre et date limite requis.");
       return;
     }
-    setSaving(true); setError("");
+    setSaving(true);
+    setError("");
     try {
       const assignment = await createAssignment(selectedSessionId, {
         title: title.trim(),
@@ -76,9 +102,12 @@ export default function TeacherAssignmentsPage() {
       });
       setAssignments((prev) => [...prev, assignment]);
       setShowForm(false);
-      setTitle(""); setInstructions(""); setDueDate(""); setIsFinalProject(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur.");
+      setTitle("");
+      setInstructions("");
+      setDueDate("");
+      setIsFinalProject(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur.");
     } finally {
       setSaving(false);
     }
@@ -87,15 +116,16 @@ export default function TeacherAssignmentsPage() {
   async function handleDelete(id: number) {
     if (!confirm("Supprimer ce devoir ?")) return;
     await deleteAssignment(id);
-    setAssignments((prev) => prev.filter((a) => a.id !== id));
+    setAssignments((prev) => prev.filter((assignment) => assignment.id !== id));
   }
 
   async function handleViewSubmissions(assignment: AssignmentView) {
     setSelectedAssignment(assignment);
-    const subs = await fetchAssignmentSubmissions(assignment.id);
-    setSubmissions(subs);
+    setConversationTarget(null);
+    const rows = await fetchAssignmentSubmissions(assignment.id);
+    setSubmissions(rows);
     setReviewScores(Object.fromEntries(
-      subs.map((submission) => [
+      rows.map((submission) => [
         submission.id,
         submission.review_score !== null ? String(submission.review_score) : "",
       ]),
@@ -113,25 +143,95 @@ export default function TeacherAssignmentsPage() {
       submissionId,
       score !== null ? { review_score: score, review_max_score: 20 } : undefined,
     );
-    setSubmissions((prev) => prev?.map((s) => s.id === submissionId ? updated : s) ?? null);
+    setSubmissions((prev) => prev?.map((submission) => submission.id === submissionId ? updated : submission) ?? null);
+    setConversationTarget((prev) => prev?.id === submissionId ? updated : prev);
     setReviewScores((prev) => ({
       ...prev,
       [submissionId]: updated.review_score !== null ? String(updated.review_score) : "",
     }));
   }
 
+  async function openConversation(submission: AssignmentSubmission) {
+    if (!selectedAssignment) return;
+    setConversationTarget(submission);
+    setCommentsLoading(true);
+    setCommentDraft("");
+    setCommentError("");
+    setCommentAttachmentUrl("");
+    setCommentAttachmentName("");
+    setCommentUploadError("");
+    try {
+      const rows = await fetchAssignmentCommentsForEnrollment(selectedAssignment.id, submission.enrollment_id);
+      setComments(rows);
+    } catch (err) {
+      setCommentError(err instanceof Error ? err.message : "Impossible de charger les échanges.");
+      setComments([]);
+    } finally {
+      setCommentsLoading(false);
+    }
+  }
+
+  async function handleCommentAttachmentUpload(file: File) {
+    setCommentUploading(true);
+    setCommentUploadError("");
+    try {
+      const uploaded = await uploadTeacherAsset(file);
+      setCommentAttachmentUrl(uploaded.public_url);
+      setCommentAttachmentName(uploaded.filename);
+    } catch (err) {
+      setCommentUploadError(err instanceof Error ? err.message : "Impossible d'ajouter cette pièce jointe.");
+    } finally {
+      setCommentUploading(false);
+    }
+  }
+
+  async function handleSendComment() {
+    if (!selectedAssignment || !conversationTarget) return;
+    if (!commentDraft.trim() && !commentAttachmentUrl) {
+      setCommentError("Ajoutez un message ou une pièce jointe.");
+      return;
+    }
+    setCommentSubmitting(true);
+    setCommentError("");
+    try {
+      const created = await createAssignmentCommentForEnrollment(
+        selectedAssignment.id,
+        conversationTarget.enrollment_id,
+        {
+          body: commentDraft.trim() || null,
+          attachment_url: commentAttachmentUrl || null,
+        },
+      );
+      setComments((prev) => [...prev, created]);
+      setSubmissions((prev) => prev?.map((submission) => (
+        submission.id === conversationTarget.id
+          ? { ...submission, comment_count: submission.comment_count + 1 }
+          : submission
+      )) ?? null);
+      setConversationTarget((prev) => prev ? { ...prev, comment_count: prev.comment_count + 1 } : prev);
+      setCommentDraft("");
+      setCommentAttachmentUrl("");
+      setCommentAttachmentName("");
+      setCommentUploadError("");
+    } catch (err) {
+      setCommentError(err instanceof Error ? err.message : "Impossible d'envoyer le message.");
+    } finally {
+      setCommentSubmitting(false);
+    }
+  }
+
   if (isLoading) return <div className="dsh-page-loading">Chargement…</div>;
 
-  const isPast = (dueDate: string) => new Date(dueDate) < new Date();
+  const isPast = (deadline: string) => new Date(deadline) < new Date();
 
   return (
     <div className="dsh-page">
       <div className="dsh-page__header">
         <h1>Devoirs</h1>
-        <p className="dsh-page__subtitle">Fixez les dates de remise et consultez les soumissions.</p>
+        <p className="dsh-page__subtitle">Créez les devoirs, recevez les rendus et échangez directement avec les étudiants.</p>
       </div>
 
-      {sessions.length > 0 && (
+      {sessions.length > 0 ? (
         <div className="dsh-section-bar">
           <label className="dsh-select-label">
             Session :
@@ -140,20 +240,23 @@ export default function TeacherAssignmentsPage() {
               value={selectedSessionId ?? ""}
               onChange={(e) => setSelectedSessionId(Number(e.target.value))}
             >
-              {sessions.map((s) => (
-                <option key={s.id} value={s.id}>{s.formation_title} — {s.label}</option>
+              {sessions.map((session) => (
+                <option key={session.id} value={session.id}>
+                  {session.formation_title} — {session.label}
+                </option>
               ))}
             </select>
           </label>
-          <button type="button" className="dsh-btn dsh-btn--primary" onClick={() => setShowForm((v) => !v)}>
-            <Plus size={15} /> Créer un devoir
+          <button type="button" className="dsh-btn dsh-btn--primary" onClick={() => setShowForm((value) => !value)}>
+            <Plus size={15} />
+            Créer un devoir
           </button>
         </div>
-      )}
+      ) : null}
 
-      {error && <p className="dsh-error">{error}</p>}
+      {error ? <p className="dsh-error">{error}</p> : null}
 
-      {showForm && (
+      {showForm ? (
         <div className="dsh-form-card">
           <h3>Nouveau devoir</h3>
           <div className="dsh-form-row">
@@ -209,35 +312,41 @@ export default function TeacherAssignmentsPage() {
             </button>
           </div>
         </div>
-      )}
+      ) : null}
 
       {assignments.length === 0 && !showForm ? (
         <div className="dsh-empty"><p>Aucun devoir pour cette session.</p></div>
       ) : (
         <div className="dsh-list">
-          {assignments.map((a) => {
-            const day = courseDays.find((item) => item.id === a.course_day_id);
+          {assignments.map((assignment) => {
+            const day = courseDays.find((item) => item.id === assignment.course_day_id);
             return (
-              <div className="dsh-list-item" key={a.id}>
+              <div className="dsh-list-item" key={assignment.id}>
                 <div className="dsh-list-item__icon">
-                  {isPast(a.due_date)
+                  {isPast(assignment.due_date)
                     ? <CheckCircle size={18} style={{ color: "#6b7280" }} />
                     : <Clock size={18} style={{ color: "#f59e0b" }} />}
                 </div>
                 <div className="dsh-list-item__main">
-                  <strong>{a.title}</strong>
+                  <strong>{assignment.title}</strong>
                   <span className="dsh-list-item__meta">
-                    Date limite : {new Date(a.due_date).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                    {" · "}{a.submissions_count} soumission{a.submissions_count !== 1 ? "s" : ""}
+                    Date limite : {new Date(assignment.due_date).toLocaleDateString("fr-FR", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                    {" · "}{assignment.submissions_count} soumission{assignment.submissions_count !== 1 ? "s" : ""}
                     {day ? ` · ${day.title}` : ""}
-                    {a.is_final_project ? " · Projet final" : ""}
+                    {assignment.is_final_project ? " · Projet final" : ""}
                   </span>
                 </div>
                 <div className="dsh-list-item__actions">
-                  <button type="button" className="dsh-icon-btn" title="Voir les soumissions" onClick={() => handleViewSubmissions(a)}>
+                  <button type="button" className="dsh-icon-btn" title="Voir les soumissions" onClick={() => handleViewSubmissions(assignment)}>
                     <Users size={15} />
                   </button>
-                  <button type="button" className="dsh-icon-btn dsh-icon-btn--danger" title="Supprimer" onClick={() => handleDelete(a.id)}>
+                  <button type="button" className="dsh-icon-btn dsh-icon-btn--danger" title="Supprimer" onClick={() => handleDelete(assignment.id)}>
                     <Trash2 size={15} />
                   </button>
                 </div>
@@ -247,10 +356,9 @@ export default function TeacherAssignmentsPage() {
         </div>
       )}
 
-      {/* Submissions modal */}
-      {submissions !== null && selectedAssignment && (
+      {submissions !== null && selectedAssignment ? (
         <div className="dsh-modal-overlay" onClick={() => { setSubmissions(null); setSelectedAssignment(null); }}>
-          <div className="dsh-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="dsh-modal asg-submissions-modal" onClick={(e) => e.stopPropagation()}>
             <div className="dsh-modal__header">
               <h3>Soumissions — {selectedAssignment.title}</h3>
               <button type="button" className="dsh-icon-btn" onClick={() => { setSubmissions(null); setSelectedAssignment(null); }}>✕</button>
@@ -259,15 +367,25 @@ export default function TeacherAssignmentsPage() {
               <p className="dsh-empty-inline">Aucune soumission reçue.</p>
             ) : (
               <table className="dsh-table">
-                <thead><tr><th>Étudiant</th><th>Date de remise</th><th>Fichier</th><th>Note /20</th><th>Statut</th><th></th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Étudiant</th>
+                    <th>Date de remise</th>
+                    <th>Fichier</th>
+                    <th>Note /20</th>
+                    <th>Statut</th>
+                    <th>Échanges</th>
+                    <th></th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {submissions.map((s) => (
-                    <tr key={s.id}>
-                      <td><strong>{s.student_name}</strong></td>
-                      <td className="dsh-td--muted">{new Date(s.submitted_at).toLocaleDateString("fr-FR")}</td>
+                  {submissions.map((submission) => (
+                    <tr key={submission.id}>
+                      <td><strong>{submission.student_name}</strong></td>
+                      <td className="dsh-td--muted">{new Date(submission.submitted_at).toLocaleDateString("fr-FR")}</td>
                       <td>
-                        <a href={s.file_url} target="_blank" rel="noopener noreferrer" className="dsh-link">
-                          Voir le fichier
+                        <a href={submission.file_url} target="_blank" rel="noopener noreferrer" className="dsh-link">
+                          {fileNameFromUrl(submission.file_url)}
                         </a>
                       </td>
                       <td>
@@ -278,18 +396,24 @@ export default function TeacherAssignmentsPage() {
                           max="20"
                           step="0.5"
                           placeholder="16"
-                          value={reviewScores[s.id] ?? ""}
-                          onChange={(e) => setReviewScores((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                          value={reviewScores[submission.id] ?? ""}
+                          onChange={(e) => setReviewScores((prev) => ({ ...prev, [submission.id]: e.target.value }))}
                         />
                       </td>
                       <td>
-                        {s.is_reviewed
-                          ? <span className="dsh-badge dsh-badge--green">Corrigé{s.review_score !== null ? ` · ${s.review_score}/20` : ""}</span>
+                        {submission.is_reviewed
+                          ? <span className="dsh-badge dsh-badge--green">Corrigé{submission.review_score !== null ? ` · ${submission.review_score}/20` : ""}</span>
                           : <span className="dsh-badge dsh-badge--yellow">En attente</span>}
                       </td>
                       <td>
-                        <button type="button" className="dsh-btn dsh-btn--sm dsh-btn--ghost" onClick={() => handleMarkReviewed(s.id)}>
-                          {s.is_reviewed ? "Enregistrer" : "Corriger"}
+                        <button type="button" className="dsh-btn dsh-btn--ghost dsh-btn--sm" onClick={() => openConversation(submission)}>
+                          <MessageSquare size={14} />
+                          {submission.comment_count > 0 ? submission.comment_count : "Ouvrir"}
+                        </button>
+                      </td>
+                      <td>
+                        <button type="button" className="dsh-btn dsh-btn--sm dsh-btn--ghost" onClick={() => handleMarkReviewed(submission.id)}>
+                          {submission.is_reviewed ? "Enregistrer" : "Corriger"}
                         </button>
                       </td>
                     </tr>
@@ -299,7 +423,44 @@ export default function TeacherAssignmentsPage() {
             )}
           </div>
         </div>
-      )}
+      ) : null}
+
+      {conversationTarget && selectedAssignment ? (
+        <div className="dsh-modal-overlay" onClick={() => setConversationTarget(null)}>
+          <div className="dsh-modal asg-thread-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="dsh-modal__header">
+              <h3>Échanges — {conversationTarget.student_name}</h3>
+              <button type="button" className="dsh-icon-btn" onClick={() => setConversationTarget(null)}>✕</button>
+            </div>
+            <p className="dsh-modal__meta">
+              Travail : {selectedAssignment.title} · rendu {new Date(conversationTarget.submitted_at).toLocaleDateString("fr-FR")}
+            </p>
+
+            <AssignmentConversationPanel
+              comments={comments}
+              currentRole="teacher"
+              draft={commentDraft}
+              onDraftChange={setCommentDraft}
+              onSend={handleSendComment}
+              loading={commentsLoading}
+              sending={commentSubmitting}
+              emptyLabel="Aucun échange pour cette soumission."
+              placeholder="Ajoutez une correction, une consigne ou un retour avec emoji…"
+              attachmentUrl={commentAttachmentUrl}
+              attachmentLabel={commentAttachmentName || (commentAttachmentUrl ? fileNameFromUrl(commentAttachmentUrl) : "")}
+              uploadingAttachment={commentUploading}
+              uploadError={commentUploadError}
+              composerError={commentError}
+              onUploadAttachment={handleCommentAttachmentUpload}
+              onClearAttachment={() => {
+                setCommentAttachmentUrl("");
+                setCommentAttachmentName("");
+                setCommentUploadError("");
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

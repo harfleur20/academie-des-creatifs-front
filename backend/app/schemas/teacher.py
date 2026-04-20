@@ -576,6 +576,7 @@ class AssignmentSubmissionView(BaseModel):
     is_reviewed: bool
     review_score: float | None = None
     review_max_score: float = 20
+    comment_count: int = 0
 
 
 class AssignmentView(BaseModel):

@@ -531,6 +531,27 @@ class AssignmentSubmissionRecord(TimestampMixin, Base):
     review_max_score: Mapped[float] = mapped_column(Float, nullable=False, default=20)
 
 
+class AssignmentCommentRecord(TimestampMixin, Base):
+    __tablename__ = "assignment_comments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    assignment_id: Mapped[int] = mapped_column(
+        ForeignKey("assignments.id", ondelete="CASCADE"),
+        index=True, nullable=False,
+    )
+    enrollment_id: Mapped[int] = mapped_column(
+        ForeignKey("enrollments.id", ondelete="CASCADE"),
+        index=True, nullable=False,
+    )
+    author_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True, nullable=False,
+    )
+    author_role: Mapped[str] = mapped_column(String(16), nullable=False, default="student")
+    body: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    attachment_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
+
 # ── Courses / Chapters / Lessons ──────────────────────────────────────────────
 
 class CourseRecord(TimestampMixin, Base):
