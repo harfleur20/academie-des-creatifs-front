@@ -2,9 +2,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
@@ -42,12 +42,15 @@ from app.schemas.commerce import (
     EnrollmentView,
     LessonKey,
     NotificationView,
+    PaymentCheckoutPayload,
     QuizAnswerPayload,
     StudentAssignmentView,
     StudentDashboardSummary,
+    StudentOrderGroupView,
     StudentOrderView,
     StudentPaymentLineView,
     StudentChapterView,
+    StudentCourseDayView,
     StudentCourseView,
     StudentLessonView,
     StudentQuizAttemptView,
@@ -55,6 +58,7 @@ from app.schemas.commerce import (
     StudentQuizView,
     StudentSessionView,
     StudentResourceView,
+    CheckoutResponse,
 )
 from app.schemas.teacher import StudentLiveEventView
 from app.services.badge import (
@@ -62,6 +66,9 @@ from app.services.badge import (
 )
 from app.services.catalog import format_fcfa
 from app.services.commerce import (
+    build_assigned_teacher_view,
+    build_grouped_orders,
+    checkout_student_payment,
     get_student_dashboard_summary,
     list_user_enrollments,
     list_user_notifications,
@@ -103,8 +110,9 @@ def read_my_sessions(
     db: Session = Depends(get_db),
     current_user: UserRecord = Depends(get_current_user),
 ) -> list[StudentSessionView]:
-    from datetime import date as date_type
     from sqlalchemy import select as sa_select
+
+    teacher_cache = {}
     rows = db.execute(
         sa_select(FormationSessionRecord, FormationRecord)
         .join(EnrollmentRecord, EnrollmentRecord.session_id == FormationSessionRecord.id)
@@ -127,11 +135,74 @@ def read_my_sessions(
             start_date=s.start_date,
             end_date=s.end_date,
             teacher_name=s.teacher_name,
+            assigned_teacher=build_assigned_teacher_view(db, s, cache=teacher_cache),
             campus_label=s.campus_label,
             meeting_link=s.meeting_link,
             status=s.status,
         )
         for s, f in rows
+    ]
+
+
+def _count_course_day_rows(db: Session, model: type, course_day_id: int) -> int:
+    return int(
+        db.scalar(
+            select(func.count())
+            .select_from(model)
+            .where(model.course_day_id == course_day_id)
+        )
+        or 0
+    )
+
+
+@router.get("/course-days", response_model=list[StudentCourseDayView])
+def read_my_course_days(
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> list[StudentCourseDayView]:
+    session_ids = _enrolled_session_ids(db, current_user.id)
+    if not session_ids:
+        return []
+
+    days = db.scalars(
+        select(SessionCourseDayRecord)
+        .where(SessionCourseDayRecord.session_id.in_(session_ids))
+        .order_by(SessionCourseDayRecord.scheduled_at)
+    ).all()
+
+    return [
+        StudentCourseDayView(
+            id=day.id,
+            session_id=day.session_id,
+            live_event_id=day.live_event_id,
+            title=day.title,
+            scheduled_at=day.scheduled_at,
+            duration_minutes=day.duration_minutes,
+            status=day.status,
+            attendance_count=_count_course_day_rows(db, AttendanceRecord, day.id),
+            present_count=int(db.scalar(select(func.count()).select_from(AttendanceRecord).where(
+                AttendanceRecord.course_day_id == day.id,
+                AttendanceRecord.status == "present",
+            )) or 0),
+            absent_count=int(db.scalar(select(func.count()).select_from(AttendanceRecord).where(
+                AttendanceRecord.course_day_id == day.id,
+                AttendanceRecord.status == "absent",
+            )) or 0),
+            late_count=int(db.scalar(select(func.count()).select_from(AttendanceRecord).where(
+                AttendanceRecord.course_day_id == day.id,
+                AttendanceRecord.status == "late",
+            )) or 0),
+            excused_count=int(db.scalar(select(func.count()).select_from(AttendanceRecord).where(
+                AttendanceRecord.course_day_id == day.id,
+                AttendanceRecord.status == "excused",
+            )) or 0),
+            quiz_count=_count_course_day_rows(db, QuizRecord, day.id),
+            assignment_count=_count_course_day_rows(db, AssignmentRecord, day.id),
+            resource_count=_count_course_day_rows(db, ResourceRecord, day.id),
+            grade_count=_count_course_day_rows(db, GradeRecord, day.id),
+            created_at=day.created_at,
+        )
+        for day in days
     ]
 
 
@@ -337,50 +408,226 @@ def read_enrollment_certificate(
     )
 
 
-@router.get("/orders", response_model=list[StudentOrderView])
+@router.get("/orders", response_model=list[StudentOrderGroupView])
 def read_my_orders(
     db: Session = Depends(get_db),
     current_user: UserRecord = Depends(get_current_user),
-) -> list[StudentOrderView]:
+) -> list[StudentOrderGroupView]:
     refresh_payment_states(db)
     orders = db.scalars(
         select(OrderRecord)
         .where(OrderRecord.user_id == current_user.id)
-        .order_by(OrderRecord.created_at.desc())
+        .where(OrderRecord.status != "cancelled")
+        .order_by(OrderRecord.created_at.asc())
     ).all()
-    result: list[StudentOrderView] = []
-    for order in orders:
+    return build_grouped_orders(db, list(orders))
+
+
+@router.post("/orders/{group_reference}/installments/{installment_key}/checkout", response_model=CheckoutResponse)
+def checkout_group_installment(
+    group_reference: str,
+    installment_key: str,
+    payload: PaymentCheckoutPayload = Body(default_factory=PaymentCheckoutPayload),
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> CheckoutResponse:
+    from app.services.commerce import checkout_student_payment
+    from app.services.tara_money import (
+        build_tara_payment_product_id,
+        build_tara_return_url,
+        build_tara_webhook_url,
+        create_tara_payment_link,
+        is_tara_money_configured,
+    )
+    from app.services.catalog import format_fcfa
+    from app.core.config import settings
+    from app.services.stripe_payments import (
+        build_stripe_cancel_url,
+        build_stripe_line_item,
+        build_stripe_success_url,
+        create_stripe_checkout_session,
+        is_stripe_configured,
+    )
+
+    refresh_payment_states(db)
+
+    # find all orders in this group belonging to current user
+    orders = db.scalars(
+        select(OrderRecord).where(
+            (OrderRecord.group_reference == group_reference) | (OrderRecord.reference == group_reference),
+            OrderRecord.user_id == current_user.id,
+        )
+    ).all()
+    if not orders:
+        raise HTTPException(status_code=404, detail="Groupe de commandes introuvable.")
+
+    order_refs = [o.reference for o in orders]
+    open_payment_statement = (
+        select(PaymentRecord).where(
+            PaymentRecord.order_reference.in_(order_refs),
+            PaymentRecord.status.in_({"pending", "failed"}),
+        )
+    )
+    normalized_installment_key = installment_key.strip().lower()
+    single_payment_keys = {"single", "unique", "full", "0", "none", "null"}
+    installment_number: int | None = None
+
+    if normalized_installment_key in single_payment_keys:
+        payment_statement = open_payment_statement.where(PaymentRecord.installment_number.is_(None))
+    else:
+        try:
+            installment_number = int(normalized_installment_key)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail="Tranche de paiement invalide.") from error
+        if installment_number <= 0:
+            payment_statement = open_payment_statement.where(PaymentRecord.installment_number.is_(None))
+            installment_number = None
+        else:
+            payment_statement = open_payment_statement.where(
+                PaymentRecord.installment_number == installment_number
+            )
+
+    payments = db.scalars(payment_statement).all()
+    if not payments and installment_number == 1:
+        # Compatibility with the first grouped-payment UI, which sent `1` for
+        # legacy single payments where installment_number is NULL.
         payments = db.scalars(
-            select(PaymentRecord)
-            .where(PaymentRecord.order_reference == order.reference)
-            .order_by(PaymentRecord.installment_number.nullsfirst(), PaymentRecord.id)
+            open_payment_statement.where(PaymentRecord.installment_number.is_(None))
         ).all()
-        result.append(StudentOrderView(
-            reference=order.reference,
-            formation_title=order.formation_title,
-            format_type=order.format_type,
-            total_amount=order.total_amount,
-            total_amount_label=format_fcfa(order.total_amount) or f"{order.total_amount} {order.currency}",
-            currency=order.currency,
-            status=order.status,
-            installment_plan=order.installment_plan,
-            created_at=order.created_at,
-            payments=[
-                StudentPaymentLineView(
-                    id=p.id,
-                    installment_number=p.installment_number,
-                    amount=p.amount,
-                    amount_label=format_fcfa(p.amount) or f"{p.amount} {p.currency}",
-                    currency=p.currency,
-                    status=p.status,
-                    due_date=p.due_date,
-                    paid_at=p.paid_at,
-                    due_label=payment_due_label(p),
-                )
-                for p in payments
-            ],
-        ))
-    return result
+        if payments:
+            installment_number = None
+
+    if not payments:
+        raise HTTPException(status_code=400, detail="Aucun paiement à régler pour cette tranche.")
+
+    # single payment in group → delegate to existing handler
+    if len(payments) == 1:
+        return checkout_student_payment(db, current_user, payments[0].id, payload.payment_provider)
+
+    # multiple payments → create combined checkout link
+    total = sum(p.amount for p in payments)
+    n = len(orders)
+    picture_url = f"{settings.backend_public_url}/logo_academie_hd.png"
+    payment_label = (
+        f"Tranche {installment_number}"
+        if installment_number is not None
+        else "Paiement unique"
+    )
+    order_title_by_ref = {order.reference: order.formation_title for order in orders}
+    selected_order_refs = list(dict.fromkeys(p.order_reference for p in payments))
+
+    if payload.payment_provider == "stripe":
+        if not is_stripe_configured():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Stripe n'est pas configuré sur ce serveur.",
+            )
+        try:
+            checkout_url = create_stripe_checkout_session(
+                order_references=selected_order_refs,
+                line_items=[
+                    build_stripe_line_item(
+                        name=f"{order_title_by_ref.get(p.order_reference, 'Formation')} - {payment_label.lower()}",
+                        amount=p.amount,
+                        currency=p.currency,
+                    )
+                    for p in payments
+                ],
+                success_url=build_stripe_success_url(settings.frontend_url),
+                cancel_url=build_stripe_cancel_url(settings.frontend_url),
+                customer_email=current_user.email,
+                payment_ids=[p.id for p in payments],
+            )
+        except Exception as error:
+            db.rollback()
+            raise HTTPException(status_code=502, detail=f"Stripe: {error}") from error
+
+        for p in payments:
+            p.provider_code = "stripe"
+            p.provider_checkout_url = checkout_url
+            if p.status == "failed":
+                p.status = "pending"
+            db.add(p)
+        db.commit()
+        return CheckoutResponse(
+            message="Session Stripe générée pour cette tranche groupée.",
+            redirect_path="/espace/etudiant/paiements",
+            external_redirect_url=checkout_url,
+            payment_provider="stripe",
+            processed_items=len(payments),
+            order_references=selected_order_refs,
+        )
+
+    if not is_tara_money_configured():
+        # mock: confirm all
+        from app.services.commerce import utc_now
+        from app.services.order_access import sync_order_enrollment_access
+        from app.services.order_confirmations import send_order_confirmation_for_orders
+        now = utc_now()
+        for p in payments:
+            p.status = "confirmed"
+            p.paid_at = now
+            db.add(p)
+        db.flush()
+        for ref in order_refs:
+            refresh_payment_states(db, order_reference=ref)
+            sync_order_enrollment_access(db, ref)
+        db.commit()
+        send_order_confirmation_for_orders(db, order_refs)
+        return CheckoutResponse(
+            message="Tranche confirmée en mode simulation.",
+            redirect_path="/espace/etudiant/paiements",
+            processed_items=len(payments),
+            order_references=order_refs,
+        )
+
+    product_id = build_tara_payment_product_id([p.id for p in payments])
+    try:
+        payment_links = create_tara_payment_link(
+            product_id=product_id,
+            product_name=f"{payment_label} — {n} formations",
+            product_price=total,
+            product_description=f"Règlement groupé ({payment_label.lower()}) pour {n} formations.",
+            product_picture_url=picture_url,
+            return_url=build_tara_return_url(order_refs),
+            webhook_url=build_tara_webhook_url(),
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+
+    checkout_url = payment_links.preferred_redirect_url()
+    for p in payments:
+        p.provider_code = "tara_money"
+        p.provider_payment_id = product_id
+        p.provider_checkout_url = checkout_url
+        if p.status == "failed":
+            p.status = "pending"
+        db.add(p)
+    db.commit()
+    return CheckoutResponse(
+        message="Lien Tara Money généré pour cette tranche groupée.",
+        redirect_path="/espace/etudiant/paiements",
+        external_redirect_url=checkout_url,
+        payment_provider="tara_money",
+        processed_items=len(payments),
+        order_references=order_refs,
+        payment_links={
+            "whatsapp_link": payment_links.whatsapp_link,
+            "telegram_link": payment_links.telegram_link,
+            "dikalo_link": payment_links.dikalo_link,
+            "sms_link": payment_links.sms_link,
+        },
+    )
+
+
+@router.post("/payments/{payment_id}/checkout", response_model=CheckoutResponse)
+def checkout_my_payment(
+    payment_id: int,
+    payload: PaymentCheckoutPayload = Body(default_factory=PaymentCheckoutPayload),
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> CheckoutResponse:
+    return checkout_student_payment(db, current_user, payment_id, payload.payment_provider)
 
 
 # ── helpers: student enrollment → session ids ──────────────────────────────

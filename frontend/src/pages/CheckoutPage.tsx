@@ -31,41 +31,6 @@ const CHECKOUT_STEPS_STRIPE = [
   { value: "03", title: "Activation", copy: "Vos accès s'ouvrent après confirmation.", icon: FaLock },
 ] as const satisfies ReadonlyArray<{ value: string; title: string; copy: string; icon: IconType }>;
 
-
-
-function addDays(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function splitInstallments(total: number): [number, number, number] {
-  const base = (Math.floor(total / 3 / 500)) * 500 || Math.floor(total / 3);
-  const last = total - base * 2;
-  return [base, base, last];
-}
-
-function buildInstallmentMatrix(amounts: number[]): [number, number, number][] {
-  return amounts.map((amount) => splitInstallments(amount));
-}
-
-function sumInstallmentColumns(
-  schedules: [number, number, number][],
-): [number, number, number] {
-  return schedules.reduce<[number, number, number]>(
-    (totals, [first, second, third]) => [
-      totals[0] + first,
-      totals[1] + second,
-      totals[2] + third,
-    ],
-    [0, 0, 0],
-  );
-}
-
 function getCheckoutSummaryLabel(title: string): string {
   const normalized = title.trim();
   const compact = normalized.split(/[,(]/)[0]?.trim() || normalized;
@@ -75,6 +40,13 @@ function getCheckoutSummaryLabel(title: string): string {
   }
 
   return `${compact.slice(0, 35).trimEnd()}…`;
+}
+
+function getPreviewSchedule(
+  schedules: Record<string, { amount: number; amount_label: string; due_date: string; number: number }[]>,
+  formationSlug: string,
+) {
+  return schedules[formationSlug] ?? [];
 }
 
 export default function CheckoutPage() {
@@ -135,23 +107,42 @@ export default function CheckoutPage() {
     }
   }, [cart.allow_installments, useInstallments]);
 
-  const installmentMatrix = useMemo(
-    () => buildInstallmentMatrix(cart.items.map((item) => item.current_price_amount)),
-    [cart.items],
-  );
-  const installmentTotals = useMemo(
-    () => sumInstallmentColumns(installmentMatrix),
-    [installmentMatrix],
+  const installmentSchedules = cart.installment_schedules_preview ?? {};
+  const maxInstallmentCount = useMemo(
+    () =>
+      Math.max(
+        0,
+        ...Object.values(installmentSchedules).map((schedule) => schedule.length),
+      ),
+    [installmentSchedules],
   );
 
   const total = cart.total_amount;
-  const canUseInstallments = cart.allow_installments;
+  const isInstallmentEligible = cart.allow_installments && maxInstallmentCount > 1;
+  const canUseInstallments = isInstallmentEligible;
   const useInstallmentsNow = canUseInstallments && useInstallments;
-  const dueToday = useInstallmentsNow ? installmentTotals[0] : total;
+  const installmentDueToday = isInstallmentEligible
+    ? cart.items.reduce((sum, item) => {
+        const schedule = getPreviewSchedule(installmentSchedules, item.formation_slug);
+        return sum + (schedule[0]?.amount ?? item.current_price_amount);
+      }, 0)
+    : total;
+  const dueToday = useInstallmentsNow ? installmentDueToday : total;
   const remainingAfterToday = Math.max(total - dueToday, 0);
   const previewItems = cart.items.slice(0, 3);
   const thresholdLabel =
     cart.installment_threshold_label || formatPrice(cart.installment_threshold_amount);
+  const isBelowInstallmentThreshold = total < cart.installment_threshold_amount || !cart.allow_installments;
+  const installmentChoiceTitle = isInstallmentEligible
+    ? "Activer le paiement échelonné"
+    : "Paiement échelonné indisponible";
+  const installmentChoiceCopy = isInstallmentEligible
+    ? paymentProvider === "stripe"
+      ? `Environ ${formatPrice(installmentDueToday)} encaissés aujourd'hui par carte — les versements suivants seront payables depuis votre espace étudiant.`
+      : `Environ ${formatPrice(installmentDueToday)} encaissés aujourd'hui — les versements suivants sont répartis selon la durée réelle de votre session.`
+    : isBelowInstallmentThreshold
+      ? `Disponible à partir de ${thresholdLabel} de commande.`
+      : "Aucun échéancier n'est disponible pour ces formations, probablement parce que la session est trop proche.";
 
   const formatTags = [
     cart.live_items_count > 0 ? `${cart.live_items_count} live` : null,
@@ -166,6 +157,7 @@ export default function CheckoutPage() {
     try {
       const result = await checkout({
         useInstallments: useInstallmentsNow,
+        paymentMode: useInstallmentsNow ? "installments" : "full",
         paymentProvider,
       });
       success(result.message);
@@ -196,6 +188,10 @@ export default function CheckoutPage() {
     }
   };
 
+  const handleInstallmentToggle = (checked: boolean) => {
+    setUseInstallments(checked);
+  };
+
   if (isLoading || isResolvingIntent) {
     return (
       <div className="page page--narrow">
@@ -218,8 +214,8 @@ export default function CheckoutPage() {
         <h1>Finalisez votre inscription</h1>
         <p className="page-intro">
           Vérifiez le montant à encaisser, activez le paiement échelonné dès{" "}
-          {thresholdLabel} de commande si besoin, puis laissez Tara Money finaliser
-          le règlement.
+          {thresholdLabel} de commande si besoin, puis finalisez le règlement
+          avec la passerelle sélectionnée.
         </p>
       </section>
 
@@ -255,8 +251,9 @@ export default function CheckoutPage() {
             </span>
           </div>
 
-          {cart.items.map((item, index) => {
-            const [firstInstallment] = installmentMatrix[index] ?? splitInstallments(item.current_price_amount);
+          {cart.items.map((item) => {
+            const schedule = getPreviewSchedule(installmentSchedules, item.formation_slug);
+            const firstInstallment = schedule[0]?.amount ?? item.current_price_amount;
 
             return (
               <article className="ckout-item" key={item.id}>
@@ -294,27 +291,19 @@ export default function CheckoutPage() {
 
           <div className="ckout-installment-zone">
             <div
-              className={`ckout-installment-choice${useInstallmentsNow ? " is-selected" : ""}${!canUseInstallments ? " is-disabled" : ""}`}
+              className={`ckout-installment-choice${useInstallmentsNow ? " is-selected" : ""}${!isInstallmentEligible ? " is-disabled" : ""}`}
             >
               <label className="ckout-installment-choice__toggle">
                 <input
                   type="checkbox"
                   checked={useInstallmentsNow}
-                  disabled={!canUseInstallments}
-                  onChange={(event) => setUseInstallments(event.target.checked)}
+                  disabled={!isInstallmentEligible}
+                  onChange={(event) => handleInstallmentToggle(event.target.checked)}
                 />
                 <div className="ckout-installment-choice__copy">
                   <p className="ckout-installment-choice__eyebrow">Option de paiement</p>
-                  <strong>
-                    {canUseInstallments
-                      ? "Activer le paiement échelonné"
-                      : "Paiement échelonné indisponible"}
-                  </strong>
-                  <p>
-                    {canUseInstallments
-                      ? `Environ ${formatPrice(installmentTotals[0])} encaissés aujourd'hui — les versements suivants sont répartis selon la durée de votre formation.`
-                      : `Disponible à partir de ${thresholdLabel} de commande.`}
-                  </p>
+                  <strong>{installmentChoiceTitle}</strong>
+                  <p>{installmentChoiceCopy}</p>
                 </div>
               </label>
 
@@ -323,7 +312,7 @@ export default function CheckoutPage() {
                   <div className="ckout-schedule__row">
                     <HiOutlineBanknotes className="ckout-schedule__icon" />
                     <span>Aujourd'hui</span>
-                    <strong>~{formatPrice(installmentTotals[0])}</strong>
+                    <strong>~{formatPrice(dueToday)}</strong>
                   </div>
                   <div className="ckout-schedule__row ckout-schedule__row--note">
                     <FaCalendarAlt className="ckout-schedule__icon" />
@@ -370,8 +359,9 @@ export default function CheckoutPage() {
             </div>
 
             <div className="ckout-panel__items">
-              {cart.items.map((item, index) => {
-                const [firstInstallment] = installmentMatrix[index] ?? splitInstallments(item.current_price_amount);
+              {cart.items.map((item) => {
+                const schedule = getPreviewSchedule(installmentSchedules, item.formation_slug);
+                const firstInstallment = schedule[0]?.amount ?? item.current_price_amount;
                 return (
                   <div className="ckout-panel__item-row" key={item.id}>
                     <span className="ckout-panel__item-name" title={item.title}>
@@ -416,9 +406,8 @@ export default function CheckoutPage() {
                   className={`ckout-provider-option${paymentProvider === "tara" ? " is-selected" : ""}`}
                   onClick={() => setPaymentProvider("tara")}
                 >
-                  <FaExternalLinkAlt className="ckout-provider-option__icon" />
                   <div>
-                    <strong>Tara Money</strong>
+                    <strong><FaExternalLinkAlt className="ckout-provider-option__icon" />Tara Money</strong>
                     <span>Mobile Money & liens de paiement</span>
                   </div>
                 </button>
@@ -427,9 +416,8 @@ export default function CheckoutPage() {
                   className={`ckout-provider-option${paymentProvider === "stripe" ? " is-selected" : ""}`}
                   onClick={() => setPaymentProvider("stripe")}
                 >
-                  <FaCreditCard className="ckout-provider-option__icon" />
                   <div>
-                    <strong>Carte bancaire</strong>
+                    <strong><FaCreditCard className="ckout-provider-option__icon" />Carte bancaire</strong>
                     <span>Visa, Mastercard — sécurisé par Stripe</span>
                   </div>
                 </button>
@@ -456,18 +444,24 @@ export default function CheckoutPage() {
                 <>
                   <div className="ckout-payment-gateway__mode">
                     <span>Mode sélectionné</span>
-                    <strong>{useInstallmentsNow ? "Paiement en 3 fois" : "Paiement unique"}</strong>
+                    <strong>
+                      {useInstallmentsNow
+                        ? `Paiement en ${maxInstallmentCount || 3} tranches`
+                        : "Paiement unique"}
+                    </strong>
                   </div>
                   <p className="ckout-payment-gateway__hint">
                     {useInstallmentsNow
-                      ? "Le premier versement est encaissé maintenant, le solde reste réparti sur les deux échéances suivantes."
+                      ? "Le premier versement est encaissé maintenant, le solde reste réparti selon le calendrier de la session."
                       : "Le montant total de la commande est encaissé en une seule validation."}
                   </p>
                 </>
               )}
               {paymentProvider === "stripe" && (
                 <p className="ckout-payment-gateway__hint">
-                  Paiement intégral sécurisé par Stripe. Vos accès sont activés dès confirmation du paiement.
+                  {useInstallmentsNow
+                    ? "Le premier versement est sécurisé par Stripe. Vos accès sont activés dès confirmation, puis les prochaines tranches restent payables depuis votre espace."
+                    : "Paiement intégral sécurisé par Stripe. Vos accès sont activés dès confirmation du paiement."}
                 </p>
               )}
             </div>
@@ -485,7 +479,7 @@ export default function CheckoutPage() {
               {isSubmitting
                 ? "Traitement en cours…"
                 : paymentProvider === "stripe"
-                  ? `Payer par carte\u00A0 ${formatPrice(total)}\u00A0`
+                  ? `Payer par carte\u00A0 ${formatPrice(dueToday)}\u00A0`
                   : `Payer\u00A0 ${formatPrice(dueToday)}\u00A0`}
               {!isSubmitting && (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">

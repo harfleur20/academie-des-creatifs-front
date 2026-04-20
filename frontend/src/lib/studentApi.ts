@@ -1,4 +1,5 @@
 import { apiRequest } from "./apiClient";
+import type { CheckoutResult, PaymentProvider } from "./commerceApi";
 
 // ── Quizzes ──────────────────────────────────────────────────────────────────
 
@@ -114,27 +115,76 @@ export type StudentPaymentLine = {
   amount: number;
   amount_label: string;
   currency: string;
+  provider_code: string;
   status: string;
   due_date: string | null;
   paid_at: string | null;
   due_label: string | null;
+  can_pay: boolean;
+  checkout_url: string | null;
 };
 
-export type StudentOrder = {
+export type StudentOrderSummary = {
   reference: string;
   formation_title: string;
   format_type: string;
   total_amount: number;
   total_amount_label: string;
-  currency: string;
   status: string;
-  installment_plan: string;
-  created_at: string;
-  payments: StudentPaymentLine[];
 };
 
-export async function fetchMyOrders(): Promise<StudentOrder[]> {
-  return apiRequest<StudentOrder[]>("/me/orders");
+export type GroupedInstallmentLine = {
+  installment_number: number | null;
+  checkout_key: string;
+  amount: number;
+  amount_label: string;
+  due_date: string | null;
+  status: string;
+  can_pay: boolean;
+  payment_ids: number[];
+};
+
+export type StudentOrderGroup = {
+  group_reference: string;
+  created_at: string;
+  orders: StudentOrderSummary[];
+  total_amount: number;
+  total_amount_label: string;
+  installment_plan: string;
+  status: string;
+  grouped_payments: GroupedInstallmentLine[];
+};
+
+export async function fetchMyOrders(): Promise<StudentOrderGroup[]> {
+  return apiRequest<StudentOrderGroup[]>("/me/orders");
+}
+
+export async function checkoutMyPayment(
+  paymentId: number,
+  paymentProvider?: PaymentProvider,
+): Promise<CheckoutResult> {
+  return apiRequest<CheckoutResult>(`/me/payments/${paymentId}/checkout`, {
+    method: "POST",
+    body: JSON.stringify({ payment_provider: paymentProvider ?? null }),
+    timeoutMs: 30000,
+  });
+}
+
+export async function checkoutGroupInstallment(
+  groupReference: string,
+  installmentKey: string | number,
+  paymentProvider?: PaymentProvider,
+): Promise<CheckoutResult> {
+  const encodedGroupReference = encodeURIComponent(groupReference);
+  const encodedInstallmentKey = encodeURIComponent(String(installmentKey));
+  return apiRequest<CheckoutResult>(
+    `/me/orders/${encodedGroupReference}/installments/${encodedInstallmentKey}/checkout`,
+    {
+      method: "POST",
+      body: JSON.stringify({ payment_provider: paymentProvider ?? null }),
+      timeoutMs: 30000,
+    },
+  );
 }
 
 // ── Results (grades + attendance) ────────────────────────────────────────────
@@ -148,6 +198,32 @@ export type StudentEnrollmentResults = {
 
 export async function fetchEnrollmentResults(enrollmentId: number): Promise<StudentEnrollmentResults> {
   return apiRequest<StudentEnrollmentResults>(`/me/enrollments/${enrollmentId}/results`);
+}
+
+// ── Course days ─────────────────────────────────────────────────────────────
+
+export type StudentCourseDay = {
+  id: number;
+  session_id: number;
+  live_event_id: number | null;
+  title: string;
+  scheduled_at: string;
+  duration_minutes: number;
+  status: string;
+  attendance_count: number;
+  present_count: number;
+  absent_count: number;
+  late_count: number;
+  excused_count: number;
+  quiz_count: number;
+  assignment_count: number;
+  resource_count: number;
+  grade_count: number;
+  created_at: string;
+};
+
+export async function fetchMyCourseDays(): Promise<StudentCourseDay[]> {
+  return apiRequest<StudentCourseDay[]>("/me/course-days");
 }
 
 // ── Courses ──────────────────────────────────────────────────────────────────

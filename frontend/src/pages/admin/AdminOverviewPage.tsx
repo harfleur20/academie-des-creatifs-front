@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   FaCalendarAlt,
@@ -7,6 +7,7 @@ import {
   FaChevronRight,
   FaEllipsisH,
   FaEnvelopeOpen,
+  FaExclamationTriangle,
   FaGraduationCap,
   FaPlus,
   FaUsers,
@@ -15,6 +16,8 @@ import {
 
 import { useAuth } from "../../auth/AuthContext";
 import { useAdminDashboard } from "../../admin/adminDashboardContext";
+import type { AdminMissedCourseDay } from "../../lib/catalogApi";
+import { fetchAdminMissedCourseDays, patchAdminCourseDayStatus } from "../../lib/catalogApi";
 import {
   buildMonthlyRevenueSeries,
   buildSparkline,
@@ -197,6 +200,23 @@ export default function AdminOverviewPage() {
     openCreateSessionEditor,
   } = useAdminDashboard();
 
+  const [missedDays, setMissedDays] = useState<AdminMissedCourseDay[]>([]);
+  const [patchingId, setPatchingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetchAdminMissedCourseDays().then(setMissedDays).catch(() => {});
+  }, []);
+
+  async function handleOverride(id: number, status: "done" | "cancelled") {
+    setPatchingId(id);
+    try {
+      await patchAdminCourseDayStatus(id, status);
+      setMissedDays(prev => prev.filter(d => d.id !== id));
+    } finally {
+      setPatchingId(null);
+    }
+  }
+
   const totalOrders = (overview?.paid_orders_count ?? 0) + (overview?.pending_orders_count ?? 0);
   const paidPct = totalOrders > 0
     ? Math.round(((overview?.paid_orders_count ?? 0) / totalOrders) * 100)
@@ -261,6 +281,50 @@ export default function AdminOverviewPage() {
               </div>
               <HeroIllustration />
             </div>
+
+            {/* Missed course days alert */}
+            {missedDays.length > 0 && (
+              <div className="ov2-card ov2-missed-alert">
+                <div className="ov2-card__head">
+                  <span className="ov2-section-label" style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#b45309" }}>
+                    <FaExclamationTriangle style={{ color: "#f59e0b" }} />
+                    Cours manqués sans présence ({missedDays.length})
+                  </span>
+                </div>
+                <div className="ov2-missed-list">
+                  {missedDays.map(d => (
+                    <div key={d.id} className="ov2-missed-item">
+                      <div className="ov2-missed-item__info">
+                        <strong>{d.formation_title}</strong>
+                        <span>{d.session_label} · {d.teacher_name}</span>
+                        <span className="ov2-missed-item__date">
+                          {new Date(d.scheduled_at).toLocaleString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          {" "}· {d.duration_minutes} min
+                        </span>
+                      </div>
+                      <div className="ov2-missed-item__actions">
+                        <button
+                          type="button"
+                          className="adm-btn adm-btn--sm adm-btn--green"
+                          disabled={patchingId === d.id}
+                          onClick={() => handleOverride(d.id, "done")}
+                        >
+                          Marquer fait
+                        </button>
+                        <button
+                          type="button"
+                          className="adm-btn adm-btn--sm adm-btn--red"
+                          disabled={patchingId === d.id}
+                          onClick={() => handleOverride(d.id, "cancelled")}
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Donut + Notice board */}
             <div className="ov2-mid">

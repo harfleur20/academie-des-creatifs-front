@@ -12,11 +12,15 @@ import {
   FaStar,
   FaUsers,
 } from "react-icons/fa";
-import { trainers } from "../data/ecommerceHomeData";
 import VerifiedBadge from "../components/VerifiedBadge";
 import { FaBookmark } from "react-icons/fa6";
 import { FaArrowRight } from "react-icons/fa";
 import { ArrowBigLeft } from "lucide-react";
+import {
+  EMPTY_SITE_CONTENT,
+  fetchPublicSiteContent,
+  type TrainerProfile,
+} from "../lib/siteContentApi";
 
 const VALUES = [
   {
@@ -102,6 +106,7 @@ function AnimatedCounter({ start, value }: { start: boolean; value: string }) {
 export default function TeamPage() {
   const statsRef = useRef<HTMLDivElement>(null);
   const [statsVisible, setStatsVisible] = useState(false);
+  const [trainers, setTrainers] = useState<TrainerProfile[]>([]);
 
   useEffect(() => {
     const el = statsRef.current;
@@ -112,6 +117,26 @@ export default function TeamPage() {
     );
     obs.observe(el);
     return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchPublicSiteContent()
+      .then((content) => {
+        if (isMounted) {
+          setTrainers(content.trainers);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setTrainers(EMPTY_SITE_CONTENT.trainers);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (

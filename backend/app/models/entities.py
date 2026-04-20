@@ -117,7 +117,14 @@ class TeacherProfileRecord(TimestampMixin, Base):
         index=True,
         nullable=False,
     )
+    teacher_code: Mapped[str | None] = mapped_column(
+        String(20),
+        unique=True,
+        index=True,
+        nullable=True,
+    )
     whatsapp: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    nationality: Mapped[str | None] = mapped_column(String(120), nullable=True)
     subject: Mapped[str | None] = mapped_column(String(180), nullable=True)
     experience_years: Mapped[int | None] = mapped_column(Integer, nullable=True)
     portfolio_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
@@ -131,6 +138,12 @@ class TeacherInvitationRecord(TimestampMixin, Base):
     token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     email: Mapped[str] = mapped_column(String(180), index=True, nullable=False)
     full_name: Mapped[str] = mapped_column(String(180), nullable=False)
+    whatsapp: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    nationality: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    subject: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    experience_years: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    portfolio_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    bio: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -191,12 +204,18 @@ class OrderRecord(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     reference: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    group_reference: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
     formation_id: Mapped[int | None] = mapped_column(
         ForeignKey("formations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    session_id: Mapped[int | None] = mapped_column(
+        ForeignKey("formation_sessions.id", ondelete="SET NULL"),
+        index=True,
         nullable=True,
     )
     customer_name: Mapped[str] = mapped_column(String(180), nullable=False)
@@ -218,6 +237,8 @@ class PaymentRecord(TimestampMixin, Base):
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(12), nullable=False, default="XAF")
     provider_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    provider_payment_id: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    provider_checkout_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     installment_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -380,6 +401,14 @@ class LessonCompletionRecord(TimestampMixin, Base):
 
 class StudentCodeCounterRecord(Base):
     __tablename__ = "student_code_counters"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    year: Mapped[int] = mapped_column(Integer, unique=True, index=True, nullable=False)
+    last_sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class TeacherCodeCounterRecord(Base):
+    __tablename__ = "teacher_code_counters"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     year: Mapped[int] = mapped_column(Integer, unique=True, index=True, nullable=False)

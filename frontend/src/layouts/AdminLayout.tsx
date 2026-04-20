@@ -9,14 +9,15 @@ import {
   ChevronDown,
   CreditCard,
   Globe,
+  GraduationCap,
+  HelpCircle,
   LayoutDashboard,
   LogOut,
   Newspaper,
   Search,
   Settings,
   ShoppingBag,
-  UserCircle,
-  Users,
+  UserCog,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 
@@ -45,9 +46,14 @@ const navItems: NavItem[] = [
     icon: <CalendarDays size={16} />,
   },
   {
-    to: "/admin/utilisateurs",
-    label: "Utilisateurs",
-    icon: <Users size={16} />,
+    to: "/admin/enseignants",
+    label: "Gestion des enseignants",
+    icon: <UserCog size={16} />,
+  },
+  {
+    to: "/admin/etudiants",
+    label: "Gestion des étudiants",
+    icon: <GraduationCap size={16} />,
   },
   {
     to: "/admin/inscriptions",
@@ -70,12 +76,13 @@ const navItems: NavItem[] = [
     icon: <Newspaper size={16} />,
   },
   {
-    label: "Paramètres site",
+    label: "Paramètres",
     icon: <Globe size={16} />,
     children: [
       { to: "/admin/site/general", label: "Général" },
       { to: "/admin/site/banniere", label: "Bannière" },
       { to: "/admin/site/theme", label: "Thème & couleurs" },
+      { to: "/admin/roles", label: "Administrateurs & rôles" },
     ],
   },
 ];
@@ -262,7 +269,7 @@ export default function AdminLayout() {
 
               {userMenuOpen && (
                 <div className="adm-user-menu">
-                  {/* Header dark */}
+                  {/* Header */}
                   <div className="adm-user-menu__header">
                     <span
                       className="adm-topbar__avatar adm-topbar__avatar--lg"
@@ -272,26 +279,28 @@ export default function AdminLayout() {
                     </span>
                     <div style={{ minWidth: 0 }}>
                       <strong>{fullName}</strong>
-                      <span>{user?.email ?? ""}</span>
+                      <span className="adm-user-menu__email">{user?.email ?? ""}</span>
+                      <span className="adm-user-menu__role-badge">Administrateur</span>
                     </div>
                   </div>
 
                   {/* Items */}
                   <div className="adm-user-menu__items">
-                    <button type="button" className="adm-user-menu__item">
-                      <Settings size={15} strokeWidth={2} />
-                      Mon profil
+                    <button type="button" className="adm-user-menu__item" onClick={() => { setUserMenuOpen(false); navigate("/admin/profil"); }}>
+                      <span className="adm-user-menu__item-icon"><Settings size={15} /></span>
+                      Paramètres
                     </button>
-                    <div
-                      className="adm-user-menu__divider"
-                      style={{ margin: "0.25rem 0" }}
-                    />
+                    <button type="button" className="adm-user-menu__item" onClick={() => { setUserMenuOpen(false); navigate("/admin/aide"); }}>
+                      <span className="adm-user-menu__item-icon"><HelpCircle size={15} /></span>
+                      Aide & support
+                    </button>
+                    <div className="adm-user-menu__divider" style={{ margin: "0.25rem 0" }} />
                     <button
                       type="button"
                       className="adm-user-menu__item adm-user-menu__item--danger"
                       onClick={handleLogout}
                     >
-                      <LogOut size={15} strokeWidth={2} />
+                      <span className="adm-user-menu__item-icon"><LogOut size={15} /></span>
                       Se déconnecter
                     </button>
                   </div>

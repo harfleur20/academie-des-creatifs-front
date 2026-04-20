@@ -86,6 +86,7 @@ export default function BadgeRing({
   const strokeColor = meta ? meta.color : "#e5e7eb";
   const supportColor = meta ? colorWithAlpha(meta.color, 0.16) : "#f1f5f9";
   const trackColor = meta ? colorWithAlpha(meta.color, 0.32) : "#e5e7eb";
+  const gradId = `badge-grad-${badgeLevel ?? "empty"}`;
   const safePct = Math.max(0, Math.min(100, animatedPct || 0));
   const dashOffset = CIRCUMFERENCE - (safePct / 100) * CIRCUMFERENCE;
 
@@ -136,6 +137,21 @@ export default function BadgeRing({
           className="badge-ring__svg"
           style={{ transform: "rotate(-90deg)" }}
         >
+          <defs>
+            <linearGradient id={gradId} gradientUnits="userSpaceOnUse" x1="100" y1="0" x2="0" y2="100">
+              <stop offset="0%" stopColor={strokeColor} stopOpacity="1" />
+              <stop offset="45%" stopColor="#ffffff" stopOpacity="0.85" />
+              <stop offset="100%" stopColor={strokeColor} stopOpacity="1" />
+              <animateTransform
+                attributeName="gradientTransform"
+                type="rotate"
+                from="0 50 50"
+                to="360 50 50"
+                dur="2.8s"
+                repeatCount="indefinite"
+              />
+            </linearGradient>
+          </defs>
           <circle cx="50" cy="50" r="34" fill={supportColor} />
           {/* Track */}
           <circle
@@ -144,11 +160,11 @@ export default function BadgeRing({
             stroke={trackColor}
             strokeWidth="6"
           />
-          {/* Progress arc */}
+          {/* Progress arc – animated gradient */}
           <circle
             cx="50" cy="50" r={RADIUS}
             fill="none"
-            stroke={strokeColor}
+            stroke={`url(#${gradId})`}
             strokeWidth="6"
             strokeLinecap="round"
             strokeDasharray={CIRCUMFERENCE}

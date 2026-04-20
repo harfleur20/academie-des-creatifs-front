@@ -8,7 +8,7 @@ MarketingBadge = Literal["premium", "populaire"]
 FormationBadge = Literal["premium", "populaire", "promo"]
 FormatType = Literal["live", "ligne", "presentiel"]
 DashboardType = Literal["classic", "guided"]
-UserRole = Literal["admin", "teacher", "student"]
+UserRole = Literal["admin", "teacher", "student", "guest"]
 UserStatus = Literal["active", "suspended"]
 EnrollmentStatus = Literal["pending", "active", "suspended", "completed", "cancelled"]
 SessionStatus = Literal["planned", "open", "completed", "cancelled"]
@@ -284,6 +284,23 @@ class AdminDashboardOverview(BaseModel):
     late_payments_count: int
     total_confirmed_revenue_amount: int
     total_confirmed_revenue_label: str
+    missed_course_days_count: int = 0
+
+
+class AdminMissedCourseDay(BaseModel):
+    id: int
+    session_id: int
+    session_label: str
+    formation_title: str
+    teacher_name: str
+    title: str
+    scheduled_at: datetime
+    duration_minutes: int
+    status: str
+
+
+class AdminCourseDayStatusUpdate(BaseModel):
+    status: Literal["planned", "done", "cancelled", "live"]
 
 
 class AdminUploadedAsset(BaseModel):
@@ -409,6 +426,8 @@ class AdminPaymentItem(BaseModel):
     installment_number: int | None = None
     due_date: date | None = None
     provider_code: str
+    provider_payment_id: str | None = None
+    provider_checkout_url: str | None = None
     status: PaymentStatus
     reminder_count: int = 0
     last_reminded_at: datetime | None = None
@@ -429,7 +448,14 @@ class AdminUserUpdate(BaseModel):
 
 
 class AdminEnrollmentUpdate(BaseModel):
-    status: EnrollmentStatus
+    status: EnrollmentStatus | None = None
+    session_id: int | None = None
+
+    @model_validator(mode="after")
+    def validate_non_empty_payload(self) -> "AdminEnrollmentUpdate":
+        if self.status is None and "session_id" not in self.model_fields_set:
+            raise ValueError("Au moins un champ inscription doit etre fourni.")
+        return self
 
 
 class AdminOnsiteSessionUpdate(BaseModel):

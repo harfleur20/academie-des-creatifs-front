@@ -19,12 +19,13 @@ import {
   FaVideo,
 } from "react-icons/fa";
 
-import { getFormationPath, type CourseBadge } from "../data/ecommerceHomeData";
 import { useAuth } from "../auth/AuthContext";
 import { useCart } from "../cart/CartContext";
 import { useFavorites } from "../favorites/FavoritesContext";
 import {
+  getFormationPath,
   fetchPublicFormations,
+  type CourseBadge,
   type CatalogFormation,
 } from "../lib/catalogApi";
 import {
@@ -45,7 +46,7 @@ const catalogFaqs: CatalogFaq[] = [
   {
     question: "Puis-je payer une formation en plusieurs fois ?",
     answer:
-      "Le paiement en tranches est reserve aux formations en presentiel qui depassent 90 000 FCFA. Le plan est configure avant validation par l'administration.",
+      "Le paiement en tranches est disponible dès 100 000 FCFA de commande lorsque la durée de session permet un calendrier d'échéances cohérent.",
   },
   {
     question: "Est-ce que je garde acces au contenu apres les lives ?",

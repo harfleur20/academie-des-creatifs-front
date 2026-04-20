@@ -47,10 +47,15 @@ def checkout(
     db: Session = Depends(get_db),
     current_user: UserRecord = Depends(get_current_user),
 ) -> CheckoutResponse:
+    use_installments = (
+        payload.payment_mode == "installments"
+        if payload.payment_mode is not None
+        else payload.use_installments
+    )
     return checkout_cart(
         db,
         current_user,
         payload.installment_slugs,
-        payload.use_installments,
+        use_installments,
         payload.payment_provider,
     )

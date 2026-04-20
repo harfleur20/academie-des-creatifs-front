@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -9,8 +9,7 @@ from app.models.entities import OrderRecord, PaymentRecord, UserRecord
 from app.services.email import send_payment_reminder
 
 REMINDER_LOOKAHEAD_DAYS = 7
-LATE_GRACE_DAYS = 2          # days of tolerance before marking installment late
-OPEN_PAYMENT_STATUSES = {"pending", "late"}
+OPEN_PAYMENT_STATUSES = {"pending"}
 
 
 def utc_now() -> datetime:
@@ -26,14 +25,7 @@ def is_payment_open(status: str) -> bool:
 
 
 def should_mark_payment_late(payment: PaymentRecord, *, today: date | None = None) -> bool:
-    if payment.status != "pending" or payment.due_date is None:
-        return False
-    # Single payments (no installment_number) are never "late" — they expire separately
-    if payment.installment_number is None:
-        return False
-    reference_day = today or today_utc()
-    # 2-day grace period before marking late
-    return payment.due_date + timedelta(days=LATE_GRACE_DAYS) < reference_day
+    return False
 
 
 def sync_payment_deadlines(
@@ -51,9 +43,7 @@ def sync_payment_deadlines(
 
     for payment in payments:
         next_status = payment.status
-        if should_mark_payment_late(payment, today=today):
-            next_status = "late"
-        elif payment.status == "late" and payment.due_date is not None and payment.due_date >= today:
+        if payment.status == "late":
             next_status = "pending"
 
         if next_status != payment.status:
@@ -77,7 +67,7 @@ def recompute_order_status(db: Session, order_reference: str) -> OrderRecord | N
 
     total = len(payments)
     confirmed_count = sum(1 for payment in payments if payment.status == "confirmed")
-    open_count = sum(1 for payment in payments if payment.status in {"pending", "late"})
+    open_count = sum(1 for payment in payments if payment.status == "pending")
     failed_count = sum(1 for payment in payments if payment.status == "failed")
     cancelled_count = sum(1 for payment in payments if payment.status == "cancelled")
 
@@ -120,11 +110,11 @@ def refresh_payment_states(
 
 
 def payment_can_send_reminder(payment: PaymentRecord) -> bool:
-    return payment.status in {"pending", "late"}
+    return payment.status == "pending"
 
 
 def payment_requires_attention(payment: PaymentRecord) -> bool:
-    return payment.status in {"pending", "late", "failed", "cancelled"}
+    return payment.status in {"pending", "failed", "cancelled"}
 
 
 def payment_due_label(payment: PaymentRecord) -> str | None:
@@ -138,13 +128,11 @@ def payment_due_label(payment: PaymentRecord) -> str | None:
         if payment.status == "confirmed":
             return None
         if payment.due_date < today:
-            return "Non confirme"
+            return "A confirmer"
         return None
 
-    if payment.status == "late":
-        return "En retard"
     if payment.due_date < today:
-        return "Echeance depassee"
+        return "A regler"
 
     days_left = (payment.due_date - today).days
     if days_left == 0:

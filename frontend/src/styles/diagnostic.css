@@ -186,9 +186,8 @@
 }
 .diag-chip:hover { border-color: var(--couleur-secondaire); color: var(--couleur-secondaire); }
 .diag-chip.is-selected {
-  background: var(--couleur-secondaire, #1c8480);
   border-color: var(--couleur-secondaire);
-  color: #fff;
+  color: var(--couleur-secondaire);
   font-weight: 600;
 }
 .diag-chips--training { margin-top: 0.25rem; }

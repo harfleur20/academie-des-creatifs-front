@@ -12,6 +12,7 @@ from app.core.config import settings
 SUCCESS_STATUSES = {"success", "successful", "paid", "confirmed", "completed"}
 FAILURE_STATUSES = {"failed", "cancelled", "canceled", "expired"}
 PRODUCT_ID_PREFIX = "tara-checkout:"
+PAYMENT_ID_PREFIX = "tara-payments:"
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,10 @@ def build_tara_product_id(order_references: list[str]) -> str:
     return PRODUCT_ID_PREFIX + ",".join(order_references)
 
 
+def build_tara_payment_product_id(payment_ids: list[int]) -> str:
+    return PAYMENT_ID_PREFIX + ",".join(str(payment_id) for payment_id in payment_ids)
+
+
 def extract_order_references_from_product_id(product_id: str | None) -> list[str]:
     if not product_id or not product_id.startswith(PRODUCT_ID_PREFIX):
         return []
@@ -40,9 +45,21 @@ def extract_order_references_from_product_id(product_id: str | None) -> list[str
     return [item.strip() for item in payload.split(",") if item.strip()]
 
 
+def extract_payment_ids_from_product_id(product_id: str | None) -> list[int]:
+    if not product_id or not product_id.startswith(PAYMENT_ID_PREFIX):
+        return []
+    payload = product_id[len(PAYMENT_ID_PREFIX):]
+    ids: list[int] = []
+    for item in payload.split(","):
+        item = item.strip()
+        if item.isdigit():
+            ids.append(int(item))
+    return ids
+
+
 def build_tara_return_url(order_references: list[str]) -> str:
     orders = ",".join(order_references)
-    return f"{settings.frontend_url}/espace/etudiant/paiements?gateway=tara&orders={orders}"
+    return f"{settings.frontend_url}/espace?gateway=tara&orders={orders}"
 
 
 def build_tara_webhook_url() -> str:

@@ -1,17 +1,28 @@
+import json
+from datetime import timezone
+
+from pydantic import ValidationError
+
 from app.core.security import utc_now
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.models.entities import (
+    AttendanceRecord,
+    AssignmentSubmissionRecord,
     EnrollmentRecord,
     FormationRecord,
     FormationSessionRecord,
     FormationTeacherRecord,
+    GradeRecord,
     OrderRecord,
     PaymentRecord,
+    QuizAttemptRecord,
+    SessionCourseDayRecord,
     UserRecord,
 )
 from app.schemas.catalog import (
+    AdminCourseDayStatusUpdate,
     AdminFormationItem,
     AdminFormationSessionCreate,
     AdminDashboardOverview,
@@ -19,6 +30,7 @@ from app.schemas.catalog import (
     AdminEnrollmentUpdate,
     AdminFormationCreate,
     AdminFormationUpdate,
+    AdminMissedCourseDay,
     AdminOnsiteSessionItem,
     AdminOnsiteSessionUpdate,
     AdminOrderItem,
@@ -49,6 +61,7 @@ from app.services.payments import (
     refresh_payment_states,
     send_manual_payment_reminder,
 )
+from app.services.teacher_codes import ensure_teacher_profile
 
 DEFAULT_CERTIFICATE_IMAGE = "/certicate.jpg"
 DEFAULT_CERTIFICATE_COPY = (
@@ -73,15 +86,36 @@ def should_allow_installments(format_type: FormatType, current_price_amount: int
     return current_price_amount >= 100000
 
 
+def _json_list(value: object | None) -> list[object]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        trimmed = value.strip()
+        if not trimmed:
+            return []
+        try:
+            parsed = json.loads(trimmed)
+        except json.JSONDecodeError:
+            return []
+        return parsed if isinstance(parsed, list) else []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return []
+
+
 def normalize_marketing_badges(
-    badges: list[str] | None,
+    badges: object | None,
     *,
     current_price_amount: int,
     original_price_amount: int | None,
 ) -> list[FormationBadge]:
     normalized: list[FormationBadge] = []
 
-    for badge in badges or []:
+    for badge in _json_list(badges):
+        if not isinstance(badge, str):
+            continue
         if badge not in {"premium", "populaire"}:
             continue
         if badge not in normalized:
@@ -102,7 +136,7 @@ def apply_formation_business_rules(record: FormationRecord) -> None:
     record.badges = [
         badge
         for badge in normalize_marketing_badges(
-            list(record.badges or []),
+            record.badges,
             current_price_amount=record.current_price_amount,
             original_price_amount=record.original_price_amount,
         )
@@ -114,13 +148,19 @@ def _normalize_text(value: str | None) -> str:
     return (value or "").strip()
 
 
-def _normalize_list(value: list[object] | None) -> list[str]:
+def _normalize_list(value: object | None) -> list[str]:
     normalized: list[str] = []
-    for item in value or []:
+    for item in _json_list(value):
         if isinstance(item, str):
             trimmed = item.strip()
             if trimmed:
                 normalized.append(trimmed)
+        elif isinstance(item, dict):
+            text = item.get("text")
+            if isinstance(text, str):
+                trimmed = text.strip()
+                if trimmed:
+                    normalized.append(trimmed)
     return normalized
 
 
@@ -226,6 +266,36 @@ def _default_faqs(record: FormationRecord) -> list[FormationFaqItem]:
     ]
 
 
+def _validated_projects(record: FormationRecord) -> list[FormationProjectItem]:
+    raw_items = _json_list(record.project_items)
+    if not raw_items:
+        return _default_projects(record)
+    try:
+        return [FormationProjectItem.model_validate(item) for item in raw_items]
+    except (TypeError, ValueError, ValidationError):
+        return _default_projects(record)
+
+
+def _validated_modules(record: FormationRecord) -> list[FormationModuleItem]:
+    raw_items = _json_list(record.module_items)
+    if not raw_items:
+        return _default_modules(record)
+    try:
+        return [FormationModuleItem.model_validate(item) for item in raw_items]
+    except (TypeError, ValueError, ValidationError):
+        return _default_modules(record)
+
+
+def _validated_faqs(record: FormationRecord) -> list[FormationFaqItem]:
+    raw_items = _json_list(record.faq_items)
+    if not raw_items:
+        return _default_faqs(record)
+    try:
+        return [FormationFaqItem.model_validate(item) for item in raw_items]
+    except (TypeError, ValueError, ValidationError):
+        return _default_faqs(record)
+
+
 def build_formation_detail_content(record: FormationRecord) -> dict[str, object]:
     format_label = {
         "live": "en live",
@@ -240,26 +310,14 @@ def build_formation_detail_content(record: FormationRecord) -> dict[str, object]
     mentor_image = _normalize_text(record.mentor_image) or "/Teams/photo-fk.jpg"
     included = _normalize_list(record.included_items) or _default_included_items(record)
     objectives = _normalize_list(record.objective_items) or _default_objective_items(record)
-    projects = (
-        [FormationProjectItem.model_validate(item) for item in (record.project_items or [])]
-        if record.project_items
-        else _default_projects(record)
-    )
+    projects = _validated_projects(record)
     audience_text = _normalize_text(record.audience_text) or (
         "Cette formation s'adresse aux creatifs, graphistes, freelances et profils en reconversion qui veulent progresser dans un cadre plus clair, plus concret et plus professionnalisant."
     )
     certificate_copy = DEFAULT_CERTIFICATE_COPY
     certificate_image = DEFAULT_CERTIFICATE_IMAGE
-    modules = (
-        [FormationModuleItem.model_validate(item) for item in (record.module_items or [])]
-        if record.module_items
-        else _default_modules(record)
-    )
-    faqs = (
-        [FormationFaqItem.model_validate(item) for item in (record.faq_items or [])]
-        if record.faq_items
-        else _default_faqs(record)
-    )
+    modules = _validated_modules(record)
+    faqs = _validated_faqs(record)
 
     return {
         "intro": intro,
@@ -316,7 +374,7 @@ def serialize_catalog_item(db: Session, record: FormationRecord) -> FormationCat
         rating=record.rating,
         reviews=record.reviews,
         badges=normalize_marketing_badges(
-            list(record.badges or []),
+            record.badges,
             current_price_amount=current_price,
             original_price_amount=original_price,
         ),
@@ -569,6 +627,23 @@ def get_admin_overview(db: Session) -> AdminDashboardOverview:
         or 0
     )
 
+    now = utc_now()
+    missed_course_days_count = int(
+        db.scalar(
+            select(func.count(SessionCourseDayRecord.id))
+            .outerjoin(
+                AttendanceRecord,
+                AttendanceRecord.course_day_id == SessionCourseDayRecord.id,
+            )
+            .where(
+                SessionCourseDayRecord.status == "planned",
+                SessionCourseDayRecord.scheduled_at < now,
+            )
+            .group_by(SessionCourseDayRecord.id)
+            .having(func.count(AttendanceRecord.id) == 0)
+        ) or 0
+    )
+
     return AdminDashboardOverview(
         formations_count=formations_count,
         live_formations_count=live_formations_count,
@@ -583,7 +658,52 @@ def get_admin_overview(db: Session) -> AdminDashboardOverview:
         late_payments_count=late_payments_count,
         total_confirmed_revenue_amount=int(total_confirmed_revenue_amount),
         total_confirmed_revenue_label=format_fcfa(int(total_confirmed_revenue_amount)) or "0 FCFA",
+        missed_course_days_count=missed_course_days_count,
     )
+
+
+def list_admin_missed_course_days(db: Session) -> list[AdminMissedCourseDay]:
+    now = utc_now()
+    # Subquery: course days that are past, still planned, and have 0 attendance
+    attended_ids = (
+        select(AttendanceRecord.course_day_id)
+        .where(AttendanceRecord.course_day_id.isnot(None))
+        .scalar_subquery()
+    )
+    rows = db.execute(
+        select(SessionCourseDayRecord, FormationSessionRecord, FormationRecord)
+        .join(FormationSessionRecord, FormationSessionRecord.id == SessionCourseDayRecord.session_id)
+        .join(FormationRecord, FormationRecord.id == FormationSessionRecord.formation_id)
+        .where(
+            SessionCourseDayRecord.status == "planned",
+            SessionCourseDayRecord.scheduled_at < now,
+            SessionCourseDayRecord.id.notin_(attended_ids),
+        )
+        .order_by(SessionCourseDayRecord.scheduled_at.desc())
+    ).all()
+
+    return [
+        AdminMissedCourseDay(
+            id=cd.id,
+            session_id=ses.id,
+            session_label=ses.label,
+            formation_title=fm.title,
+            teacher_name=ses.teacher_name or "",
+            title=cd.title,
+            scheduled_at=cd.scheduled_at,
+            duration_minutes=cd.duration_minutes,
+            status=cd.status,
+        )
+        for cd, ses, fm in rows
+    ]
+
+
+def admin_patch_course_day_status(db: Session, course_day_id: int, payload: AdminCourseDayStatusUpdate) -> None:
+    cd = db.get(SessionCourseDayRecord, course_day_id)
+    if cd is None:
+        raise ValueError("Journée de cours introuvable.")
+    cd.status = payload.status
+    db.commit()
 
 
 def list_admin_users(db: Session) -> list[AdminUserItem]:
@@ -625,6 +745,9 @@ def update_admin_user(
 
     if payload.status is not None:
         record.status = payload.status
+
+    if record.role == "teacher":
+        ensure_teacher_profile(db, record)
 
     db.add(record)
     db.commit()
@@ -767,8 +890,72 @@ def update_admin_enrollment(
     if record is None:
         return None
 
-    record.status = payload.status
+    session_update_requested = "session_id" in payload.model_fields_set
+    next_session_id = record.session_id
+
+    if session_update_requested:
+        requested_session_id = payload.session_id
+        if requested_session_id != record.session_id:
+            activity_counts = (
+                db.scalar(
+                    select(func.count(AttendanceRecord.id)).where(
+                        AttendanceRecord.enrollment_id == record.id
+                    )
+                )
+                or 0,
+                db.scalar(
+                    select(func.count(GradeRecord.id)).where(
+                        GradeRecord.enrollment_id == record.id
+                    )
+                )
+                or 0,
+                db.scalar(
+                    select(func.count(QuizAttemptRecord.id)).where(
+                        QuizAttemptRecord.enrollment_id == record.id
+                    )
+                )
+                or 0,
+                db.scalar(
+                    select(func.count(AssignmentSubmissionRecord.id)).where(
+                        AssignmentSubmissionRecord.enrollment_id == record.id
+                    )
+                )
+                or 0,
+            )
+            has_pedagogical_activity = any(activity_counts)
+            if has_pedagogical_activity:
+                raise ValueError(
+                    "Cette inscription contient deja des donnees pedagogiques. "
+                    "La session ne peut plus etre modifiee depuis l'admin."
+                )
+
+        if requested_session_id is not None:
+            session_record = db.get(FormationSessionRecord, requested_session_id)
+            if session_record is None:
+                raise ValueError("La session selectionnee est introuvable.")
+            if session_record.formation_id != record.formation_id:
+                raise ValueError("La session selectionnee ne correspond pas a cette formation.")
+            if session_record.status == "cancelled":
+                raise ValueError("Une session annulee ne peut pas etre attribuee.")
+            next_session_id = session_record.id
+        else:
+            next_session_id = None
+
+    previous_session_id = record.session_id
+    if payload.status is not None:
+        record.status = payload.status
+    if session_update_requested:
+        record.session_id = next_session_id
+
     db.add(record)
+
+    order_record = db.scalar(select(OrderRecord).where(OrderRecord.reference == record.order_reference))
+    if order_record is not None and order_record.formation_id == record.formation_id:
+        order_record.session_id = record.session_id
+        db.add(order_record)
+
+    if previous_session_id is not None and previous_session_id != record.session_id:
+        refresh_session_enrolled_count(db, previous_session_id)
     if record.session_id is not None:
         refresh_session_enrolled_count(db, record.session_id)
     db.commit()
@@ -989,6 +1176,8 @@ def _serialize_admin_payment(db: Session, record: PaymentRecord) -> AdminPayment
         installment_number=record.installment_number,
         due_date=record.due_date,
         provider_code=record.provider_code,
+        provider_payment_id=record.provider_payment_id,
+        provider_checkout_url=record.provider_checkout_url,
         status=record.status,  # type: ignore[arg-type]
         reminder_count=record.reminder_count,
         last_reminded_at=record.last_reminded_at,

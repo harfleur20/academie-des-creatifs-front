@@ -1,7 +1,12 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models.entities import FormationRecord, FormationSessionRecord, UserRecord
+from app.models.entities import (
+    EnrollmentRecord,
+    FormationRecord,
+    FormationSessionRecord,
+    UserRecord,
+)
 from app.schemas.teacher import TeacherOverview, TeacherSessionItem
 
 
@@ -12,20 +17,36 @@ def list_teacher_sessions(db: Session, user: UserRecord) -> list[TeacherSessionI
         .where(FormationSessionRecord.teacher_name == user.full_name)
         .order_by(FormationSessionRecord.start_date.asc())
     ).all()
-    return [
-        TeacherSessionItem(
-            id=record.id,
-            formation_title=formation.title,
-            label=record.label,
-            start_date=record.start_date,
-            campus_label=record.campus_label or "Classe ou campus a definir",
-            seat_capacity=record.seat_capacity,
-            enrolled_count=record.enrolled_count,
-            teacher_name=record.teacher_name or "",
-            status=record.status,  # "planned" | "open" | "completed" | "cancelled"
+
+    items = []
+    for record, formation in records:
+        # Live count of active enrollments — always accurate
+        live_count = int(
+            db.scalar(
+                select(func.count(EnrollmentRecord.id)).where(
+                    EnrollmentRecord.session_id == record.id,
+                    EnrollmentRecord.status.in_(("active", "completed")),
+                )
+            )
+            or 0
         )
-        for record, formation in records
-    ]
+        items.append(
+            TeacherSessionItem(
+                id=record.id,
+                formation_title=formation.title,
+                formation_image=formation.image or "",
+                format_type=formation.format_type or "ligne",
+                label=record.label,
+                start_date=record.start_date,
+                end_date=record.end_date,
+                campus_label=record.campus_label or "",
+                seat_capacity=record.seat_capacity,
+                enrolled_count=live_count,
+                teacher_name=record.teacher_name or "",
+                status=record.status,
+            )
+        )
+    return items
 
 
 def get_teacher_overview(db: Session, user: UserRecord) -> TeacherOverview:

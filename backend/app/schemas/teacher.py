@@ -1,21 +1,42 @@
 from datetime import date, datetime
+import re
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
 AttendanceStatus = Literal["present", "absent", "late", "excused"]
+TeacherUserStatus = Literal["active", "suspended"]
+
+PHONE_RE = re.compile(r"^\+[1-9]\d{7,14}$")
+
+
+def normalize_optional_phone(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = re.sub(r"[\s().-]+", "", value.strip())
+    if not normalized:
+        return None
+    if not PHONE_RE.fullmatch(normalized):
+        raise ValueError("Numéro de téléphone invalide. Utilisez le format international, ex. +237600000000.")
+    return normalized
 
 
 # ── Teacher profile ────────────────────────────────────────────────────────────
 
 class TeacherProfileUpdate(BaseModel):
     whatsapp: str | None = Field(default=None, max_length=32)
+    nationality: str | None = Field(default=None, max_length=120)
     subject: str | None = Field(default=None, max_length=180)
     experience_years: int | None = Field(default=None, ge=0, le=60)
     portfolio_url: str | None = Field(default=None, max_length=512)
     bio: str | None = None
 
-    @field_validator("whatsapp", "subject", "portfolio_url")
+    @field_validator("whatsapp")
+    @classmethod
+    def validate_whatsapp(cls, v: str | None) -> str | None:
+        return normalize_optional_phone(v)
+
+    @field_validator("nationality", "subject", "portfolio_url")
     @classmethod
     def strip_strings(cls, v: str | None) -> str | None:
         return v.strip() if v is not None else v
@@ -25,7 +46,9 @@ class TeacherProfileView(BaseModel):
     user_id: int
     full_name: str
     email: str
+    teacher_code: str | None = None
     whatsapp: str | None = None
+    nationality: str | None = None
     subject: str | None = None
     experience_years: int | None = None
     portfolio_url: str | None = None
@@ -37,11 +60,30 @@ class TeacherProfileView(BaseModel):
 class TeacherInviteCreate(BaseModel):
     email: str = Field(min_length=3, max_length=180)
     full_name: str = Field(min_length=2, max_length=180)
+    whatsapp: str | None = Field(default=None, max_length=32)
+    nationality: str | None = Field(default=None, max_length=120)
+    subject: str | None = Field(default=None, max_length=180)
+    experience_years: int | None = Field(default=None, ge=0, le=60)
+    portfolio_url: str | None = Field(default=None, max_length=512)
+    bio: str | None = None
 
     @field_validator("email", "full_name")
     @classmethod
     def strip_fields(cls, v: str) -> str:
         return v.strip()
+
+    @field_validator("whatsapp")
+    @classmethod
+    def validate_whatsapp(cls, v: str | None) -> str | None:
+        return normalize_optional_phone(v)
+
+    @field_validator("nationality", "subject", "portfolio_url", "bio")
+    @classmethod
+    def strip_optional_fields(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        trimmed = v.strip()
+        return trimmed or None
 
 
 class TeacherInviteView(BaseModel):
@@ -49,6 +91,12 @@ class TeacherInviteView(BaseModel):
     token: str
     email: str
     full_name: str
+    whatsapp: str | None = None
+    nationality: str | None = None
+    subject: str | None = None
+    experience_years: int | None = None
+    portfolio_url: str | None = None
+    bio: str | None = None
     status: str
     expires_at: datetime
     created_at: datetime
@@ -57,16 +105,36 @@ class TeacherInviteView(BaseModel):
 class TeacherInviteAccept(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     whatsapp: str | None = Field(default=None, max_length=32)
+    nationality: str | None = Field(default=None, max_length=120)
     subject: str | None = Field(default=None, max_length=180)
     experience_years: int | None = Field(default=None, ge=0, le=60)
     portfolio_url: str | None = Field(default=None, max_length=512)
     bio: str | None = None
+
+    @field_validator("whatsapp")
+    @classmethod
+    def validate_whatsapp(cls, v: str | None) -> str | None:
+        return normalize_optional_phone(v)
+
+    @field_validator("nationality", "subject", "portfolio_url", "bio")
+    @classmethod
+    def strip_optional_fields(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        trimmed = v.strip()
+        return trimmed or None
 
 
 class TeacherInviteInfo(BaseModel):
     token: str
     email: str
     full_name: str
+    whatsapp: str | None = None
+    nationality: str | None = None
+    subject: str | None = None
+    experience_years: int | None = None
+    portfolio_url: str | None = None
+    bio: str | None = None
     status: str
 
 
@@ -93,13 +161,47 @@ class AdminTeacherItem(BaseModel):
     id: int
     full_name: str
     email: str
+    teacher_code: str | None = None
     status: str
     whatsapp: str | None = None
+    nationality: str | None = None
     subject: str | None = None
     experience_years: int | None = None
     portfolio_url: str | None = None
     assigned_formations_count: int = 0
+    assigned_sessions_count: int = 0
+    students_count: int = 0
     created_at: datetime
+
+
+class AdminTeacherUpdate(BaseModel):
+    full_name: str | None = Field(default=None, min_length=2, max_length=180)
+    email: str | None = Field(default=None, min_length=3, max_length=180)
+    status: TeacherUserStatus | None = None
+    whatsapp: str | None = Field(default=None, max_length=32)
+    nationality: str | None = Field(default=None, max_length=120)
+    subject: str | None = Field(default=None, max_length=180)
+    experience_years: int | None = Field(default=None, ge=0, le=60)
+    portfolio_url: str | None = Field(default=None, max_length=512)
+    bio: str | None = None
+
+    @field_validator("full_name", "email")
+    @classmethod
+    def strip_required_strings(cls, v: str | None) -> str | None:
+        return v.strip() if v is not None else v
+
+    @field_validator("whatsapp")
+    @classmethod
+    def validate_whatsapp(cls, v: str | None) -> str | None:
+        return normalize_optional_phone(v)
+
+    @field_validator("nationality", "subject", "portfolio_url", "bio")
+    @classmethod
+    def strip_optional_fields(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        trimmed = v.strip()
+        return trimmed or None
 
 
 class TeacherFullSessionItem(BaseModel):
@@ -117,6 +219,141 @@ class TeacherFullSessionItem(BaseModel):
     meeting_link: str | None = None
     status: str
     session_state: str
+
+
+class AdminTeacherActivitySummary(BaseModel):
+    sessions_count: int = 0
+    active_sessions_count: int = 0
+    students_count: int = 0
+    course_days_count: int = 0
+    live_events_count: int = 0
+    courses_count: int = 0
+    lessons_count: int = 0
+    resources_count: int = 0
+    assignments_count: int = 0
+    submissions_count: int = 0
+    pending_reviews_count: int = 0
+    quizzes_count: int = 0
+    quiz_attempts_count: int = 0
+    attendance_present_count: int = 0
+    attendance_late_count: int = 0
+    attendance_absent_count: int = 0
+    grades_count: int = 0
+    average_grade_pct: float | None = None
+
+
+class AdminTeacherStudentItem(BaseModel):
+    enrollment_id: int
+    student_id: int
+    full_name: str
+    email: str
+    student_code: str | None = None
+    formation_title: str
+    formation_slug: str
+    session_id: int | None = None
+    session_label: str | None = None
+    enrollment_status: str
+    progress_pct: float
+    attendance_count: int = 0
+    present_count: int = 0
+    late_count: int = 0
+    absent_count: int = 0
+    grades_count: int = 0
+    average_grade_pct: float | None = None
+    submissions_count: int = 0
+    pending_reviews_count: int = 0
+    last_activity_at: datetime | None = None
+
+
+class AdminTeacherCourseDayAudit(BaseModel):
+    id: int
+    title: str
+    scheduled_at: datetime
+    status: str
+    attendance_count: int = 0
+    present_count: int = 0
+    absent_count: int = 0
+    late_count: int = 0
+    resource_count: int = 0
+    assignment_count: int = 0
+    quiz_count: int = 0
+
+
+class AdminTeacherContentAudit(BaseModel):
+    id: int
+    title: str
+    content_type: str
+    status: str | None = None
+    scheduled_at: datetime | None = None
+    due_date: datetime | None = None
+    submissions_count: int = 0
+    pending_reviews_count: int = 0
+    attempts_count: int = 0
+
+
+class AdminTeacherCourseAudit(BaseModel):
+    id: int
+    title: str
+    chapters_count: int = 0
+    lessons_count: int = 0
+
+
+class AdminTeacherPedagogyAlert(BaseModel):
+    code: str
+    level: Literal["info", "warning", "critical"]
+    label: str
+    detail: str | None = None
+
+
+class AdminTeacherPedagogySessionAudit(BaseModel):
+    session_id: int
+    formation_title: str
+    formation_slug: str
+    session_label: str
+    session_status: str
+    start_date: date
+    end_date: date
+    students_count: int = 0
+    course_days_count: int = 0
+    live_events_count: int = 0
+    courses_count: int = 0
+    lessons_count: int = 0
+    resources_count: int = 0
+    assignments_count: int = 0
+    quizzes_count: int = 0
+    pending_reviews_count: int = 0
+    alerts: list[AdminTeacherPedagogyAlert] = Field(default_factory=list)
+    course_days: list[AdminTeacherCourseDayAudit] = Field(default_factory=list)
+    courses: list[AdminTeacherCourseAudit] = Field(default_factory=list)
+    contents: list[AdminTeacherContentAudit] = Field(default_factory=list)
+
+
+class AdminTeacherCourseDayPage(BaseModel):
+    items: list[AdminTeacherCourseDayAudit] = Field(default_factory=list)
+    total_count: int = 0
+    offset: int = 0
+    limit: int = 0
+
+
+class AdminTeacherQuizStatusUpdate(BaseModel):
+    status: Literal["draft", "active", "closed"]
+
+
+class AdminTeacherResourcePublicationUpdate(BaseModel):
+    published_at: datetime | None = None
+
+
+class AdminTeacherAssignmentDueDateUpdate(BaseModel):
+    due_date: datetime
+
+
+class AdminTeacherDetail(BaseModel):
+    teacher: AdminTeacherItem
+    formations: list[TeacherFormationItem]
+    sessions: list[TeacherFullSessionItem]
+    activity: AdminTeacherActivitySummary = Field(default_factory=AdminTeacherActivitySummary)
+    students: list[AdminTeacherStudentItem] = Field(default_factory=list)
+    pedagogy: list[AdminTeacherPedagogySessionAudit] = Field(default_factory=list)
 
 
 
@@ -166,8 +403,11 @@ class GradeRow(GradeEntry):
 class TeacherSessionItem(BaseModel):
     id: int
     formation_title: str
+    formation_image: str
+    format_type: str
     label: str
     start_date: date
+    end_date: date
     campus_label: str
     seat_capacity: int
     enrolled_count: int

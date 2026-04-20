@@ -16,6 +16,7 @@ from app.services.order_access import sync_order_enrollment_access
 from app.services.payments import refresh_payment_states
 from app.services.tara_money import (
     extract_order_references_from_product_id,
+    extract_payment_ids_from_product_id,
     extract_tara_product_id,
     extract_tara_webhook_status,
     is_tara_failure_status,
@@ -36,6 +37,13 @@ def _first_open_payment(db: Session, order_reference: str) -> PaymentRecord | No
     )
 
 
+def _open_payment_by_id(db: Session, payment_id: int) -> PaymentRecord | None:
+    payment = db.get(PaymentRecord, payment_id)
+    if payment is None or payment.status not in {"pending", "late", "failed"}:
+        return None
+    return payment
+
+
 @router.post("/webhook")
 def receive_tara_webhook(
     payload: dict[str, Any] = Body(default_factory=dict),
@@ -52,11 +60,59 @@ def receive_tara_webhook(
 
     webhook_status = extract_tara_webhook_status(payload)
     product_id = extract_tara_product_id(payload)
+    payment_ids = extract_payment_ids_from_product_id(product_id)
     order_references = extract_order_references_from_product_id(product_id)
     matched_orders: list[str] = []
     newly_confirmed_orders: list[str] = []
 
+    if payment_ids:
+        for payment_id in payment_ids:
+            payment = _open_payment_by_id(db, payment_id)
+            if payment is None:
+                continue
+
+            if is_tara_success_status(webhook_status):
+                payment.status = "confirmed"
+                if payment.paid_at is None:
+                    payment.paid_at = utc_now()
+                payment.provider_payment_id = product_id
+                newly_confirmed_orders.append(payment.order_reference)
+            elif is_tara_failure_status(webhook_status):
+                payment.status = "failed"
+                payment.paid_at = None
+                payment.provider_payment_id = product_id
+            else:
+                continue
+
+            db.add(payment)
+            db.flush()
+            refresh_payment_states(db, order_reference=payment.order_reference)
+            sync_order_enrollment_access(db, payment.order_reference)
+            matched_orders.append(payment.order_reference)
+
+        db.commit()
+        newly_confirmed_unique = list(dict.fromkeys(newly_confirmed_orders))
+        if newly_confirmed_unique:
+            send_order_confirmation_for_orders(db, newly_confirmed_unique)
+        return {
+            "status": "received",
+            "event_status": webhook_status or "unknown",
+            "matched_orders": list(dict.fromkeys(matched_orders)),
+            "newly_confirmed_orders": newly_confirmed_unique,
+        }
+
     for order_reference in order_references:
+        already_confirmed = db.scalar(
+            select(PaymentRecord).where(
+                PaymentRecord.order_reference == order_reference,
+                PaymentRecord.provider_payment_id == product_id,
+                PaymentRecord.status == "confirmed",
+            )
+        )
+        if already_confirmed is not None:
+            matched_orders.append(order_reference)
+            continue
+
         payment = _first_open_payment(db, order_reference)
         if payment is None:
             continue
@@ -64,12 +120,14 @@ def receive_tara_webhook(
         if is_tara_success_status(webhook_status):
             was_confirmed = payment.status == "confirmed"
             payment.status = "confirmed"
+            payment.provider_payment_id = product_id
             if payment.paid_at is None:
                 payment.paid_at = utc_now()
             if not was_confirmed:
                 newly_confirmed_orders.append(order_reference)
         elif is_tara_failure_status(webhook_status):
             payment.status = "failed"
+            payment.provider_payment_id = product_id
             payment.paid_at = None
         else:
             continue

@@ -82,7 +82,11 @@ import {
   type UserStatus,
 } from "../lib/catalogApi";
 import type { AdminDashboardOutletContext } from "../admin/adminDashboardContext";
-import { trainers } from "../data/ecommerceHomeData";
+import {
+  EMPTY_SITE_CONTENT,
+  fetchPublicSiteContent,
+  type TrainerProfile,
+} from "../lib/siteContentApi";
 
 type DraftValues = {
   title: string;
@@ -149,6 +153,7 @@ type OrderDraft = {
 
 type EnrollmentDraft = {
   status: EnrollmentStatus;
+  sessionId: number | null;
 };
 
 type PaymentDraft = {
@@ -184,7 +189,7 @@ const formationFormatOptions: Array<{
     image: "/banner_catalogue_formation.jpg",
   },
 ];
-const userRoles: UserRole[] = ["student", "teacher", "admin"];
+const userRoles: UserRole[] = ["guest", "student", "teacher", "admin"];
 const userStatuses: UserStatus[] = ["active", "suspended"];
 const enrollmentStatuses: EnrollmentStatus[] = ["pending", "active", "suspended", "completed", "cancelled"];
 const sessionStatuses: SessionStatus[] = ["planned", "open", "completed", "cancelled"];
@@ -1306,6 +1311,7 @@ function buildOrderDraft(order: AdminOrder): OrderDraft {
 function buildEnrollmentDraft(enrollment: AdminEnrollment): EnrollmentDraft {
   return {
     status: enrollment.status,
+    sessionId: enrollment.session_id ?? null,
   };
 }
 
@@ -1318,9 +1324,11 @@ function buildPaymentDraft(payment: AdminPayment): PaymentDraft {
 
 function FormationDetailFields({
   draft,
+  trainers,
   onChange,
 }: {
   draft: DraftValues;
+  trainers: TrainerProfile[];
   onChange: <K extends keyof DraftValues>(field: K, value: DraftValues[K]) => void;
 }) {
   return (
@@ -1436,6 +1444,7 @@ export default function DashboardPage() {
   const [enrollments, setEnrollments] = useState<AdminEnrollment[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [payments, setPayments] = useState<AdminPayment[]>([]);
+  const [trainers, setTrainers] = useState<TrainerProfile[]>(EMPTY_SITE_CONTENT.trainers);
   const [drafts, setDrafts] = useState<Record<string, DraftValues>>({});
   const [userDrafts, setUserDrafts] = useState<Record<number, UserDraft>>({});
   const [sessionDrafts, setSessionDrafts] = useState<Record<number, SessionDraft>>({});
@@ -1547,8 +1556,9 @@ export default function DashboardPage() {
       fetchAdminEnrollments(),
       fetchAdminOrders(),
       fetchAdminPayments(),
+      fetchPublicSiteContent(),
     ])
-      .then(([overviewData, formationsData, sessionsData, usersData, enrollmentsData, ordersData, paymentsData]) => {
+      .then(([overviewData, formationsData, sessionsData, usersData, enrollmentsData, ordersData, paymentsData, siteContent]) => {
         if (!isMounted) {
           return;
         }
@@ -1560,6 +1570,7 @@ export default function DashboardPage() {
         setEnrollments(enrollmentsData);
         setOrders(ordersData);
         setPayments(paymentsData);
+        setTrainers(siteContent.trainers);
         setDrafts(
           Object.fromEntries(
             formationsData.map((formation) => [formation.slug, buildDraftFromFormation(formation)]),
@@ -1701,8 +1712,26 @@ export default function DashboardPage() {
     setEnrollmentDrafts((current) => ({
       ...current,
       [enrollmentId]: {
-        ...(current[enrollmentId] ?? { status }),
+        ...(current[enrollmentId] ?? { status, sessionId: null }),
         status,
+      },
+    }));
+    setEnrollmentFeedbackById((current) => {
+      if (!(enrollmentId in current)) {
+        return current;
+      }
+      const next = { ...current };
+      delete next[enrollmentId];
+      return next;
+    });
+  };
+
+  const syncEnrollmentSessionDraft = (enrollmentId: number, sessionId: number | null) => {
+    setEnrollmentDrafts((current) => ({
+      ...current,
+      [enrollmentId]: {
+        ...(current[enrollmentId] ?? { status: "pending", sessionId }),
+        sessionId,
       },
     }));
     setEnrollmentFeedbackById((current) => {
@@ -1987,13 +2016,22 @@ export default function DashboardPage() {
       return;
     }
 
-    const payload: AdminEnrollmentUpdatePayload = { status: draft.status };
-    if (draft.status === enrollment.status) {
+    const statusChanged = draft.status !== enrollment.status;
+    const sessionChanged = draft.sessionId !== (enrollment.session_id ?? null);
+    if (!statusChanged && !sessionChanged) {
       setEnrollmentFeedbackById((current) => ({
         ...current,
         [enrollment.id]: { type: "success", message: "Aucun changement a enregistrer." },
       }));
       return;
+    }
+
+    const payload: AdminEnrollmentUpdatePayload = {};
+    if (statusChanged) {
+      payload.status = draft.status;
+    }
+    if (sessionChanged) {
+      payload.session_id = draft.sessionId;
     }
 
     try {
@@ -2358,6 +2396,7 @@ export default function DashboardPage() {
     enrollmentDrafts,
     enrollmentStatuses,
     syncEnrollmentDraft,
+    syncEnrollmentSessionDraft,
     savingEnrollmentId,
     handleSaveEnrollment,
     enrollmentFeedbackById,
@@ -2628,6 +2667,7 @@ export default function DashboardPage() {
                 <div className="fe-fields">
                   <FormationDetailFields
                     draft={formationEditorDraft}
+                    trainers={trainers}
                     onChange={(field, value) =>
                       formationEditorState.mode === "create"
                         ? syncCreateDraft(field, value)
@@ -3284,6 +3324,7 @@ export default function DashboardPage() {
 
               <FormationDetailFields
                 draft={createDraft}
+                trainers={trainers}
                 onChange={(field, value) => syncCreateDraft(field, value)}
               />
 
@@ -3561,6 +3602,7 @@ export default function DashboardPage() {
                       {draft ? (
                         <FormationDetailFields
                           draft={draft}
+                          trainers={trainers}
                           onChange={(field, value) =>
                             syncDraft(formation.slug, field, value)
                           }

@@ -31,7 +31,9 @@ def get_dashboard_path(role: str) -> str:
         return "/admin"
     if role == "teacher":
         return "/espace/enseignant"
-    return "/espace/etudiant"
+    if role == "student":
+        return "/espace/etudiant"
+    return "/"
 
 
 def serialize_auth_user(user: UserRecord) -> AuthUser:
@@ -66,7 +68,7 @@ def create_user(db: Session, payload: RegisterPayload) -> UserRecord:
         email=payload.email.strip().lower(),
         phone=payload.phone.strip(),
         password_hash=hash_password(payload.password),
-        role="student",
+        role="guest",
         status="active",
     )
     db.add(user)

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Award,
   BookOpen,
+  CalendarOff,
   ChevronRight,
   CreditCard,
   HelpCircle,
@@ -120,34 +121,13 @@ function bestProgressCourse(courses: StudentCourse[]): StudentCourse | null {
 /* ── Student illustration ── */
 function StudentIllustration() {
   return (
-    <svg width="140" height="140" viewBox="0 0 140 140" aria-hidden className="stu-hero__illus">
-      <circle cx="70" cy="70" r="62" fill="rgba(255,255,255,0.05)" />
-      <circle cx="70" cy="70" r="46" fill="rgba(255,255,255,0.07)" />
-      {/* Head */}
-      <circle cx="70" cy="46" r="18" fill="rgba(255,255,255,0.9)" />
-      {/* Body */}
-      <rect x="50" y="66" width="40" height="46" rx="9" fill="rgba(255,255,255,0.82)" />
-      {/* Eyes */}
-      <circle cx="63" cy="44" r="2.2" fill="#6366f1" />
-      <circle cx="77" cy="44" r="2.2" fill="#6366f1" />
-      {/* Smile */}
-      <path d="M63,52 Q70,58 77,52" fill="none" stroke="#6366f1" strokeWidth="1.8" strokeLinecap="round" />
-      {/* Cap */}
-      <polygon points="70,25 88,33 70,41 52,33" fill="rgba(255,255,255,0.88)" />
-      <rect x="59" y="29" width="22" height="4.5" rx="2" fill="rgba(255,255,255,0.65)" />
-      <line x1="88" y1="33" x2="90" y2="43" stroke="rgba(255,255,255,0.75)" strokeWidth="2.2" />
-      <circle cx="90" cy="45" r="3" fill="rgba(255,255,255,0.88)" />
-      {/* Book */}
-      <rect x="55" y="79" width="30" height="21" rx="3.5" fill="rgba(99,102,241,0.38)" />
-      <line x1="55" y1="89" x2="85" y2="89" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" />
-      <line x1="64" y1="79" x2="64" y2="100" stroke="rgba(255,255,255,0.38)" strokeWidth="1.2" />
-      {/* Stars */}
-      <path d="M26,35 L27.5,41 L33,42.5 L27.5,44 L26,50 L24.5,44 L19,42.5 L24.5,41 Z"
-        fill="rgba(255,255,255,0.45)" />
-      <circle cx="113" cy="34" r="3.5" fill="rgba(255,255,255,0.28)" />
-      <path d="M115,62 L116.3,66.5 L121,68 L116.3,69.5 L115,74 L113.7,69.5 L109,68 L113.7,66.5 Z"
-        fill="rgba(255,255,255,0.35)" />
-    </svg>
+    <img
+      src="/img-bg-8.png"
+      alt=""
+      aria-hidden
+      className="stu-hero__illus"
+      draggable={false}
+    />
   );
 }
 
@@ -482,6 +462,13 @@ export default function StudentOverviewPage() {
   const featuredRingPct = featuredBadgeLevel
     ? featuredCourse?.badge_ring_pct ?? 0
     : Math.min(100, featuredCourse?.progress_pct ?? 0);
+  const BADGE_NEXT: Record<string, string> = {
+    aventurier: "Débutant",
+    debutant: "Intermédiaire",
+    intermediaire: "Semi-pro",
+    semi_pro: "Professionnel",
+  };
+  const nextBadgeLabel = featuredBadgeLevel ? (BADGE_NEXT[featuredBadgeLevel] ?? null) : null;
   const totalCourseLessons = courses.reduce((sum, course) => sum + (course.total_lessons ?? 0), 0);
   const completedCourseLessons = courses.reduce((sum, course) => sum + (course.completed_lessons ?? 0), 0);
   const realProgressPct = totalCourseLessons > 0
@@ -620,11 +607,18 @@ export default function StudentOverviewPage() {
                     <p className="stu-live-cal-day__label">
                       {isTodaySelected ? "Aujourd'hui" : "Date sélectionnée"} · {formatCalendarDay(calendarDate)}
                     </p>
-                    <p className={dayEvents.length ? "stu-live-cal-status stu-live-cal-status--on" : "stu-live-cal-status"}>
-                      {dayEvents.length
-                        ? `${dayEvents.length} cours ${isTodaySelected ? "aujourd'hui" : "ce jour"}`
-                        : `Pas de cours ${isTodaySelected ? "aujourd'hui" : "ce jour"}.`}
-                    </p>
+                    {dayEvents.length === 0 ? (
+                      <div className="stu-live-cal-empty">
+                        <CalendarOff size={56} strokeWidth={1.2} />
+                        <p className="stu-live-cal-status">
+                          {`Pas de cours ${isTodaySelected ? "aujourd'hui" : "ce jour"}.`}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="stu-live-cal-status stu-live-cal-status--on">
+                        {`${dayEvents.length} cours ${isTodaySelected ? "aujourd'hui" : "ce jour"}`}
+                      </p>
+                    )}
                     {dayEvents.map((ev) => {
                       const endIso = new Date(new Date(ev.scheduled_at).getTime() + ev.duration_minutes * 60000).toISOString();
                       const { canJoin, label: joinLabel } = getLiveAccess(ev.scheduled_at, endIso);
@@ -814,22 +808,30 @@ export default function StudentOverviewPage() {
             <div className="stu-badge-card__top">
               <span>
                 <Award size={16} />
-                Votre premier badge est débloqué
+                Mon badge
               </span>
-              {featuredCourse && (
-                <strong>{Math.round(featuredCourse.progress_pct ?? 0)}%</strong>
-              )}
             </div>
             <div className="stu-badge-card__body">
               <BadgeRing
                 badgeLevel={featuredBadgeLevel}
                 ringPct={featuredRingPct}
-                hint={featuredCourse?.badge_hint ?? "Commencez votre première leçon pour débloquer votre badge."}
+                hint={null}
                 size={118}
-                showHint={Boolean(featuredCourse?.badge_hint)}
+                showHint={false}
               />
-              {featuredBadgeLevel && featuredCourse && (
-                <p className="stu-badge-card__course">{featuredCourse.title}</p>
+              {nextBadgeLabel && (
+                <div className="stu-badge-progress">
+                  <div className="stu-badge-progress__labels">
+                    <span>Vers <strong>{nextBadgeLabel}</strong></span>
+                    <span>{Math.round(featuredRingPct)}%</span>
+                  </div>
+                  <div className="stu-badge-progress__bar">
+                    <div
+                      className="stu-badge-progress__fill"
+                      style={{ width: `${Math.round(featuredRingPct)}%` }}
+                    />
+                  </div>
+                </div>
               )}
             </div>
           </div>

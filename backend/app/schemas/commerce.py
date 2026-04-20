@@ -8,6 +8,7 @@ FormatType = Literal["live", "ligne", "presentiel"]
 DashboardType = Literal["classic", "guided"]
 NotificationTone = Literal["info", "success", "warning"]
 NotificationCategory = Literal["payment", "enrollment", "session", "admin", "system"]
+CheckoutPaymentMode = Literal["full", "installments"]
 
 
 class CartItemPayload(BaseModel):
@@ -33,6 +34,14 @@ class CartItemView(BaseModel):
     purchase_message: str | None = None
 
 
+class InstallmentLine(BaseModel):
+    number: int
+    amount: int
+    amount_label: str
+    due_date: date
+    status: str
+
+
 class CartSnapshot(BaseModel):
     items: list[CartItemView]
     total_amount: int
@@ -40,6 +49,7 @@ class CartSnapshot(BaseModel):
     allow_installments: bool = False
     installment_threshold_amount: int = 100000
     installment_threshold_label: str = "100 000 FCFA"
+    installment_schedules_preview: dict[str, list[InstallmentLine]] = Field(default_factory=dict)
     live_items_count: int
     ligne_items_count: int
     presentiel_items_count: int
@@ -71,17 +81,14 @@ class FavoriteSnapshot(BaseModel):
     total_count: int
 
 
-class InstallmentLine(BaseModel):
-    number: int
-    amount: int
-    amount_label: str
-    due_date: date
-    status: str
-
-
 class CheckoutPayload(BaseModel):
     installment_slugs: list[str] = Field(default_factory=list)
     use_installments: bool = False
+    payment_mode: CheckoutPaymentMode | None = None
+    payment_provider: str | None = None
+
+
+class PaymentCheckoutPayload(BaseModel):
     payment_provider: str | None = None
 
 
@@ -103,9 +110,19 @@ class CheckoutResponse(BaseModel):
     payment_links: TaraPaymentLinksView | None = None
 
 
+class AssignedTeacherView(BaseModel):
+    full_name: str
+    teacher_code: str | None = None
+    avatar_initials: str
+    avatar_url: str | None = None
+    email: str | None = None
+    whatsapp: str | None = None
+
+
 class EnrollmentView(BaseModel):
     id: int
     formation_id: int
+    session_id: int | None = None
     formation_slug: str
     formation_title: str
     image: str
@@ -115,6 +132,7 @@ class EnrollmentView(BaseModel):
     status: str
     student_code: str | None = None
     session_label: str
+    assigned_teacher: AssignedTeacherView | None = None
     created_at: datetime
 
 
@@ -152,9 +170,30 @@ class StudentSessionView(BaseModel):
     start_date: date
     end_date: date
     teacher_name: str | None = None
+    assigned_teacher: AssignedTeacherView | None = None
     campus_label: str | None = None
     meeting_link: str | None = None
     status: str
+
+
+class StudentCourseDayView(BaseModel):
+    id: int
+    session_id: int
+    live_event_id: int | None = None
+    title: str
+    scheduled_at: datetime
+    duration_minutes: int
+    status: str
+    attendance_count: int = 0
+    present_count: int = 0
+    absent_count: int = 0
+    late_count: int = 0
+    excused_count: int = 0
+    quiz_count: int = 0
+    assignment_count: int = 0
+    resource_count: int = 0
+    grade_count: int = 0
+    created_at: datetime
 
 
 class NotificationView(BaseModel):
@@ -312,14 +351,18 @@ class StudentPaymentLineView(BaseModel):
     amount: int
     amount_label: str
     currency: str
+    provider_code: str
     status: str
     due_date: date | None
     paid_at: datetime | None
     due_label: str | None
+    can_pay: bool = False
+    checkout_url: str | None = None
 
 
 class StudentOrderView(BaseModel):
     reference: str
+    session_id: int | None = None
     formation_title: str
     format_type: str
     total_amount: int
@@ -329,3 +372,35 @@ class StudentOrderView(BaseModel):
     installment_plan: str
     created_at: datetime
     payments: list[StudentPaymentLineView]
+
+
+class GroupedInstallmentView(BaseModel):
+    installment_number: int | None
+    checkout_key: str
+    amount: int
+    amount_label: str
+    due_date: date | None
+    status: str
+    can_pay: bool
+    payment_ids: list[int]
+
+
+class StudentOrderSummary(BaseModel):
+    reference: str
+    formation_title: str
+    format_type: str
+    total_amount: int
+    total_amount_label: str
+    status: str
+
+
+class StudentOrderGroupView(BaseModel):
+    group_reference: str
+    created_at: datetime
+    orders: list[StudentOrderSummary]
+    total_amount: int
+    total_amount_label: str
+    installment_plan: str
+    status: str
+    grouped_payments: list[GroupedInstallmentView]
+    payments: list[StudentPaymentLineView] = Field(default_factory=list)

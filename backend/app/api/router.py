@@ -5,6 +5,7 @@ from app.api.routes.blog import router as blog_router
 from app.api.routes.diagnostic import router as diagnostic_router
 from app.api.routes.ai import router as ai_router
 from app.api.routes.stripe_webhook import router as stripe_router
+from app.api.routes.site_config import public_router as public_site_content_router
 from app.api.routes.site_config import router as site_config_router
 from app.api.routes.tara import router as tara_router
 from app.api.routes.auth import router as auth_router
@@ -29,6 +30,7 @@ api_router.include_router(teacher_router)
 api_router.include_router(teachers_router)
 api_router.include_router(admin_router)
 api_router.include_router(site_config_router)
+api_router.include_router(public_site_content_router)
 api_router.include_router(tara_router)
 api_router.include_router(ai_router)
 api_router.include_router(stripe_router)

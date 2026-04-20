@@ -144,7 +144,8 @@ export default function AuthPage({ mode }: AuthPageProps) {
 
   useEffect(() => {
     if (!isLoading && user) {
-      navigate(redirectTarget, { replace: true });
+      const target = user.role === "guest" ? "/" : redirectTarget;
+      navigate(target, { replace: true });
     }
   }, [isLoading, navigate, redirectTarget, user]);
 

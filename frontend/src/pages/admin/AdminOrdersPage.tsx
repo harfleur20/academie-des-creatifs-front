@@ -22,7 +22,7 @@ function orderStatusClass(status: string) {
 }
 
 export default function AdminOrdersPage() {
-  const { loading, loadingError, orders, orderDrafts, orderStatuses, syncOrderDraft, savingOrderId, handleSaveOrder, orderFeedbackById } =
+  const { loading, loadingError, orders, payments, orderDrafts, orderStatuses, syncOrderDraft, savingOrderId, handleSaveOrder, orderFeedbackById } =
     useAdminDashboard();
 
   const [search, setSearch] = useState("");
@@ -41,8 +41,8 @@ export default function AdminOrdersPage() {
 
   const paidCount = orders.filter((o) => o.status === "paid").length;
   const pendingCount = orders.filter((o) => o.status === "pending").length;
-  const totalRevenue = orders.filter((o) => o.status === "paid" || o.status === "partially_paid").reduce((acc, o) => acc + o.total_amount, 0);
-  const totalRevenueLabel = new Intl.NumberFormat("fr-FR", { style: "currency", currency: orders[0]?.currency ?? "XAF", maximumFractionDigits: 0 }).format(totalRevenue);
+  const totalRevenue = payments.filter((p) => p.status === "confirmed").reduce((acc, p) => acc + p.amount, 0);
+  const totalRevenueLabel = new Intl.NumberFormat("fr-FR", { style: "currency", currency: payments[0]?.currency ?? "XAF", maximumFractionDigits: 0 }).format(totalRevenue);
 
   return (
     <div className="adm-workspace">
@@ -57,7 +57,7 @@ export default function AdminOrdersPage() {
       <div className="adm-kpi-row">
         <div className="adm-kpi-card adm-kpi-card--dark">
           <span className="adm-kpi-card__bg-icon"><Banknote strokeWidth={1.2} /></span>
-          <span>Revenus confirmés</span>
+          <span>Montant encaissé</span>
           <strong>{totalRevenueLabel}</strong>
           <small>commandes payées</small>
         </div>

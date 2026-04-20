@@ -28,6 +28,19 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
+    if (user.role === "guest") {
+      const searchParams = new URLSearchParams(location.search);
+      if (
+        location.pathname.startsWith("/espace/etudiant")
+        && (
+          (searchParams.get("source") === "stripe" && searchParams.get("session_id"))
+          || searchParams.get("gateway") === "tara"
+        )
+      ) {
+        return <Navigate replace to={`/espace${location.search}${location.hash}`} />;
+      }
+      return <Navigate replace to="/formations?acces=invite" />;
+    }
     return <Navigate replace to={user.dashboard_path} />;
   }
 

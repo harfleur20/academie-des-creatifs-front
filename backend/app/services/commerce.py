@@ -15,27 +15,34 @@ from app.models.entities import (
     FormationSessionRecord,
     OrderRecord,
     PaymentRecord,
+    TeacherProfileRecord,
     UserRecord,
 )
 from app.schemas.commerce import (
+    AssignedTeacherView,
     CartItemView,
     CartSnapshot,
     CheckoutResponse,
     EnrollmentView,
     FavoriteItemView,
     FavoriteSnapshot,
+    GroupedInstallmentView,
     InstallmentLine,
     NotificationView,
     StudentDashboardSummary,
+    StudentOrderGroupView,
+    StudentOrderSummary,
+    StudentPaymentLineView,
 )
-from app.services.auth import get_dashboard_path
+from app.services.auth import build_avatar_initials, get_dashboard_path
 from app.services.catalog import format_fcfa, should_allow_installments
 from app.services.email import OrderEmailData, send_order_confirmation
 from app.services.formation_sessions import find_current_or_next_session, get_session_presentation
 from app.services.order_access import sync_order_enrollment_access
+from app.services.order_confirmations import send_order_confirmation_for_orders
 from app.services.payments import payment_due_label, refresh_payment_states, today_utc
 from app.services.tara_money import (
-    build_tara_product_id,
+    build_tara_payment_product_id,
     build_tara_return_url,
     build_tara_webhook_url,
     create_tara_payment_link,
@@ -128,6 +135,137 @@ def cart_allows_checkout_installments(cart_total_amount: int) -> bool:
     return cart_total_amount >= CHECKOUT_INSTALLMENT_THRESHOLD
 
 
+def _resolve_checkout_session(
+    db: Session,
+    cart_item: CartItemRecord,
+    formation: FormationRecord,
+) -> FormationSessionRecord | None:
+    if cart_item.session_id is not None:
+        session = db.get(FormationSessionRecord, cart_item.session_id)
+        if session is not None:
+            return session
+    return find_current_or_next_session(db, formation.id)
+
+
+def _where_same_session(statement, model, session_id: int | None):
+    if session_id is None:
+        return statement.where(model.session_id.is_(None))
+    return statement.where(model.session_id == session_id)
+
+
+def ensure_no_duplicate_purchase(
+    db: Session,
+    user: UserRecord,
+    formation: FormationRecord,
+    session: FormationSessionRecord | None,
+) -> None:
+    session_id = session.id if session is not None else None
+
+    enrollment_statement = select(EnrollmentRecord).where(
+        EnrollmentRecord.user_id == user.id,
+        EnrollmentRecord.formation_id == formation.id,
+        EnrollmentRecord.status.in_(("active", "completed", "pending", "suspended")),
+    )
+    enrollment = db.scalar(_where_same_session(enrollment_statement, EnrollmentRecord, session_id))
+    if enrollment is not None:
+        label = session.label if session is not None else "ce parcours"
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Vous êtes déjà inscrit à {label}.",
+        )
+
+    order_statement = select(OrderRecord).where(
+        OrderRecord.user_id == user.id,
+        OrderRecord.formation_id == formation.id,
+        OrderRecord.status.in_(("pending", "partially_paid", "paid")),
+    )
+    order = db.scalar(_where_same_session(order_statement, OrderRecord, session_id))
+    if order is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Une commande existe déjà pour cette formation et cette session. "
+                "Consultez vos paiements pour finaliser ou suivre cette commande."
+            ),
+        )
+
+
+def _cancel_unpaid_checkout_attempts_for_retry(
+    db: Session,
+    user: UserRecord,
+    formation: FormationRecord,
+    session: FormationSessionRecord | None,
+) -> None:
+    orders = db.scalars(
+        select(OrderRecord).where(
+            OrderRecord.user_id == user.id,
+            OrderRecord.formation_id == formation.id,
+            OrderRecord.status == "pending",
+        )
+    ).all()
+
+    for order in orders:
+        confirmed_count = (
+            db.scalar(
+                select(func.count(PaymentRecord.id)).where(
+                    PaymentRecord.order_reference == order.reference,
+                    PaymentRecord.status == "confirmed",
+                )
+            )
+            or 0
+        )
+        if confirmed_count:
+            continue
+
+        payments = db.scalars(
+            select(PaymentRecord).where(PaymentRecord.order_reference == order.reference)
+        ).all()
+        for payment in payments:
+            if payment.status in {"pending", "late", "failed"}:
+                payment.status = "cancelled"
+                db.add(payment)
+
+        order.status = "cancelled"
+        db.add(order)
+
+    db.flush()
+
+
+def _build_installment_preview(
+    db: Session,
+    rows: list[tuple[CartItemRecord, FormationRecord]],
+    *,
+    allow_installments: bool,
+) -> dict[str, list[InstallmentLine]]:
+    if not allow_installments:
+        return {}
+
+    today = today_utc()
+    preview: dict[str, list[InstallmentLine]] = {}
+    for cart_item, formation in rows:
+        session = _resolve_checkout_session(db, cart_item, formation)
+        session_end = session.end_date if session is not None else today + timedelta(days=60)
+        n_inst, due_dates, amounts = _compute_installment_schedule(
+            total=formation.current_price_amount,
+            session_end_date=session_end,
+            today=today,
+            allow_installments=True,
+        )
+        if n_inst <= 1:
+            continue
+        preview[formation.slug] = [
+            InstallmentLine(
+                number=index + 1,
+                amount=amount,
+                amount_label=format_fcfa(amount) or f"{amount} {formation.price_currency}",
+                due_date=due_date,
+                status="preview",
+            )
+            for index, (amount, due_date) in enumerate(zip(amounts, due_dates))
+        ]
+    return preview
+
+
 def build_cart_snapshot(db: Session, rows: list[tuple[CartItemRecord, FormationRecord]]) -> CartSnapshot:
     total_amount = sum(formation.current_price_amount for _, formation in rows)
     allow_installments = cart_allows_checkout_installments(total_amount)
@@ -164,6 +302,11 @@ def build_cart_snapshot(db: Session, rows: list[tuple[CartItemRecord, FormationR
         allow_installments=allow_installments,
         installment_threshold_amount=CHECKOUT_INSTALLMENT_THRESHOLD,
         installment_threshold_label=format_fcfa(CHECKOUT_INSTALLMENT_THRESHOLD) or "100 000 FCFA",
+        installment_schedules_preview=_build_installment_preview(
+            db,
+            rows,
+            allow_installments=allow_installments,
+        ),
         live_items_count=live_items_count,
         ligne_items_count=ligne_items_count,
         presentiel_items_count=presentiel_items_count,
@@ -234,6 +377,7 @@ def add_item_to_cart(db: Session, user: UserRecord, formation_slug: str) -> Cart
         raise HTTPException(status_code=404, detail="Formation introuvable.")
 
     ensure_can_purchase(db, formation)
+    session = find_current_or_next_session(db, formation.id)
 
     existing = db.scalar(
         select(CartItemRecord).where(
@@ -241,8 +385,13 @@ def add_item_to_cart(db: Session, user: UserRecord, formation_slug: str) -> Cart
             CartItemRecord.formation_id == formation.id,
         )
     )
+    if existing is not None:
+        return list_cart_snapshot(db, user)
+
+    _cancel_unpaid_checkout_attempts_for_retry(db, user, formation, session)
+    ensure_no_duplicate_purchase(db, user, formation, session)
+
     if existing is None:
-        session = find_current_or_next_session(db, formation.id)
         db.add(CartItemRecord(
             user_id=user.id,
             formation_id=formation.id,
@@ -328,10 +477,13 @@ def _serialize_enrollment(
     enrollment: EnrollmentRecord,
     formation: FormationRecord,
     student_code: str | None,
+    session: FormationSessionRecord | None = None,
+    teacher_cache: dict[str, AssignedTeacherView | None] | None = None,
 ) -> EnrollmentView:
     return EnrollmentView(
         id=enrollment.id,
         formation_id=formation.id,
+        session_id=enrollment.session_id,
         formation_slug=formation.slug,
         formation_title=formation.title,
         image=formation.image,
@@ -341,8 +493,56 @@ def _serialize_enrollment(
         status=enrollment.status,
         student_code=student_code,
         session_label=get_enrollment_session_label(db, enrollment, formation),
+        assigned_teacher=build_assigned_teacher_view(db, session, cache=teacher_cache),
         created_at=enrollment.created_at,
     )
+
+
+def build_assigned_teacher_view(
+    db: Session,
+    session: FormationSessionRecord | None,
+    *,
+    cache: dict[str, AssignedTeacherView | None] | None = None,
+) -> AssignedTeacherView | None:
+    teacher_name = (session.teacher_name or "").strip() if session is not None else ""
+    if not teacher_name:
+        return None
+
+    if cache is not None and teacher_name in cache:
+        return cache[teacher_name]
+
+    row = db.execute(
+        select(UserRecord, TeacherProfileRecord)
+        .outerjoin(TeacherProfileRecord, TeacherProfileRecord.user_id == UserRecord.id)
+        .where(
+            UserRecord.role == "teacher",
+            UserRecord.full_name == teacher_name,
+        )
+        .limit(1)
+    ).first()
+
+    if row is None:
+        if cache is not None:
+            cache[teacher_name] = None
+        return None
+
+    teacher_user, teacher_profile = row
+    teacher = AssignedTeacherView(
+        full_name=teacher_user.full_name,
+        teacher_code=teacher_profile.teacher_code if teacher_profile is not None else None,
+        avatar_initials=build_avatar_initials(teacher_user.full_name),
+        avatar_url=teacher_user.avatar_url,
+        email=teacher_user.email,
+        whatsapp=(
+            teacher_profile.whatsapp
+            if teacher_profile is not None and teacher_profile.whatsapp
+            else teacher_user.phone
+        ),
+    )
+
+    if cache is not None:
+        cache[teacher_name] = teacher
+    return teacher
 
 
 def _split_installments_rounded(total: int, n: int) -> list[int]:
@@ -404,6 +604,135 @@ def _plan_label(n: int) -> str:
     return {1: "full", 2: "2x", 3: "3x"}.get(n, "full")
 
 
+def _build_group_reference(db: Session, year: int) -> str:
+    prefix = f"AC-GRP-{year}-"
+    existing = db.scalars(
+        select(OrderRecord.group_reference).where(OrderRecord.group_reference.like(f"{prefix}%"))
+    ).all()
+    highest = 0
+    for ref in existing:
+        if ref:
+            suffix = ref.removeprefix(prefix)
+            if suffix.isdigit():
+                highest = max(highest, int(suffix))
+    return f"AC-GRP-{year}-{highest + 1:04d}"
+
+
+def build_grouped_orders(
+    db: Session,
+    orders: list[OrderRecord],
+) -> list[StudentOrderGroupView]:
+    from collections import defaultdict
+    from app.services.payments import payment_due_label
+
+    # group by group_reference (fallback = order.reference for legacy orders)
+    groups: dict[str, list[OrderRecord]] = defaultdict(list)
+    for order in orders:
+        key = order.group_reference or order.reference
+        groups[key].append(order)
+
+    result: list[StudentOrderGroupView] = []
+    for group_ref, group_orders in groups.items():
+        group_orders_sorted = sorted(group_orders, key=lambda o: o.created_at)
+        created_at = group_orders_sorted[0].created_at
+
+        # collect all payments across orders in this group
+        all_payments: list[PaymentRecord] = []
+        for order in group_orders_sorted:
+            payments = db.scalars(
+                select(PaymentRecord)
+                .where(PaymentRecord.order_reference == order.reference)
+                .order_by(PaymentRecord.installment_number.nullsfirst(), PaymentRecord.id)
+            ).all()
+            all_payments.extend(payments)
+
+        # group payments by installment_number
+        inst_buckets: dict[int | None, list[PaymentRecord]] = defaultdict(list)
+        for p in all_payments:
+            inst_buckets[p.installment_number].append(p)
+
+        grouped_payments: list[GroupedInstallmentView] = []
+        for inst_num in sorted(inst_buckets.keys(), key=lambda x: (x is None, x)):
+            bucket = inst_buckets[inst_num]
+            total = sum(p.amount for p in bucket)
+            statuses = {p.status for p in bucket}
+            if statuses == {"confirmed"}:
+                grp_status = "confirmed"
+            elif "confirmed" in statuses:
+                grp_status = "partially_confirmed"
+            else:
+                grp_status = "pending"
+            due_date = min((p.due_date for p in bucket if p.due_date), default=None)
+            can_pay = any(p.status in {"pending", "failed"} for p in bucket)
+            grouped_payments.append(GroupedInstallmentView(
+                installment_number=inst_num,
+                checkout_key="single" if inst_num is None else str(inst_num),
+                amount=total,
+                amount_label=format_fcfa(total) or f"{total} FCFA",
+                due_date=due_date,
+                status=grp_status,
+                can_pay=can_pay,
+                payment_ids=[p.id for p in bucket],
+            ))
+
+        total_amount = sum(o.total_amount for o in group_orders_sorted)
+        if all(o.status == "paid" for o in group_orders_sorted):
+            grp_order_status = "paid"
+        elif any(p.status == "confirmed" for p in all_payments):
+            grp_order_status = "partially_paid"
+        elif any(o.status == "failed" for o in group_orders_sorted):
+            grp_order_status = "failed"
+        elif any(o.status == "cancelled" for o in group_orders_sorted):
+            grp_order_status = "cancelled"
+        else:
+            grp_order_status = "pending"
+
+        # installment plan: if any order has installments, show that plan
+        plans = [o.installment_plan for o in group_orders_sorted if o.installment_plan != "full"]
+        installment_plan = plans[0] if plans else "full"
+
+        result.append(StudentOrderGroupView(
+            group_reference=group_ref,
+            created_at=created_at,
+            orders=[
+                StudentOrderSummary(
+                    reference=o.reference,
+                    formation_title=o.formation_title,
+                    format_type=o.format_type,
+                    total_amount=o.total_amount,
+                    total_amount_label=format_fcfa(o.total_amount) or f"{o.total_amount} FCFA",
+                    status=o.status,
+                )
+                for o in group_orders_sorted
+            ],
+            total_amount=total_amount,
+            total_amount_label=format_fcfa(total_amount) or f"{total_amount} FCFA",
+            installment_plan=installment_plan,
+            status=grp_order_status,
+            grouped_payments=grouped_payments,
+            payments=[
+                StudentPaymentLineView(
+                    id=p.id,
+                    installment_number=p.installment_number,
+                    amount=p.amount,
+                    amount_label=format_fcfa(p.amount) or f"{p.amount} FCFA",
+                    currency=p.currency,
+                    provider_code=p.provider_code,
+                    status=p.status,
+                    due_date=p.due_date,
+                    paid_at=p.paid_at,
+                    due_label=payment_due_label(p),
+                    can_pay=p.status in {"pending", "failed"},
+                    checkout_url=p.provider_checkout_url,
+                )
+                for p in all_payments
+            ],
+        ))
+
+    result.sort(key=lambda g: g.created_at, reverse=True)
+    return result
+
+
 def _build_checkout_redirect_path(user: UserRecord, dashboard_types: set[str]) -> str:
     if user.role != "student":
         return get_dashboard_path(user.role)
@@ -426,6 +755,7 @@ def _checkout_cart_mock(
     email_orders: list[OrderEmailData] = []
     now = utc_now()
     today = now.date()
+    group_reference = _build_group_reference(db, now.year) if len(rows) > 1 else None
 
     for index, (cart_item, formation) in enumerate(rows):
         ensure_can_purchase(db, formation)
@@ -433,27 +763,26 @@ def _checkout_cart_mock(
         order_references.append(order_reference)
         dashboard_types.add(formation.dashboard_type)
 
-        # Resolve session to compute installment schedule
-        session = (
-            db.get(FormationSessionRecord, cart_item.session_id)
-            if cart_item.session_id is not None
-            else find_current_or_next_session(db, formation.id)
-        )
+        session = _resolve_checkout_session(db, cart_item, formation)
+        _cancel_unpaid_checkout_attempts_for_retry(db, user, formation, session)
+        ensure_no_duplicate_purchase(db, user, formation, session)
         session_end = session.end_date if session is not None else today + timedelta(days=60)
 
         n_inst, due_dates, amounts = _compute_installment_schedule(
             total=formation.current_price_amount,
             session_end_date=session_end,
             today=today,
-            allow_installments=use_installments and formation.allow_installments,
+            allow_installments=use_installments,
         )
         is_installment = n_inst > 1
 
         order_status = "partially_paid" if is_installment else "paid"
         order = OrderRecord(
             reference=order_reference,
+            group_reference=group_reference,
             user_id=user.id,
             formation_id=formation.id,
+            session_id=session.id if session is not None else None,
             customer_name=user.full_name,
             formation_title=formation.title,
             format_type=formation.format_type,
@@ -522,7 +851,6 @@ def _checkout_cart_mock(
 
         db.flush()
         sync_order_enrollment_access(db, order_reference)
-        db.delete(cart_item)
 
     db.commit()
 
@@ -555,6 +883,8 @@ def _checkout_cart_with_tara(
     today = now.date()
     due_today_total = 0
     picture_url = ""
+    due_today_payments: list[PaymentRecord] = []
+    group_reference = _build_group_reference(db, now.year) if len(rows) > 1 else None
 
     for index, (cart_item, formation) in enumerate(rows):
         ensure_can_purchase(db, formation)
@@ -564,26 +894,25 @@ def _checkout_cart_with_tara(
         if not picture_url and formation.image:
             picture_url = formation.image
 
-        # Resolve session for installment schedule
-        session = (
-            db.get(FormationSessionRecord, cart_item.session_id)
-            if cart_item.session_id is not None
-            else find_current_or_next_session(db, formation.id)
-        )
+        session = _resolve_checkout_session(db, cart_item, formation)
+        _cancel_unpaid_checkout_attempts_for_retry(db, user, formation, session)
+        ensure_no_duplicate_purchase(db, user, formation, session)
         session_end = session.end_date if session is not None else today + timedelta(days=60)
 
         n_inst, due_dates, amounts = _compute_installment_schedule(
             total=formation.current_price_amount,
             session_end_date=session_end,
             today=today,
-            allow_installments=use_installments and formation.allow_installments,
+            allow_installments=use_installments,
         )
         is_installment = n_inst > 1
 
         order = OrderRecord(
             reference=order_reference,
+            group_reference=group_reference,
             user_id=user.id,
             formation_id=formation.id,
+            session_id=session.id if session is not None else None,
             customer_name=user.full_name,
             formation_title=formation.title,
             format_type=formation.format_type,
@@ -598,7 +927,7 @@ def _checkout_cart_with_tara(
         if is_installment:
             schedule: list[InstallmentLine] = []
             for i, (amt, due) in enumerate(zip(amounts, due_dates)):
-                db.add(PaymentRecord(
+                payment = PaymentRecord(
                     order_reference=order_reference,
                     payer_name=user.full_name,
                     amount=amt,
@@ -608,7 +937,10 @@ def _checkout_cart_with_tara(
                     paid_at=None,
                     installment_number=i + 1,
                     due_date=due,
-                ))
+                )
+                db.add(payment)
+                if i == 0:
+                    due_today_payments.append(payment)
                 schedule.append(InstallmentLine(
                     number=i + 1,
                     amount=amt,
@@ -619,7 +951,7 @@ def _checkout_cart_with_tara(
             installment_schedules[order_reference] = schedule
             due_today_total += amounts[0]
         else:
-            db.add(PaymentRecord(
+            payment = PaymentRecord(
                 order_reference=order_reference,
                 payer_name=user.full_name,
                 amount=formation.current_price_amount,
@@ -628,10 +960,10 @@ def _checkout_cart_with_tara(
                 status="pending",
                 paid_at=None,
                 due_date=today + timedelta(days=3),
-            ))
+            )
+            db.add(payment)
+            due_today_payments.append(payment)
             due_today_total += formation.current_price_amount
-
-        db.delete(cart_item)
 
     db.flush()
 
@@ -655,9 +987,11 @@ def _checkout_cart_with_tara(
             else "Reglement de votre commande multi-formations."
         )
 
+    product_id = build_tara_payment_product_id([payment.id for payment in due_today_payments])
+
     try:
         payment_links = create_tara_payment_link(
-            product_id=build_tara_product_id(order_references),
+            product_id=product_id,
             product_name=product_name,
             product_price=due_today_total,
             product_description=product_description,
@@ -668,6 +1002,12 @@ def _checkout_cart_with_tara(
     except ValueError as error:
         db.rollback()
         raise HTTPException(status_code=502, detail=str(error)) from error
+
+    checkout_url = payment_links.preferred_redirect_url()
+    for payment in due_today_payments:
+        payment.provider_payment_id = product_id
+        payment.provider_checkout_url = checkout_url
+        db.add(payment)
 
     db.commit()
     return CheckoutResponse(
@@ -691,23 +1031,40 @@ def _checkout_cart_with_stripe(
     db: Session,
     user: UserRecord,
     rows: list[tuple[CartItemRecord, FormationRecord]],
+    use_installments: bool,
 ) -> CheckoutResponse:
     order_references: list[str] = []
+    installment_schedules: dict[str, list[InstallmentLine]] = {}
     dashboard_types: set[str] = set()
-    line_items: list[dict] = []
+    checkout_payments: list[tuple[PaymentRecord, str]] = []
     now = utc_now()
     today = now.date()
+    group_reference = _build_group_reference(db, now.year) if len(rows) > 1 else None
 
     for index, (cart_item, formation) in enumerate(rows):
         ensure_can_purchase(db, formation)
         order_reference = _build_order_reference(db, now.year, index)
         order_references.append(order_reference)
         dashboard_types.add(formation.dashboard_type)
+        session = _resolve_checkout_session(db, cart_item, formation)
+        _cancel_unpaid_checkout_attempts_for_retry(db, user, formation, session)
+        ensure_no_duplicate_purchase(db, user, formation, session)
+        session_end = session.end_date if session is not None else today + timedelta(days=60)
+
+        n_inst, due_dates, amounts = _compute_installment_schedule(
+            total=formation.current_price_amount,
+            session_end_date=session_end,
+            today=today,
+            allow_installments=use_installments,
+        )
+        is_installment = n_inst > 1
 
         order = OrderRecord(
             reference=order_reference,
+            group_reference=group_reference,
             user_id=user.id,
             formation_id=formation.id,
+            session_id=session.id if session is not None else None,
             customer_name=user.full_name,
             formation_title=formation.title,
             format_type=formation.format_type,
@@ -715,29 +1072,55 @@ def _checkout_cart_with_stripe(
             total_amount=formation.current_price_amount,
             currency=formation.price_currency,
             status="pending",
-            installment_plan="full",
+            installment_plan=_plan_label(n_inst),
         )
         db.add(order)
-        db.add(PaymentRecord(
-            order_reference=order_reference,
-            payer_name=user.full_name,
-            amount=formation.current_price_amount,
-            currency=formation.price_currency,
-            provider_code="stripe",
-            status="pending",
-            paid_at=None,
-            due_date=today,
-        ))
-        line_items.append(
-            build_stripe_line_item(
-                name=formation.title,
+
+        if is_installment:
+            schedule: list[InstallmentLine] = []
+            for i, (amt, due) in enumerate(zip(amounts, due_dates)):
+                payment = PaymentRecord(
+                    order_reference=order_reference,
+                    payer_name=user.full_name,
+                    amount=amt,
+                    currency=formation.price_currency,
+                    provider_code="stripe",
+                    status="pending",
+                    paid_at=None,
+                    installment_number=i + 1,
+                    due_date=due,
+                )
+                db.add(payment)
+                if i == 0:
+                    checkout_payments.append((payment, f"{formation.title} - versement 1"))
+                schedule.append(InstallmentLine(
+                    number=i + 1,
+                    amount=amt,
+                    amount_label=format_fcfa(amt),
+                    due_date=due,
+                    status="pending",
+                ))
+            installment_schedules[order_reference] = schedule
+        else:
+            payment = PaymentRecord(
+                order_reference=order_reference,
+                payer_name=user.full_name,
                 amount=formation.current_price_amount,
                 currency=formation.price_currency,
+                provider_code="stripe",
+                status="pending",
+                paid_at=None,
+                due_date=today,
             )
-        )
-        db.delete(cart_item)
+            db.add(payment)
+            checkout_payments.append((payment, formation.title))
 
     db.flush()
+    line_items = [
+        build_stripe_line_item(name=name, amount=payment.amount, currency=payment.currency)
+        for payment, name in checkout_payments
+    ]
+    checkout_payment_ids = [payment.id for payment, _ in checkout_payments]
 
     try:
         session_url = create_stripe_checkout_session(
@@ -746,19 +1129,29 @@ def _checkout_cart_with_stripe(
             success_url=build_stripe_success_url(settings.frontend_url),
             cancel_url=build_stripe_cancel_url(settings.frontend_url),
             customer_email=user.email,
+            payment_ids=checkout_payment_ids,
         )
     except Exception as error:
         db.rollback()
         raise HTTPException(status_code=502, detail=f"Stripe: {error}") from error
 
+    for payment, _ in checkout_payments:
+        payment.provider_checkout_url = session_url
+        db.add(payment)
+
     db.commit()
     return CheckoutResponse(
-        message="Paiement Stripe initié. Finalisez le règlement pour activer votre inscription.",
+        message=(
+            "Paiement Stripe initié pour le premier versement. Finalisez le règlement pour activer votre inscription."
+            if installment_schedules
+            else "Paiement Stripe initié. Finalisez le règlement pour activer votre inscription."
+        ),
         redirect_path=_build_checkout_redirect_path(user, dashboard_types),
         external_redirect_url=session_url,
         payment_provider="stripe",
         processed_items=len(rows),
         order_references=order_references,
+        installment_schedules=installment_schedules,
     )
 
 
@@ -788,26 +1181,183 @@ def checkout_cart(
         bool(use_installments or installment_set)
         and cart_allows_checkout_installments(cart_total_amount)
     )
-    if payment_provider == "stripe" and is_stripe_configured():
-        return _checkout_cart_with_stripe(db, user, rows)
+    if payment_provider == "stripe":
+        if not is_stripe_configured():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Stripe n'est pas configuré sur ce serveur.",
+            )
+        return _checkout_cart_with_stripe(db, user, rows, order_level_installments)
     if is_tara_money_configured():
         return _checkout_cart_with_tara(db, user, rows, order_level_installments)
     return _checkout_cart_mock(db, user, rows, order_level_installments)
 
 
+def checkout_student_payment(
+    db: Session,
+    user: UserRecord,
+    payment_id: int,
+    payment_provider: str | None = None,
+) -> CheckoutResponse:
+    payment = db.get(PaymentRecord, payment_id)
+    if payment is None:
+        raise HTTPException(status_code=404, detail="Paiement introuvable.")
+
+    order = db.scalar(select(OrderRecord).where(OrderRecord.reference == payment.order_reference))
+    if order is None or order.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Paiement introuvable.")
+
+    refresh_payment_states(db, order_reference=order.reference)
+    db.flush()
+    payment = db.get(PaymentRecord, payment_id)
+    if payment is None:
+        raise HTTPException(status_code=404, detail="Paiement introuvable.")
+
+    if payment.status == "confirmed":
+        return CheckoutResponse(
+            message="Cette échéance est déjà confirmée.",
+            redirect_path="/espace/etudiant/paiements",
+            processed_items=1,
+            order_references=[order.reference],
+        )
+    if payment.status == "cancelled":
+        raise HTTPException(status_code=400, detail="Cette échéance a été annulée.")
+
+    if payment_provider == "stripe":
+        if not is_stripe_configured():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Stripe n'est pas configuré sur ce serveur.",
+            )
+        tranche_label = (
+            f"versement {payment.installment_number}"
+            if payment.installment_number is not None
+            else "paiement"
+        )
+        try:
+            session_url = create_stripe_checkout_session(
+                order_references=[order.reference],
+                line_items=[
+                    build_stripe_line_item(
+                        name=f"{order.formation_title} - {tranche_label}",
+                        amount=payment.amount,
+                        currency=payment.currency,
+                    )
+                ],
+                success_url=build_stripe_success_url(settings.frontend_url),
+                cancel_url=build_stripe_cancel_url(settings.frontend_url),
+                customer_email=user.email,
+                payment_ids=[payment.id],
+            )
+        except Exception as error:
+            db.rollback()
+            raise HTTPException(status_code=502, detail=f"Stripe: {error}") from error
+
+        payment.provider_code = "stripe"
+        payment.provider_checkout_url = session_url
+        if payment.status == "failed":
+            payment.status = "pending"
+        db.add(payment)
+        db.commit()
+        return CheckoutResponse(
+            message="Paiement Stripe initié pour cette échéance.",
+            redirect_path="/espace/etudiant/paiements",
+            external_redirect_url=session_url,
+            payment_provider="stripe",
+            processed_items=1,
+            order_references=[order.reference],
+        )
+
+    formation = db.get(FormationRecord, order.formation_id) if order.formation_id is not None else None
+    picture_url = formation.image if formation is not None and formation.image else "/logo_academie_hd.png"
+    if picture_url.startswith("/"):
+        picture_url = f"{settings.backend_public_url}{picture_url}"
+
+    if is_tara_money_configured():
+        product_id = build_tara_payment_product_id([payment.id])
+        tranche_label = (
+            f"tranche {payment.installment_number}"
+            if payment.installment_number is not None
+            else "paiement"
+        )
+        try:
+            payment_links = create_tara_payment_link(
+                product_id=product_id,
+                product_name=f"{order.formation_title} - {tranche_label}",
+                product_price=payment.amount,
+                product_description=(
+                    f"Règlement de la {tranche_label} pour {order.formation_title}."
+                ),
+                product_picture_url=picture_url,
+                return_url=build_tara_return_url([order.reference]),
+                webhook_url=build_tara_webhook_url(),
+            )
+        except ValueError as error:
+            db.rollback()
+            raise HTTPException(status_code=502, detail=str(error)) from error
+
+        checkout_url = payment_links.preferred_redirect_url()
+        payment.provider_code = "tara_money"
+        payment.provider_payment_id = product_id
+        payment.provider_checkout_url = checkout_url
+        if payment.status == "failed":
+            payment.status = "pending"
+        db.add(payment)
+        db.commit()
+        return CheckoutResponse(
+            message="Lien de paiement Tara Money généré pour cette échéance.",
+            redirect_path="/espace/etudiant/paiements",
+            external_redirect_url=checkout_url,
+            payment_provider="tara_money",
+            processed_items=1,
+            order_references=[order.reference],
+            payment_links={
+                "whatsapp_link": payment_links.whatsapp_link,
+                "telegram_link": payment_links.telegram_link,
+                "dikalo_link": payment_links.dikalo_link,
+                "sms_link": payment_links.sms_link,
+            },
+        )
+
+    payment.provider_code = "mock_checkout"
+    payment.status = "confirmed"
+    payment.paid_at = utc_now()
+    db.add(payment)
+    db.flush()
+    refresh_payment_states(db, order_reference=order.reference)
+    sync_order_enrollment_access(db, order.reference)
+    db.commit()
+    send_order_confirmation_for_orders(db, [order.reference])
+    return CheckoutResponse(
+        message="Échéance confirmée en mode simulation.",
+        redirect_path="/espace/etudiant/paiements",
+        processed_items=1,
+        order_references=[order.reference],
+    )
+
+
 def list_user_enrollments(db: Session, user: UserRecord) -> list[EnrollmentView]:
     rows = db.execute(
-        select(EnrollmentRecord, FormationRecord)
+        select(EnrollmentRecord, FormationRecord, FormationSessionRecord)
         .join(FormationRecord, EnrollmentRecord.formation_id == FormationRecord.id)
+        .outerjoin(FormationSessionRecord, EnrollmentRecord.session_id == FormationSessionRecord.id)
         .where(
             EnrollmentRecord.user_id == user.id,
             EnrollmentRecord.status.in_(("active", "completed")),
         )
         .order_by(EnrollmentRecord.created_at.desc())
     ).all()
+    teacher_cache: dict[str, AssignedTeacherView | None] = {}
     return [
-        _serialize_enrollment(db, enrollment, formation, user.student_code)
-        for enrollment, formation in rows
+        _serialize_enrollment(
+            db,
+            enrollment,
+            formation,
+            user.student_code,
+            session=session,
+            teacher_cache=teacher_cache,
+        )
+        for enrollment, formation, session in rows
     ]
 
 
@@ -849,7 +1399,8 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
                     OrderRecord.user_id == user.id,
                     OrderRecord.customer_name == user.full_name,
                     PaymentRecord.payer_name == user.full_name,
-                )
+                ),
+                PaymentRecord.status != "cancelled",
             )
             .order_by(func.coalesce(PaymentRecord.paid_at, PaymentRecord.created_at).desc())
         ).all()
@@ -872,27 +1423,21 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
                 action_label = "Accéder à mon espace"
                 action_path = "/espace/etudiant"
                 created_at = combine_date_to_utc(payment.paid_at or payment.created_at)
-            elif payment.status == "late":
-                title = "Échéance en retard"
-                message = (
-                    f"{due_prefix}le paiement de {format_fcfa(payment.amount) or f'{payment.amount} FCFA'} "
-                    f"pour {formation_title} est en retard."
-                )
-                tone = "warning"
-                action_label = "Voir mes notifications"
-                action_path = "/notifications"
-                created_at = combine_date_to_utc(day=payment.due_date or today)
             elif payment.status == "pending" and payment.due_date is not None and payment.due_date <= today:
-                title = "Échéance aujourd'hui"
+                title = "Paiement à régler"
                 message = (
                     f"{due_prefix}le paiement de {format_fcfa(payment.amount) or f'{payment.amount} FCFA'} "
-                    f"pour {formation_title} doit être régularisé aujourd'hui."
+                    f"pour {formation_title} est disponible au règlement."
                 )
                 tone = "warning"
                 action_label = "Voir mes notifications"
                 action_path = "/notifications"
                 created_at = combine_date_to_utc(day=payment.due_date)
-            elif payment.status == "pending" and payment_due_label(payment) == "Echeance proche":
+            elif (
+                payment.status == "pending"
+                and (due_label := payment_due_label(payment)) is not None
+                and (due_label == "Demain" or due_label.startswith("Dans "))
+            ):
                 title = "Échéance à venir"
                 message = (
                     f"{due_prefix}le paiement de {format_fcfa(payment.amount) or f'{payment.amount} FCFA'} "
@@ -1042,9 +1587,6 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
         pending_payments = db.scalar(
             select(func.count()).select_from(PaymentRecord).where(PaymentRecord.status == "pending")
         ) or 0
-        late_payments = db.scalar(
-            select(func.count()).select_from(PaymentRecord).where(PaymentRecord.status == "late")
-        ) or 0
         confirmed_revenue = db.scalar(
             select(func.coalesce(func.sum(PaymentRecord.amount), 0)).where(
                 PaymentRecord.status == "confirmed"
@@ -1067,10 +1609,9 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
                     id="admin-pending-payments",
                     title="Paiements a surveiller",
                     message=(
-                        f"{pending_payments} paiement(s) en attente et {late_payments} en retard "
-                        "necessitent un suivi."
+                        f"{pending_payments} paiement(s) en attente necessitent un suivi."
                     ),
-                    tone="warning" if pending_payments > 0 or late_payments > 0 else "info",
+                    tone="warning" if pending_payments > 0 else "info",
                     category="admin",
                     created_at=utc_now(),
                     action_label="Voir les paiements",

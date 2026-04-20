@@ -1,8 +1,8 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { IconType } from "react-icons";
+import "./accordeon.css";
 import {
-  FaClipboardCheck,
   FaBolt,
   FaBoxOpen,
   FaChalkboardTeacher,
@@ -10,7 +10,6 @@ import {
   FaChevronRight,
   FaClock,
   FaCrown,
-  FaFileAlt,
   FaFire,
   FaGraduationCap,
   FaImage,
@@ -18,52 +17,89 @@ import {
   FaQuoteLeft,
   FaRegHeart,
   FaRegStar,
-  FaRocket,
   FaShoppingCart,
   FaStar,
   FaTags,
   FaUserPlus,
-  FaUsers,
   FaWhatsapp,
+  FaChevronDown,
+  FaPenNib,
+  FaUsers,
+  FaRocket,
+  FaRegCheckCircle,
+  FaArrowRight,
+  FaRegArrowAltCircleRight,
 } from "react-icons/fa";
-import { MdOutlineGroup } from "react-icons/md";
-import { FaRegArrowAltCircleRight } from "react-icons/fa";
-import { FaArrowRight } from "react-icons/fa";
+import { MdOutlineGroup, MdPlace } from "react-icons/md";
 import { HiTrophy } from "react-icons/hi2";
-
+import { RiFileCheckLine } from "react-icons/ri";
+import { LuCircleGauge } from "react-icons/lu";
+import { HiOutlineLightningBolt } from "react-icons/hi";
+import { LuGraduationCap } from "react-icons/lu";
 
 import { useAuth } from "../auth/AuthContext";
 import { useCart } from "../cart/CartContext";
-import {
-  getFormationPath,
-  albumItems,
-  badgeLevels,
-  testimonials,
-  videos,
-  type CourseBadge,
-} from "../data/ecommerceHomeData";
 import { useFavorites } from "../favorites/FavoritesContext";
 import {
   type CatalogFormation,
+  type CourseBadge,
   fetchPublicFormations,
+  getFormationPath,
   mapCatalogFormationToCourse,
 } from "../lib/catalogApi";
+import { getUserActionErrorMessage, USER_MESSAGES } from "../lib/userMessages";
 import {
-  getUserActionErrorMessage,
-  USER_MESSAGES,
-} from "../lib/userMessages";
+  EMPTY_SITE_CONTENT,
+  fetchPublicSiteContent,
+  type SiteContent,
+} from "../lib/siteContentApi";
 import { useToast } from "../toast/ToastContext";
 import { fetchFeaturedPosts, type BlogPost } from "../lib/blogApi";
+
+const items = [
+  {
+    title: "Des projets concrets, pas de théorie inutile",
+    content:
+      "Travaille directement sur des cas réels en Design graphique, UI/UX, Marketing Digital , Dev web/Mobile, Branding et bien d'autres pour développer des compétences utilisables immédiatement.",
+    icon: FaPenNib,
+  },
+  {
+    title: "Apprends avec des créatifs en activité",
+    content:
+      "Tu es guidé par des professionnels qui vivent déjà de leur métier et partagent des méthodes concrètes, pas de la théorie académique.",
+    icon: FaRegCheckCircle,
+  },
+  {
+    title: "Un accompagnement structuré",
+    content:
+      "Progresse à ton rythme avec un suivi réel et une communauté active qui te pousse à aller plus loin.",
+    icon: FaUsers,
+  },
+  {
+    title: "Un vrai tremplin vers des revenus",
+    content:
+      "Construis un portfolio solide et développe des compétences qui te permettent de décrocher des clients ou un emploi.",
+    icon: FaRocket,
+  },
+];
 
 function catClass(category: string): string {
   const c = category.toLowerCase();
   if (c.includes("freelance")) return "blog-cat-badge--freelance";
   if (c.includes("design")) return "blog-cat-badge--design";
-  if (c.includes("découv") || c.includes("decouv")) return "blog-cat-badge--decouverte";
+  if (c.includes("découv") || c.includes("decouv"))
+    return "blog-cat-badge--decouverte";
   if (c.includes("marketing")) return "blog-cat-badge--marketing";
-  if (c.includes("vidéo") || c.includes("video") || c.includes("motion")) return "blog-cat-badge--video";
-  if (c.includes("no-code") || c.includes("nocode")) return "blog-cat-badge--nocode";
-  if (c.includes("ia") || c.includes("intelligence") || c.includes("artificielle")) return "blog-cat-badge--ia";
+  if (c.includes("vidéo") || c.includes("video") || c.includes("motion"))
+    return "blog-cat-badge--video";
+  if (c.includes("no-code") || c.includes("nocode"))
+    return "blog-cat-badge--nocode";
+  if (
+    c.includes("ia") ||
+    c.includes("intelligence") ||
+    c.includes("artificielle")
+  )
+    return "blog-cat-badge--ia";
   return "blog-cat-badge--default";
 }
 
@@ -85,13 +121,7 @@ function getCounterParts(value: string) {
   };
 }
 
-function AnimatedCounter({
-  start,
-  value,
-}: {
-  start: boolean;
-  value: string;
-}) {
+function AnimatedCounter({ start, value }: { start: boolean; value: string }) {
   const [displayValue, setDisplayValue] = useState(0);
   const { prefix, suffix, target } = getCounterParts(value);
 
@@ -145,6 +175,7 @@ function AnimatedCounter({
 function renderStars(rating: number) {
   return Array.from({ length: 5 }, (_, index) => {
     const starValue = index + 1;
+
     if (rating >= starValue) {
       return <FaStar key={starValue} className="filled" />;
     }
@@ -184,7 +215,9 @@ function badgeContent(badge: CourseBadge) {
   );
 }
 
-function sortFeaturedCourses<T extends { homeFeatureRank?: number }>(courses: T[]) {
+function sortFeaturedCourses<T extends { homeFeatureRank?: number }>(
+  courses: T[],
+) {
   return [...courses].sort(
     (left, right) =>
       (left.homeFeatureRank ?? 100) - (right.homeFeatureRank ?? 100),
@@ -230,7 +263,7 @@ const heroSlides: HeroSlide[] = [
     navLabel: "Formations",
     title: (
       <>
-        Apprends le design par <span>la pratique guidée.</span>
+        Apprends les métiers du digital par <span>la pratique</span>
       </>
     ),
     description:
@@ -340,22 +373,22 @@ const heroCounters = [
   {
     value: "+2000",
     copy: "apprenants accompagnés sur des parcours créatifs et digitaux.",
-    icon: FaGraduationCap,
+    icon: LuGraduationCap,
   },
   {
     value: "+20",
     copy: "bootcamps, ateliers et masterclasses menés avec la communauté.",
-    icon: FaBolt,
+    icon: HiOutlineLightningBolt,
   },
   {
     value: "24h",
     copy: "pour donner une première orientation claire et exploitable.",
-    icon: FaClock,
+    icon: LuCircleGauge,
   },
   {
     value: "5",
     copy: "étapes pour cadrer un parcours de progression utile et concret.",
-    icon: HiTrophy,
+    icon: RiFileCheckLine,
   },
 ];
 
@@ -367,36 +400,58 @@ export default function HomePage() {
   const { success, error } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+
   const [statsVisible, setStatsVisible] = useState(false);
-  const [catalogFormations, setCatalogFormations] = useState<CatalogFormation[]>([]);
+  const [catalogFormations, setCatalogFormations] = useState<
+    CatalogFormation[]
+  >([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState("");
+  const [siteContent, setSiteContent] =
+    useState<SiteContent>(EMPTY_SITE_CONTENT);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [blogError, setBlogError] = useState("");
   const [workingCartSlug, setWorkingCartSlug] = useState<string | null>(null);
-  const [workingFavoriteSlug, setWorkingFavoriteSlug] = useState<string | null>(null);
+  const [workingFavoriteSlug, setWorkingFavoriteSlug] = useState<string | null>(
+    null,
+  );
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState<number | null>(0);
   const [albumItemsPerPage, setAlbumItemsPerPage] = useState(() =>
-    typeof window !== "undefined" && window.matchMedia("(max-width: 600px)").matches ? 1 : 3,
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 600px)").matches
+      ? 1
+      : 3,
   );
   const [activeAlbumPage, setActiveAlbumPage] = useState(0);
 
-  const featuredCourses = (
-    sortFeaturedCourses(
-      catalogFormations
-        .filter((formation) => formation.is_featured_home)
-        .map((formation) => mapCatalogFormationToCourse(formation)),
-    )
+  const toggle = (index: number) => {
+    setActiveIndex((current) => (current === index ? null : index));
+  };
+
+  const featuredCourses = sortFeaturedCourses(
+    catalogFormations
+      .filter((formation) => formation.is_featured_home)
+      .map((formation) => mapCatalogFormationToCourse(formation)),
   );
 
   const featuredOnlineCourses = featuredCourses.filter(
     (course) => course.formatType !== "presentiel",
   );
+
   const featuredPresentielCourses = featuredCourses.filter(
     (course) => course.formatType === "presentiel",
   );
+
+  const albumItems = siteContent.album_items;
+  const videos = siteContent.videos;
+  const testimonials = siteContent.testimonials;
+  const badgeLevels = siteContent.badge_levels;
   const activeSlide = heroSlides[activeSlideIndex];
-  const albumPageCount = Math.ceil(albumItems.length / albumItemsPerPage);
+  const albumPageCount = Math.max(
+    1,
+    Math.ceil(albumItems.length / albumItemsPerPage),
+  );
   const visibleAlbumItems = albumItems.slice(
     activeAlbumPage * albumItemsPerPage,
     activeAlbumPage * albumItemsPerPage + albumItemsPerPage,
@@ -406,7 +461,9 @@ export default function HomePage() {
     if (!user) {
       error(USER_MESSAGES.authRequired);
       navigate("/login", {
-        state: { from: `${location.pathname}${location.search}${location.hash}` },
+        state: {
+          from: `${location.pathname}${location.search}${location.hash}`,
+        },
       });
       return false;
     }
@@ -420,7 +477,11 @@ export default function HomePage() {
     return true;
   };
 
-  const handleAddToCart = async (slug: string, canPurchase = true, purchaseMessage?: string | null) => {
+  const handleAddToCart = async (
+    slug: string,
+    canPurchase = true,
+    purchaseMessage?: string | null,
+  ) => {
     if (!canPurchase) {
       error(purchaseMessage ?? "Inscriptions closes pour cette formation.");
       return;
@@ -521,6 +582,26 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
+    fetchPublicSiteContent()
+      .then((content) => {
+        if (isMounted) {
+          setSiteContent(content);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setSiteContent(EMPTY_SITE_CONTENT);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     fetchFeaturedPosts()
       .then(setBlogPosts)
       .catch(() => setBlogError("Erreur lors du chargement des articles."));
@@ -560,9 +641,12 @@ export default function HomePage() {
 
   useEffect(() => {
     setActiveAlbumPage((current) =>
-      Math.min(current, Math.max(0, Math.ceil(albumItems.length / albumItemsPerPage) - 1)),
+      Math.min(
+        current,
+        Math.max(0, Math.ceil(albumItems.length / albumItemsPerPage) - 1),
+      ),
     );
-  }, [albumItemsPerPage]);
+  }, [albumItems.length, albumItemsPerPage]);
 
   const goToPreviousSlide = () => {
     setActiveSlideIndex((current) =>
@@ -575,12 +659,20 @@ export default function HomePage() {
   };
 
   const goToPreviousAlbum = () => {
+    if (albumItems.length === 0) {
+      return;
+    }
+
     setActiveAlbumPage((current) =>
       current === 0 ? albumPageCount - 1 : current - 1,
     );
   };
 
   const goToNextAlbum = () => {
+    if (albumItems.length === 0) {
+      return;
+    }
+
     setActiveAlbumPage((current) => (current + 1) % albumPageCount);
   };
 
@@ -599,11 +691,15 @@ export default function HomePage() {
             />
           ))}
         </div>
+
         <div className="hero-slider__shade" aria-hidden="true" />
 
         <div className="hero-slider__shell">
           <div className="hero-slider__main">
-            <div className="hero-slider__rail" aria-label="Navigation du slider">
+            <div
+              className="hero-slider__rail"
+              aria-label="Navigation du slider"
+            >
               {heroSlides.map((slide, index) => (
                 <button
                   key={slide.navLabel}
@@ -616,15 +712,26 @@ export default function HomePage() {
                   <span className="hero-slider__rail-index">
                     {String(index + 1).padStart(2, "0")}
                   </span>
-                  <span className="hero-slider__rail-label">{slide.navLabel}</span>
+                  <span className="hero-slider__rail-label">
+                    {slide.navLabel}
+                  </span>
                 </button>
               ))}
             </div>
 
-            <div className="hero-slider__copy" aria-live="polite" key={activeSlide.navLabel}>
-              <p className="hero-slider__eyebrow"><img src="assets/logo_ico_hd.png" alt="" className="ico-logo" /> {activeSlide.eyebrow}</p>
+            <div
+              className="hero-slider__copy"
+              aria-live="polite"
+              key={activeSlide.navLabel}
+            >
+              <p className="hero-slider__eyebrow">
+                <img src="assets/logo_ico_hd.png" alt="" className="ico-logo" />{" "}
+                {activeSlide.eyebrow}
+              </p>
               <h1>{activeSlide.title}</h1>
-              <p className="hero-slider__description">{activeSlide.description}</p>
+              <p className="hero-slider__description">
+                {activeSlide.description}
+              </p>
 
               <div className="hero-slider__actions">
                 {activeSlide.actions.map((action) => {
@@ -668,7 +775,11 @@ export default function HomePage() {
             >
               <FaChevronLeft />
             </button>
-            <button aria-label="Slide suivant" type="button" onClick={goToNextSlide}>
+            <button
+              aria-label="Slide suivant"
+              type="button"
+              onClick={goToNextSlide}
+            >
               <FaChevronRight />
             </button>
           </div>
@@ -699,34 +810,58 @@ export default function HomePage() {
         <div className="apropo-contenair">
           <div className="partie-haute">
             <div className="partie-gauche">
-              <h3>Préparez-vous à développer</h3>
-              <h2>votre potentiel créatif</h2>
-              <p className="apropos-intro-text">
-                L'Académie des Créatifs met l'accent sur une formation pratique et
-                axée sur les compétences réelles du marché. Son approche
-                pédagogique vise à transformer les passionnés en professionnels
-                suivant un processus structuré et efficace.
-              </p>
-              <p>
-                Notre approche de pépinière de talents offre un parcours
-                interactif avec des projets concrets pour une évolution à votre
-                rythme.
-              </p>
-              <p>
-                Découvrez nos modules en graphisme, branding, UI/UX, packaging ou
-                web design, conçus par des professionnels passionnés.
-              </p>
-              <p>
-                Centralisez votre apprentissage et propulsez votre carrière via
-                notre plateforme unique, pour révéler votre potentiel artistique.
-              </p>
+              <h3>L'académie des créatifs</h3>
+              <h2>
+                Une méthode concrète pour transformer ton talent en revenus
+              </h2>
+
+              <div className="accordion academy-accordion">
+                {items.map((item, index) => {
+                  const ItemIcon = item.icon;
+                  const isActive = activeIndex === index;
+
+                  return (
+                    <div
+                      key={index}
+                      className={`academy-accordion__item ${isActive ? "is-active" : ""}`}
+                    >
+                      <button
+                        className="academy-accordion__header"
+                        type="button"
+                        onClick={() => toggle(index)}
+                        aria-expanded={isActive}
+                      >
+                        <div className="academy-accordion__left">
+                          <div className="academy-accordion__icon">
+                            <ItemIcon />
+                          </div>
+
+                          <div className="academy-accordion__divider" />
+
+                          <h4 className="academy-accordion__title">
+                            {item.title}
+                          </h4>
+                        </div>
+
+                        <div className="academy-accordion__toggle">
+                          <FaChevronDown />
+                        </div>
+                      </button>
+
+                      <div className="academy-accordion__content">
+                        <div className="academy-accordion__content-inner">
+                          <div className="academy-accordion__content-line" />
+                          <p>{item.content}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="rext-mobile">
-              <p>
-                L'Académie des Créatifs met l'accent sur une formation pratique et
-                axée sur les compétences réelles du marché.
-              </p>
+              <p></p>
             </div>
 
             <div className="partie-droite">
@@ -739,11 +874,14 @@ export default function HomePage() {
       <section id="banniere-prog">
         <div className="banniere-contenair">
           <div className="banniere-cote-gauche">
-            <img src="/SVG/text-bienvenue.svg" alt="Programmes Académie des Créatifs" />
+            <img
+              src="/SVG/text-bienvenue.svg"
+              alt="Programmes Académie des Créatifs"
+            />
             <p>
-              Chaque année, plusieurs de nos programmes sont lancés pour vous aider
-              à vous surpasser, apprendre avec les meilleurs et compétir avec les
-              autres membres de la communauté créative.
+              Chaque année, plusieurs de nos programmes sont lancés pour vous
+              aider à vous surpasser, apprendre avec les meilleurs et compétir
+              avec les autres membres de la communauté créative.
             </p>
             <a className="btn-prog" href="/#form-en-ligne">
               <FaBolt />
@@ -752,7 +890,10 @@ export default function HomePage() {
           </div>
 
           <div className="banniere-cote-droite">
-            <img src="/SVG/logo-prog-4.svg" alt="Programmes Académie des Créatifs" />
+            <img
+              src="/SVG/logo-prog-4.svg"
+              alt="Programmes Académie des Créatifs"
+            />
           </div>
         </div>
       </section>
@@ -791,6 +932,7 @@ export default function HomePage() {
                       >
                         <FaRegHeart />
                       </button>
+
                       {course.sessionLabel ? (
                         <div className="session-badge">
                           <FaClock />
@@ -801,20 +943,28 @@ export default function HomePage() {
 
                     <div className="card-content">
                       <h3 className="card-title">{course.title}</h3>
+
                       <div className="card-instructor">
                         <FaChalkboardTeacher />
                         <span>{course.level}</span>
                       </div>
 
                       <div className="card-rating">
-                        <div className="stars">{renderStars(course.rating)}</div>
-                        <span className="review-count">({course.reviews} avis)</span>
+                        <div className="stars">
+                          {renderStars(course.rating)}
+                        </div>
+                        <span className="review-count">
+                          ({course.reviews} avis)
+                        </span>
                       </div>
 
                       <div className="card-meta-row">
                         <div className="card-platforms">
                           <span className="platform-label">Plateforme :</span>
-                          <img src="/Microsoft_Office_Teams.webp" alt="Microsoft Teams" />
+                          <img
+                            src="/Microsoft_Office_Teams.webp"
+                            alt="Microsoft Teams"
+                          />
                           <img src="/whatsapp.png" alt="WhatsApp" />
                         </div>
 
@@ -829,15 +979,20 @@ export default function HomePage() {
 
                       <div className="card-footer">
                         <div className="price-block">
-                          <span className="old-price">{course.originalPrice ?? ""}</span>
+                          <span className="old-price">
+                            {course.originalPrice ?? ""}
+                          </span>
                           <span
                             className={
-                              hasPromo ? "current-price price-promo" : "current-price"
+                              hasPromo
+                                ? "current-price price-promo"
+                                : "current-price"
                             }
                           >
                             {course.currentPrice}
                           </span>
                         </div>
+
                         <div className="card-footer-actions">
                           {course.canPurchase === false ? null : (
                             <button
@@ -846,16 +1001,26 @@ export default function HomePage() {
                               type="button"
                               disabled={
                                 workingCartSlug === course.slug ||
-                                cart.items.some((item) => item.formation_slug === course.slug)
+                                cart.items.some(
+                                  (item) => item.formation_slug === course.slug,
+                                )
                               }
                               onClick={() => {
-                                void handleAddToCart(course.slug, course.canPurchase, course.purchaseMessage);
+                                void handleAddToCart(
+                                  course.slug,
+                                  course.canPurchase,
+                                  course.purchaseMessage,
+                                );
                               }}
                             >
                               <FaShoppingCart />
                             </button>
                           )}
-                          <Link className="btn-card-action" to={getFormationPath(course.slug)}>
+
+                          <Link
+                            className="btn-card-action"
+                            to={getFormationPath(course.slug)}
+                          >
                             Voir
                           </Link>
                         </div>
@@ -912,6 +1077,7 @@ export default function HomePage() {
                       >
                         <FaRegHeart />
                       </button>
+
                       {course.sessionLabel ? (
                         <div className="session-badge">
                           <FaClock />
@@ -922,21 +1088,27 @@ export default function HomePage() {
 
                     <div className="card-content">
                       <h3 className="card-title">{course.title}</h3>
+
                       <div className="card-instructor">
                         <FaChalkboardTeacher />
                         <span>{course.level}</span>
                       </div>
 
                       <div className="card-rating">
-                        <div className="stars">{renderStars(course.rating)}</div>
-                        <span className="review-count">({course.reviews} avis)</span>
+                        <div className="stars">
+                          {renderStars(course.rating)}
+                        </div>
+                        <span className="review-count">
+                          ({course.reviews} avis)
+                        </span>
                       </div>
 
                       <div className="card-meta-row">
                         <div className="card-platforms">
-                          <span className="platform-label">Plateforme :</span>
-                          <img src="/Microsoft_Office_Teams.webp" alt="Microsoft Teams" />
-                          <img src="/whatsapp.png" alt="WhatsApp" />
+                          <span className="platform-label">
+                            <MdPlace className="icon-place" />
+                          </span>
+                          <p>Douala</p>
                         </div>
 
                         <div className="badges-column">
@@ -950,15 +1122,20 @@ export default function HomePage() {
 
                       <div className="card-footer">
                         <div className="price-block">
-                          <span className="old-price">{course.originalPrice ?? ""}</span>
+                          <span className="old-price">
+                            {course.originalPrice ?? ""}
+                          </span>
                           <span
                             className={
-                              hasPromo ? "current-price price-promo" : "current-price"
+                              hasPromo
+                                ? "current-price price-promo"
+                                : "current-price"
                             }
                           >
                             {course.currentPrice}
                           </span>
                         </div>
+
                         <div className="card-footer-actions">
                           {course.canPurchase === false ? null : (
                             <button
@@ -967,16 +1144,26 @@ export default function HomePage() {
                               type="button"
                               disabled={
                                 workingCartSlug === course.slug ||
-                                cart.items.some((item) => item.formation_slug === course.slug)
+                                cart.items.some(
+                                  (item) => item.formation_slug === course.slug,
+                                )
                               }
                               onClick={() => {
-                                void handleAddToCart(course.slug, course.canPurchase, course.purchaseMessage);
+                                void handleAddToCart(
+                                  course.slug,
+                                  course.canPurchase,
+                                  course.purchaseMessage,
+                                );
                               }}
                             >
                               <FaShoppingCart />
                             </button>
                           )}
-                          <Link className="btn-card-action" to={getFormationPath(course.slug)}>
+
+                          <Link
+                            className="btn-card-action"
+                            to={getFormationPath(course.slug)}
+                          >
                             Voir
                           </Link>
                         </div>
@@ -997,6 +1184,7 @@ export default function HomePage() {
             )}
           </div>
         </div>
+
         <div className="home-formations-cta">
           <Link to="/formations" className="home-formations-cta__btn">
             Voir toutes nos formations
@@ -1011,85 +1199,24 @@ export default function HomePage() {
             <FaGraduationCap />
             <span>Académie des Créatifs</span>
           </p>
+
           <h2>
-            Nous formons la prochaine génération <span>de créatifs du numérique.</span>
+            Nous formons la prochaine génération{" "}
+            <span>de créatifs du numérique.</span>
           </h2>
+
           <p className="note-info__lead">
-            Design graphique, marketing digital, réseaux sociaux et projets concrets:
-            tu progresses avec un cadre clair, des retours utiles et un accompagnement
-            pensé pour le terrain.
+            Design graphique, marketing digital, réseaux sociaux et projets
+            concrets: tu progresses avec un cadre clair, des retours utiles et
+            un accompagnement pensé pour le terrain.
           </p>
+
           <a className="note-info__cta" href="/diagnostic">
             <span>Démarrer mon diagnostic</span>
             <FaArrowRight />
           </a>
         </div>
       </section>
-
-      {/* revert temporary album editorial variant
-        <div className="album-container">
-          <div className="album-editorial-head">
-            <div className="album-editorial-copy">
-              <span className="album-editorial-eyebrow">Galerie immersive</span>
-              <h2>L'AcadÃ©mie des CrÃ©atifs en image</h2>
-              <p>
-                Ateliers, travaux pratiques, coaching et soutenances: une lecture
-                plus Ã©ditoriale de la vie Ã  l'AcadÃ©mie, pensÃ©e comme un carnet
-                visuel plutÃ´t qu'une simple galerie de photos.
-              </p>
-            </div>
-
-            <div className="album-editorial-note">
-              <span>90% pratique</span>
-              <p>
-                Une formation oÃ¹ les projets, les restitutions et les temps
-                d'atelier occupent le coeur de l'expÃ©rience.
-              </p>
-            </div>
-          </div>
-
-          <div className="album-editorial-layout">
-            {albumFeature ? (
-              <article className="album-editorial-feature">
-                <img src={albumFeature.image} alt={albumFeature.title} />
-                <div className="album-editorial-feature__overlay" />
-                <div className="album-editorial-feature__content">
-                  <span className="album-editorial-chip">Temps fort</span>
-                  <h3>{albumFeature.title}</h3>
-                  <p>
-                    Un aperÃ§u des moments qui donnent du relief Ã 
-                    l'apprentissage: accompagnement, immersion et restitution.
-                  </p>
-                </div>
-              </article>
-            ) : null}
-
-            <div className="album-editorial-grid">
-              {albumGridItems.map((item) => (
-                <article className="album-editorial-card" key={item.title}>
-                  <img src={item.image} alt={item.title} />
-                  <div className="album-editorial-card__overlay" />
-                  <div className="album-editorial-card__content">
-                    <h3>{item.title}</h3>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-
-          <div className="album-editorial-strip">
-            {albumStripItems.map((item) => (
-              <article className="album-editorial-strip__item" key={item.title}>
-                <img src={item.image} alt={item.title} />
-                <div className="album-editorial-strip__overlay" />
-                <div className="album-editorial-strip__content">
-                  <h3>{item.title}</h3>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section> */}
 
       <section id="album">
         <div className="album-container">
@@ -1102,7 +1229,10 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="album-carousel" aria-label="Galerie photo de l'Académie des Créatifs">
+          <div
+            className="album-carousel"
+            aria-label="Galerie photo de l'Académie des Créatifs"
+          >
             <div className="album-carousel__shell">
               <button
                 aria-label="Photo précédente"
@@ -1138,7 +1268,10 @@ export default function HomePage() {
               </button>
             </div>
 
-            <div className="album-carousel__dots" aria-label="Pages de la galerie">
+            <div
+              className="album-carousel__dots"
+              aria-label="Pages de la galerie"
+            >
               {Array.from({ length: albumPageCount }, (_, index) => (
                 <button
                   key={index}
@@ -1227,11 +1360,12 @@ export default function HomePage() {
             <h2>Nos badges de progression</h2>
             <p>
               À l'Académie des Créatifs, chaque étape de votre formation compte.
-              Nos étudiants avancent pas à pas, débloquent des badges en fonction
-              de leur progression, de leur implication et des compétences
-              acquises.
+              Nos étudiants avancent pas à pas, débloquent des badges en
+              fonction de leur progression, de leur implication et des
+              compétences acquises.
             </p>
           </div>
+
           <div className="bg-prog-bas">
             <div className="prog-bas-container">
               {badgeLevels.map((badge) => (
@@ -1262,13 +1396,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── BLOG SECTION ─────────────────────────────────── */}
       <section className="home-blog">
         <div className="home-blog__inner">
           <div className="home-blog__header">
             <p className="home-blog__eyebrow">Le Blog</p>
             <h2>Nos Articles Populaires</h2>
-            <p>Découvrez les sujets qui passionnent notre communauté de créatifs.</p>
+            <p>
+              Découvrez les sujets qui passionnent notre communauté de créatifs.
+            </p>
           </div>
 
           {blogError ? (
@@ -1276,28 +1411,46 @@ export default function HomePage() {
           ) : blogPosts.length === 0 ? (
             <div className="home-blog__grid home-blog__grid--skeleton">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="home-blog-card home-blog-card--skeleton" />
+                <div
+                  key={i}
+                  className="home-blog-card home-blog-card--skeleton"
+                />
               ))}
             </div>
           ) : (
             <div className="home-blog__grid">
               {blogPosts.map((post) => (
-                <Link to={`/blog/${post.slug}`} key={post.slug} className="home-blog-card">
+                <Link
+                  to={`/blog/${post.slug}`}
+                  key={post.slug}
+                  className="home-blog-card"
+                >
                   <div className="home-blog-card__cover">
                     <img src={post.cover_image} alt={post.title} />
-                    <span className={`home-blog-card__cat blog-cat-badge ${catClass(post.category)}`}>{post.category}</span>
+                    <span
+                      className={`home-blog-card__cat blog-cat-badge ${catClass(post.category)}`}
+                    >
+                      {post.category}
+                    </span>
                   </div>
+
                   <div className="home-blog-card__body">
-                    <span className="home-blog-card__date">{post.published_at}</span>
+                    <span className="home-blog-card__date">
+                      {post.published_at}
+                    </span>
                     <h3>{post.title}</h3>
                     <p>{post.excerpt}</p>
+
                     <div className="home-blog-card__footer">
                       {post.reviews_count > 0 && (
                         <span className="home-blog-card__rating">
-                          <FaStar /> {post.rating.toFixed(1)} <em>({post.reviews_count})</em>
+                          <FaStar /> {post.rating.toFixed(1)}{" "}
+                          <em>({post.reviews_count})</em>
                         </span>
                       )}
-                      <span className="home-blog-card__read">Lire la suite →</span>
+                      <span className="home-blog-card__read">
+                        Lire la suite →
+                      </span>
                     </div>
                   </div>
                 </Link>

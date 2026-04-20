@@ -50,12 +50,19 @@ const StudentResultsPage = lazy(() => import("./pages/student/StudentResultsPage
 const StudentPaymentsPage = lazy(() => import("./pages/student/StudentPaymentsPage"));
 const StudentCoursesPage = lazy(() => import("./pages/student/StudentCoursesPage"));
 const StudentProfilePage = lazy(() => import("./pages/student/StudentProfilePage"));
+const TeacherProfilePage = lazy(() => import("./pages/teacher/TeacherProfilePage"));
+const AdminProfilePage = lazy(() => import("./pages/admin/AdminProfilePage"));
+const HelpPage = lazy(() => import("./pages/HelpPage"));
+const PublicHelpPage = lazy(() => import("./pages/PublicHelpPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 
 const AdminBlogPage = lazy(() => import("./pages/admin/AdminBlogPage"));
 const AdminCataloguePage = lazy(() => import("./pages/admin/AdminCataloguePage"));
 const AdminEnrollmentsPage = lazy(() => import("./pages/admin/AdminEnrollmentsPage"));
 const AdminOverviewPage = lazy(() => import("./pages/admin/AdminOverviewPage"));
 const AdminSessionsPage = lazy(() => import("./pages/admin/AdminSessionsPage"));
+const AdminStudentsPage = lazy(() => import("./pages/admin/AdminStudentsPage"));
+const AdminTeachersPage = lazy(() => import("./pages/admin/AdminTeachersPage"));
 const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage"));
 const AdminOrdersPage = lazy(() => import("./pages/admin/AdminOrdersPage"));
 const AdminPaymentsPage = lazy(() => import("./pages/admin/AdminPaymentsPage"));
@@ -89,11 +96,16 @@ export const router = createBrowserRouter([
               { index: true, element: routePage(<AdminOverviewPage />) },
               { path: "catalogue", element: routePage(<AdminCataloguePage />) },
               { path: "sessions", element: routePage(<AdminSessionsPage />) },
-              { path: "utilisateurs", element: routePage(<AdminUsersPage />) },
+              { path: "enseignants", element: routePage(<AdminTeachersPage />) },
+              { path: "etudiants", element: routePage(<AdminStudentsPage />) },
+              { path: "utilisateurs", element: <Navigate replace to="/admin/etudiants" /> },
+              { path: "roles", element: routePage(<AdminUsersPage />) },
               { path: "inscriptions", element: routePage(<AdminEnrollmentsPage />) },
               { path: "commandes", element: routePage(<AdminOrdersPage />) },
               { path: "paiements", element: routePage(<AdminPaymentsPage />) },
               { path: "blog", element: routePage(<AdminBlogPage />) },
+              { path: "profil", element: routePage(<AdminProfilePage />) },
+              { path: "aide", element: routePage(<HelpPage />) },
               {
                 path: "site",
                 element: routePage(<AdminSitePage />),
@@ -130,6 +142,8 @@ export const router = createBrowserRouter([
           { path: "quizz", element: routePage(<TeacherQuizzesPage />) },
           { path: "ressources", element: routePage(<TeacherResourcesPage />) },
           { path: "devoirs", element: routePage(<TeacherAssignmentsPage />) },
+          { path: "profil", element: routePage(<TeacherProfilePage />) },
+          { path: "aide", element: routePage(<HelpPage />) },
           { path: "notifications", element: routePage(<NotificationsPage />) },
         ],
       },
@@ -154,6 +168,7 @@ export const router = createBrowserRouter([
           { path: "resultats", element: routePage(<StudentResultsPage />) },
           { path: "paiements", element: routePage(<StudentPaymentsPage />) },
           { path: "profil", element: routePage(<StudentProfilePage />) },
+          { path: "aide", element: routePage(<HelpPage />) },
           { path: "notifications", element: routePage(<NotificationsPage />) },
           { path: "favoris", element: routePage(<FavoritesPage />) },
           { path: "classic/:enrollmentId", element: routePage(<StudentClassicWorkspacePage />) },
@@ -184,6 +199,7 @@ export const router = createBrowserRouter([
       { path: "blog", element: routePage(<BlogPage />) },
       { path: "blog/:slug", element: routePage(<BlogPostPage />) },
       { path: "diagnostic", element: routePage(<DiagnosticPage />) },
+      { path: "aide", element: routePage(<PublicHelpPage />) },
       { path: "formations", element: routePage(<FormationsPage />) },
       { path: "formations/:slug", element: routePage(<FormationDetailPage />) },
       {
@@ -194,6 +210,7 @@ export const router = createBrowserRouter([
           { path: "espace", element: routePage(<AccountRedirectPage />) },
           { path: "favoris", element: routePage(<FavoritesPage />) },
           { path: "notifications", element: routePage(<NotificationsPage />) },
+          { path: "parametres", element: routePage(<SettingsPage />) },
         ],
       },
       { path: "invitation/enseignant/:token", element: routePage(<TeacherInvitationPage />) },

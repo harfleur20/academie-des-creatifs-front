@@ -10,6 +10,15 @@ import {
   FaShoppingCart,
   FaTimes,
 } from "react-icons/fa";
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  Heart,
+  Bell,
+  Settings,
+  HelpCircle,
+  LogOut,
+} from "lucide-react";
 
 import { useAuth } from "../auth/AuthContext";
 import { useCart } from "../cart/CartContext";
@@ -255,9 +264,11 @@ export default function SiteHeader() {
             <div className="nav-links__footer">
               {user ? (
                 <>
-                  <Link className="nav-links__action nav-links__action--primary" to={user.dashboard_path} onClick={closeMenu}>
-                    Mon espace
-                  </Link>
+                  {user.role !== "guest" && (
+                    <Link className="nav-links__action nav-links__action--primary" to={user.dashboard_path} onClick={closeMenu}>
+                      Mon espace
+                    </Link>
+                  )}
                   <button
                     className="nav-links__action nav-links__action--ghost"
                     type="button"
@@ -331,30 +342,45 @@ export default function SiteHeader() {
                     <div className="profile-menu__profile-info">
                       <strong className="profile-menu__name">{user.full_name}</strong>
                       <span className="profile-menu__email">{user.email}</span>
-                      <span className="profile-menu__role-badge profile-menu__role-badge--{user.role}">
-                        {user.role === "admin" ? "Administrateur" : user.role === "teacher" ? "Enseignant" : "Étudiant"}
+                      <span className={`profile-menu__role-badge profile-menu__role-badge--${user.role}`}>
+                        {user.role === "admin" ? "Administrateur" : user.role === "teacher" ? "Enseignant" : user.role === "guest" ? "Invité" : "Étudiant"}
                       </span>
                     </div>
                   </div>
 
                   <div className="profile-menu__divider" />
 
-                  <Link className="profile-menu__link" to={user.dashboard_path} onClick={() => setIsProfileOpen(false)}>
-                    {user.role === "admin"
-                      ? "Administration"
-                      : user.role === "teacher"
-                        ? "Espace enseignant"
-                        : "Mon espace"}
-                  </Link>
+                  {user.role !== "guest" && (
+                    <Link className="profile-menu__link" to={user.dashboard_path} onClick={() => setIsProfileOpen(false)}>
+                      <span className="profile-menu__link-icon"><LayoutDashboard size={15} /></span>
+                      {user.role === "admin" ? "Administration" : user.role === "teacher" ? "Espace enseignant" : "Mon espace"}
+                    </Link>
+                  )}
                   {user.role === "student" && (
                     <Link className="profile-menu__link" to="/panier" onClick={() => setIsProfileOpen(false)}>
+                      <span className="profile-menu__link-icon"><ShoppingCart size={15} /></span>
                       Mon panier
                     </Link>
                   )}
+                  {user.role === "student" && (
+                    <Link className="profile-menu__link" to="/favoris" onClick={() => setIsProfileOpen(false)}>
+                      <span className="profile-menu__link-icon"><Heart size={15} /></span>
+                      Mes favoris
+                    </Link>
+                  )}
+                  <Link className="profile-menu__link" to="/parametres" onClick={() => setIsProfileOpen(false)}>
+                    <span className="profile-menu__link-icon"><Settings size={15} /></span>
+                    Paramètres
+                  </Link>
+                  <Link className="profile-menu__link" to="/aide" onClick={() => setIsProfileOpen(false)}>
+                    <span className="profile-menu__link-icon"><HelpCircle size={15} /></span>
+                    Aide & support
+                  </Link>
 
                   <div className="profile-menu__divider" />
 
                   <button className="profile-menu__link profile-menu__link--danger" type="button" onClick={() => void handleLogout()}>
+                    <span className="profile-menu__link-icon"><LogOut size={15} /></span>
                     Se déconnecter
                   </button>
                 </div>

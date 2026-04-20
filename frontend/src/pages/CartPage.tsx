@@ -16,6 +16,10 @@ export default function CartPage() {
   const [intentError, setIntentError] = useState("");
   const requestedSlug = searchParams.get("add");
   const closedItems = cart.items.filter((item) => !item.can_purchase);
+  const installmentCount = Math.max(
+    0,
+    ...Object.values(cart.installment_schedules_preview ?? {}).map((schedule) => schedule.length),
+  );
 
   useEffect(() => {
     if (!requestedSlug || isLoading) return;
@@ -205,7 +209,7 @@ export default function CartPage() {
 
             {cart.allow_installments && (
               <p className="cart-summary__installment-hint">
-                Paiement en 3 fois disponible au checkout.
+                Paiement en {installmentCount || 3} tranches disponible au checkout.
               </p>
             )}
 

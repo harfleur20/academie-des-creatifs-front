@@ -1,10 +1,10 @@
-import type { CourseBadge, EcommerceCourse } from "../data/ecommerceHomeData";
 import { apiRequest } from "./apiClient";
 
+export type CourseBadge = "premium" | "populaire" | "promo";
 export type FormationFormat = "live" | "ligne" | "presentiel";
 export type DashboardType = "classic" | "guided";
 export type MarketingBadge = Exclude<CourseBadge, "promo">;
-export type UserRole = "admin" | "teacher" | "student";
+export type UserRole = "admin" | "teacher" | "student" | "guest";
 export type UserStatus = "active" | "suspended";
 export type EnrollmentStatus = "pending" | "active" | "suspended" | "completed" | "cancelled";
 export type SessionStatus = "planned" | "open" | "completed" | "cancelled";
@@ -65,6 +65,26 @@ export type CatalogFormation = {
   rating: number;
   reviews: number;
   badges: CourseBadge[];
+};
+
+export type EcommerceCourse = {
+  id: number;
+  slug: string;
+  title: string;
+  level: string;
+  rating: number;
+  reviews: number;
+  image: string;
+  currentPrice: string;
+  originalPrice?: string;
+  badges?: CourseBadge[];
+  sessionLabel: string;
+  formatType?: FormationFormat;
+  isFeaturedHome?: boolean;
+  homeFeatureRank?: number;
+  canPurchase?: boolean;
+  purchaseMessage?: string | null;
+  sessionState?: string;
 };
 
 export type FormationDetailItem = CatalogFormation & {
@@ -149,6 +169,19 @@ export type AdminOverview = {
   late_payments_count: number;
   total_confirmed_revenue_amount: number;
   total_confirmed_revenue_label: string;
+  missed_course_days_count: number;
+};
+
+export type AdminMissedCourseDay = {
+  id: number;
+  session_id: number;
+  session_label: string;
+  formation_title: string;
+  teacher_name: string;
+  title: string;
+  scheduled_at: string;
+  duration_minutes: number;
+  status: string;
 };
 
 export type AdminUser = {
@@ -200,7 +233,8 @@ export type AdminEnrollment = {
 };
 
 export type AdminEnrollmentUpdatePayload = {
-  status: EnrollmentStatus;
+  status?: EnrollmentStatus;
+  session_id?: number | null;
 };
 
 export type AdminOnsiteSession = {
@@ -274,6 +308,8 @@ export type AdminPayment = {
   installment_number: number | null;
   due_date: string | null;
   provider_code: string;
+  provider_payment_id: string | null;
+  provider_checkout_url: string | null;
   status: PaymentStatus;
   reminder_count: number;
   last_reminded_at: string | null;
@@ -317,6 +353,10 @@ export function mapCatalogFormationToCourse(
     purchaseMessage: formation.purchase_message,
     sessionState: formation.session_state,
   };
+}
+
+export function getFormationPath(slug: string) {
+  return `/formations/${slug}`;
 }
 
 export async function fetchPublicFormations(): Promise<CatalogFormation[]> {
@@ -654,5 +694,19 @@ export async function uploadAdminAsset(file: File): Promise<AdminUploadedAsset> 
       "Content-Type": file.type || "application/octet-stream",
     },
     timeoutMs: 60000,
+  });
+}
+
+export async function fetchAdminMissedCourseDays(): Promise<AdminMissedCourseDay[]> {
+  return apiRequest<AdminMissedCourseDay[]>("/admin/missed-course-days");
+}
+
+export async function patchAdminCourseDayStatus(
+  courseDayId: number,
+  status: "planned" | "done" | "cancelled" | "live",
+): Promise<void> {
+  await apiRequest<void>(`/admin/course-days/${courseDayId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
   });
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { FaAward, FaCheckCircle, FaChevronDown, FaChevronUp, FaRegCircle } from "react-icons/fa";
+import { CalendarCheck, TrendingUp, Layers } from "lucide-react";
 
 import { fetchStudentEnrollments, type Enrollment } from "../lib/commerceApi";
 import {
@@ -11,6 +12,7 @@ import {
   type FormationModule,
 } from "../lib/catalogApi";
 import AiChatWidget from "../components/AiChatWidget";
+import AssignedTeacherCard from "../components/AssignedTeacherCard";
 
 export default function StudentClassicWorkspacePage() {
   const { enrollmentId } = useParams();
@@ -124,6 +126,9 @@ export default function StudentClassicWorkspacePage() {
                 <FaAward /> Mon certificat
               </Link>
             )}
+            {(enrollment.session_id || enrollment.assigned_teacher) && (
+              <AssignedTeacherCard teacher={enrollment.assigned_teacher} />
+            )}
           </div>
         </div>
         <img src={enrollment.image} alt={enrollment.formation_title} />
@@ -131,23 +136,26 @@ export default function StudentClassicWorkspacePage() {
 
       {/* ── KPI row ── */}
       <div className="workspace-grid workspace-grid--classic">
-        <article className="workspace-card">
-          <span>Session</span>
+        <article className="workspace-card workspace-card--blue">
+          <span><CalendarCheck size={14} /> Session</span>
           <strong>{enrollment.session_label || "Accès immédiat"}</strong>
           <p>État du parcours</p>
+          <span className="workspace-card__bg-icon" aria-hidden><CalendarCheck size={52} /></span>
         </article>
-        <article className="workspace-card workspace-card--progress">
-          <span>Progression</span>
+        <article className="workspace-card workspace-card--purple workspace-card--progress">
+          <span><TrendingUp size={14} /> Progression</span>
           <strong style={{ color: pct === 100 ? "#22c55e" : undefined }}>{pct}%</strong>
           <div className="wsp-progress-bar">
             <div className="wsp-progress-bar__fill" style={{ width: `${pct}%` }} />
           </div>
           <p>{completedCount} / {totalLessons} leçon{totalLessons !== 1 ? "s" : ""} complétée{totalLessons !== 1 ? "s" : ""}</p>
+          <span className="workspace-card__bg-icon" aria-hidden><TrendingUp size={52} /></span>
         </article>
-        <article className="workspace-card">
-          <span>Modules</span>
+        <article className="workspace-card workspace-card--green">
+          <span><Layers size={14} /> Modules</span>
           <strong>{modules.length}</strong>
           <p>{modules.reduce((a, m) => a + m.lessons.length, 0)} leçons au total</p>
+          <span className="workspace-card__bg-icon" aria-hidden><Layers size={52} /></span>
         </article>
       </div>
 

@@ -9,6 +9,8 @@ import {
   ClipboardList,
   FolderOpen,
   GraduationCap,
+  Heart,
+  HelpCircle,
   LayoutDashboard,
   LogOut,
   Settings,
@@ -95,8 +97,8 @@ export default function TeacherLayout() {
 
         <div className="dsh-sidebar__bottom">
           <div className="dsh-sidebar__user-pill">
-            <span className="dsh-sidebar__user-avatar" style={{ background: gradient }}>
-              {initials}
+            <span className="dsh-sidebar__user-avatar" style={{ background: user?.avatar_url ? "transparent" : gradient }}>
+              {user?.avatar_url ? <img src={user.avatar_url} alt={initials} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} /> : initials}
             </span>
             <div className="dsh-sidebar__user-info">
               <strong>{fullName}</strong>
@@ -125,8 +127,8 @@ export default function TeacherLayout() {
               onClick={() => setUserMenuOpen((o) => !o)}
               aria-expanded={userMenuOpen}
             >
-              <span className="dsh-topbar__avatar" style={{ background: gradient }}>
-                {initials}
+              <span className="dsh-topbar__avatar" style={{ background: user?.avatar_url ? "transparent" : gradient }}>
+                {user?.avatar_url ? <img src={user.avatar_url} alt={initials} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} /> : initials}
               </span>
               <div className="dsh-topbar__user-info">
                 <strong>{fullName}</strong>
@@ -143,17 +145,22 @@ export default function TeacherLayout() {
                   </span>
                   <div style={{ minWidth: 0 }}>
                     <strong>{fullName}</strong>
-                    <span>{user?.email ?? ""}</span>
+                    <span className="dsh-user-menu__email">{user?.email ?? ""}</span>
+                    <span className="dsh-user-menu__role-badge">Enseignant</span>
                   </div>
                 </div>
                 <div className="dsh-user-menu__items">
-                  <button type="button" className="dsh-user-menu__item">
-                    <Settings size={15} />
-                    Mon profil
+                  <button type="button" className="dsh-user-menu__item" onClick={() => { setUserMenuOpen(false); navigate("/espace/enseignant/profil"); }}>
+                    <span className="dsh-user-menu__item-icon"><Settings size={15} /></span>
+                    Paramètres
+                  </button>
+                  <button type="button" className="dsh-user-menu__item" onClick={() => { setUserMenuOpen(false); navigate("/espace/enseignant/aide"); }}>
+                    <span className="dsh-user-menu__item-icon"><HelpCircle size={15} /></span>
+                    Aide & support
                   </button>
                   <div className="dsh-user-menu__divider" />
                   <button type="button" className="dsh-user-menu__item dsh-user-menu__item--danger" onClick={handleLogout}>
-                    <LogOut size={15} />
+                    <span className="dsh-user-menu__item-icon"><LogOut size={15} /></span>
                     Se déconnecter
                   </button>
                 </div>

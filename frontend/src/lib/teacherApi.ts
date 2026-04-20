@@ -5,8 +5,11 @@ import { apiRequest } from "./apiClient";
 export type TeacherSession = {
   id: number;
   formation_title: string;
+  formation_image?: string;
+  format_type: string;
   label: string;
   start_date: string;
+  end_date: string;
   campus_label: string;
   seat_capacity: number;
   enrolled_count: number;
@@ -364,7 +367,9 @@ export type TeacherProfile = {
   user_id: number;
   full_name: string;
   email: string;
+  teacher_code: string | null;
   whatsapp: string | null;
+  nationality: string | null;
   subject: string | null;
   experience_years: number | null;
   portfolio_url: string | null;
@@ -466,13 +471,164 @@ export type AdminTeacherItem = {
   id: number;
   full_name: string;
   email: string;
+  teacher_code: string | null;
   status: string;
   whatsapp: string | null;
+  nationality: string | null;
   subject: string | null;
   experience_years: number | null;
   portfolio_url: string | null;
   assigned_formations_count: number;
+  assigned_sessions_count: number;
+  students_count: number;
   created_at: string;
+};
+
+export type AdminTeacherActivitySummary = {
+  sessions_count: number;
+  active_sessions_count: number;
+  students_count: number;
+  course_days_count: number;
+  live_events_count: number;
+  courses_count: number;
+  lessons_count: number;
+  resources_count: number;
+  assignments_count: number;
+  submissions_count: number;
+  pending_reviews_count: number;
+  quizzes_count: number;
+  quiz_attempts_count: number;
+  attendance_present_count: number;
+  attendance_late_count: number;
+  attendance_absent_count: number;
+  grades_count: number;
+  average_grade_pct: number | null;
+};
+
+export type AdminTeacherStudentItem = {
+  enrollment_id: number;
+  student_id: number;
+  full_name: string;
+  email: string;
+  student_code: string | null;
+  formation_title: string;
+  formation_slug: string;
+  session_id: number | null;
+  session_label: string | null;
+  enrollment_status: string;
+  progress_pct: number;
+  attendance_count: number;
+  present_count: number;
+  late_count: number;
+  absent_count: number;
+  grades_count: number;
+  average_grade_pct: number | null;
+  submissions_count: number;
+  pending_reviews_count: number;
+  last_activity_at: string | null;
+};
+
+export type AdminTeacherCourseDayAudit = {
+  id: number;
+  title: string;
+  scheduled_at: string;
+  status: string;
+  attendance_count: number;
+  present_count: number;
+  absent_count: number;
+  late_count: number;
+  resource_count: number;
+  assignment_count: number;
+  quiz_count: number;
+};
+
+export type AdminTeacherContentAudit = {
+  id: number;
+  title: string;
+  content_type: string;
+  status: string | null;
+  scheduled_at: string | null;
+  due_date: string | null;
+  submissions_count: number;
+  pending_reviews_count: number;
+  attempts_count: number;
+};
+
+export type AdminTeacherCourseAudit = {
+  id: number;
+  title: string;
+  chapters_count: number;
+  lessons_count: number;
+};
+
+export type AdminTeacherPedagogyAlert = {
+  code: string;
+  level: "info" | "warning" | "critical";
+  label: string;
+  detail: string | null;
+};
+
+export type AdminTeacherPedagogySessionAudit = {
+  session_id: number;
+  formation_title: string;
+  formation_slug: string;
+  session_label: string;
+  session_status: string;
+  start_date: string;
+  end_date: string;
+  students_count: number;
+  course_days_count: number;
+  live_events_count: number;
+  courses_count: number;
+  lessons_count: number;
+  resources_count: number;
+  assignments_count: number;
+  quizzes_count: number;
+  pending_reviews_count: number;
+  alerts: AdminTeacherPedagogyAlert[];
+  course_days: AdminTeacherCourseDayAudit[];
+  courses: AdminTeacherCourseAudit[];
+  contents: AdminTeacherContentAudit[];
+};
+
+export type AdminTeacherCourseDayPage = {
+  items: AdminTeacherCourseDayAudit[];
+  total_count: number;
+  offset: number;
+  limit: number;
+};
+
+export type AdminTeacherDetail = {
+  teacher: AdminTeacherItem;
+  formations: TeacherFormationItem[];
+  sessions: TeacherFullSession[];
+  activity: AdminTeacherActivitySummary;
+  students: AdminTeacherStudentItem[];
+  pedagogy: AdminTeacherPedagogySessionAudit[];
+};
+
+export type AdminTeacherUpdatePayload = {
+  full_name?: string;
+  email?: string;
+  status?: "active" | "suspended";
+  whatsapp?: string | null;
+  nationality?: string | null;
+  subject?: string | null;
+  experience_years?: number | null;
+  portfolio_url?: string | null;
+  bio?: string | null;
+};
+
+export type AdminTeacherQuizStatusPayload = {
+  status: "draft" | "active" | "closed";
+};
+
+export type AdminTeacherResourcePublicationPayload = {
+  published_at: string | null;
+};
+
+export type AdminTeacherAssignmentDueDatePayload = {
+  due_date: string;
 };
 
 export type TeacherInviteView = {
@@ -480,23 +636,107 @@ export type TeacherInviteView = {
   token: string;
   email: string;
   full_name: string;
+  whatsapp: string | null;
+  nationality: string | null;
+  subject: string | null;
+  experience_years: number | null;
+  portfolio_url: string | null;
+  bio: string | null;
   status: string;
   expires_at: string;
   created_at: string;
+};
+
+export type TeacherInvitePayload = {
+  email: string;
+  full_name: string;
+  whatsapp?: string | null;
+  nationality?: string | null;
+  subject?: string | null;
+  experience_years?: number | null;
+  portfolio_url?: string | null;
+  bio?: string | null;
 };
 
 export async function fetchAdminTeachers(): Promise<AdminTeacherItem[]> {
   return apiRequest<AdminTeacherItem[]>("/admin/teachers");
 }
 
+export async function fetchAdminTeacherDetail(teacherId: number): Promise<AdminTeacherDetail> {
+  return apiRequest<AdminTeacherDetail>(`/admin/teachers/${teacherId}/detail`);
+}
+
+export async function fetchAdminTeacherSessionCourseDays(
+  teacherId: number,
+  sessionId: number,
+  options?: { offset?: number; limit?: number },
+): Promise<AdminTeacherCourseDayPage> {
+  const params = new URLSearchParams();
+  if (typeof options?.offset === "number") params.set("offset", String(options.offset));
+  if (typeof options?.limit === "number") params.set("limit", String(options.limit));
+  const query = params.toString();
+  return apiRequest<AdminTeacherCourseDayPage>(
+    `/admin/teachers/${teacherId}/sessions/${sessionId}/course-days${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function updateAdminTeacher(
+  teacherId: number,
+  payload: AdminTeacherUpdatePayload,
+): Promise<AdminTeacherDetail> {
+  return apiRequest<AdminTeacherDetail>(`/admin/teachers/${teacherId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminTeacherQuizStatus(
+  teacherId: number,
+  quizId: number,
+  payload: AdminTeacherQuizStatusPayload,
+): Promise<AdminTeacherDetail> {
+  return apiRequest<AdminTeacherDetail>(`/admin/teachers/${teacherId}/quizzes/${quizId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminTeacherResourcePublication(
+  teacherId: number,
+  resourceId: number,
+  payload: AdminTeacherResourcePublicationPayload,
+): Promise<AdminTeacherDetail> {
+  return apiRequest<AdminTeacherDetail>(`/admin/teachers/${teacherId}/resources/${resourceId}/publication`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminTeacherAssignmentDueDate(
+  teacherId: number,
+  assignmentId: number,
+  payload: AdminTeacherAssignmentDueDatePayload,
+): Promise<AdminTeacherDetail> {
+  return apiRequest<AdminTeacherDetail>(`/admin/teachers/${teacherId}/assignments/${assignmentId}/due-date`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function fetchAdminTeacherInvitations(): Promise<TeacherInviteView[]> {
   return apiRequest<TeacherInviteView[]>("/admin/teachers/invitations");
 }
 
-export async function inviteTeacher(payload: { email: string; full_name: string }): Promise<TeacherInviteView> {
+export async function inviteTeacher(payload: TeacherInvitePayload): Promise<TeacherInviteView> {
   return apiRequest<TeacherInviteView>("/admin/teachers/invite", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function revokeTeacherInvitation(invitationId: number): Promise<TeacherInviteView> {
+  return apiRequest<TeacherInviteView>(`/admin/teachers/invitations/${invitationId}/revoke`, {
+    method: "POST",
   });
 }
 

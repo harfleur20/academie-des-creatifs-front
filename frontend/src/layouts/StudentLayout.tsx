@@ -15,7 +15,6 @@ import {
   LogOut,
   Search,
   Settings,
-  Users,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import NotifBell from "../components/NotifBell";
@@ -39,8 +38,7 @@ const navGroups: NavGroup[] = [
   {
     label: "Ma formation",
     items: [
-      { to: "/espace/etudiant/formations",  label: "Formations en ligne", icon: <BookOpen size={15} /> },
-      { to: "/espace/etudiant/parcours",    label: "Parcours guidés",     icon: <Users size={15} /> },
+      { to: "/espace/etudiant/formations",  label: "Mes parcours", icon: <BookOpen size={15} /> },
       { to: "/espace/etudiant/cours",       label: "Mes cours",           icon: <GraduationCap size={15} /> },
       { to: "/espace/etudiant/quizz",       label: "Quizz",               icon: <HelpCircle size={15} /> },
       { to: "/espace/etudiant/ressources",  label: "Ressources",          icon: <FolderOpen size={15} /> },
@@ -186,8 +184,8 @@ export default function StudentLayout() {
 
         <div className="dsh-sidebar__bottom">
           <div className="dsh-sidebar__user-pill">
-            <span className="dsh-sidebar__user-avatar" style={{ background: gradient }}>
-              {initials}
+            <span className="dsh-sidebar__user-avatar" style={{ background: user?.avatar_url ? "transparent" : gradient }}>
+              {user?.avatar_url ? <img src={user.avatar_url} alt={initials} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} /> : initials}
             </span>
             <div className="dsh-sidebar__user-info">
               <strong>{fullName}</strong>
@@ -230,8 +228,8 @@ export default function StudentLayout() {
               onClick={() => setUserMenuOpen((o) => !o)}
               aria-expanded={userMenuOpen}
             >
-              <span className="dsh-topbar__avatar" style={{ background: gradient }}>
-                {initials}
+              <span className="dsh-topbar__avatar" style={{ background: user?.avatar_url ? "transparent" : gradient }}>
+                {user?.avatar_url ? <img src={user.avatar_url} alt={initials} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} /> : initials}
               </span>
               <div className="dsh-topbar__user-info">
                 <strong>{fullName}</strong>
@@ -243,30 +241,31 @@ export default function StudentLayout() {
             {userMenuOpen && (
               <div className="dsh-user-menu">
                 <div className="dsh-user-menu__header">
-                  <span className="dsh-topbar__avatar dsh-topbar__avatar--lg" style={{ background: gradient }}>
-                    {initials}
+                  <span className="dsh-topbar__avatar dsh-topbar__avatar--lg" style={{ background: user?.avatar_url ? "transparent" : gradient }}>
+                    {user?.avatar_url ? <img src={user.avatar_url} alt={initials} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} /> : initials}
                   </span>
                   <div style={{ minWidth: 0 }}>
                     <strong>{fullName}</strong>
-                    <span>{user?.email ?? ""}</span>
+                    <span className="dsh-user-menu__email">{user?.email ?? ""}</span>
+                    <span className="dsh-user-menu__role-badge">Étudiant</span>
                   </div>
                 </div>
                 <div className="dsh-user-menu__items">
-                  <button
-                    type="button"
-                    className="dsh-user-menu__item"
-                    onClick={() => { setUserMenuOpen(false); navigate("/espace/etudiant/profil"); }}
-                  >
-                    <Settings size={15} />
-                    Mon profil
+                  <button type="button" className="dsh-user-menu__item" onClick={() => { setUserMenuOpen(false); navigate("/espace/etudiant/favoris"); }}>
+                    <span className="dsh-user-menu__item-icon"><Heart size={15} /></span>
+                    Mes favoris
+                  </button>
+                  <button type="button" className="dsh-user-menu__item" onClick={() => { setUserMenuOpen(false); navigate("/espace/etudiant/profil"); }}>
+                    <span className="dsh-user-menu__item-icon"><Settings size={15} /></span>
+                    Paramètres
+                  </button>
+                  <button type="button" className="dsh-user-menu__item" onClick={() => { setUserMenuOpen(false); navigate("/espace/etudiant/aide"); }}>
+                    <span className="dsh-user-menu__item-icon"><HelpCircle size={15} /></span>
+                    Aide & support
                   </button>
                   <div className="dsh-user-menu__divider" />
-                  <button
-                    type="button"
-                    className="dsh-user-menu__item dsh-user-menu__item--danger"
-                    onClick={handleLogout}
-                  >
-                    <LogOut size={15} />
+                  <button type="button" className="dsh-user-menu__item dsh-user-menu__item--danger" onClick={handleLogout}>
+                    <span className="dsh-user-menu__item-icon"><LogOut size={15} /></span>
                     Se déconnecter
                   </button>
                 </div>

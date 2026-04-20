@@ -29,6 +29,7 @@ export type CartSnapshot = {
   allow_installments: boolean;
   installment_threshold_amount: number;
   installment_threshold_label: string;
+  installment_schedules_preview: Record<string, InstallmentLine[]>;
   live_items_count: number;
   ligne_items_count: number;
   presentiel_items_count: number;
@@ -92,15 +93,18 @@ export type StripeCheckoutConfirmation = {
 };
 
 export type PaymentProvider = "tara" | "stripe";
+export type CheckoutPaymentMode = "full" | "installments";
 
 export type CheckoutOptions = {
   useInstallments?: boolean;
+  paymentMode?: CheckoutPaymentMode;
   paymentProvider?: PaymentProvider;
 };
 
 export type Enrollment = {
   id: number;
   formation_id: number;
+  session_id: number | null;
   formation_slug: string;
   formation_title: string;
   image: string;
@@ -110,7 +114,17 @@ export type Enrollment = {
   status: string;
   student_code: string | null;
   session_label: string;
+  assigned_teacher: AssignedTeacher | null;
   created_at: string;
+};
+
+export type AssignedTeacher = {
+  full_name: string;
+  teacher_code: string | null;
+  avatar_initials: string;
+  avatar_url: string | null;
+  email: string | null;
+  whatsapp: string | null;
 };
 
 export type StudentDashboardSummary = {
@@ -165,10 +179,13 @@ export async function removeFromCart(
 export async function checkoutCart(
   options: CheckoutOptions = {},
 ): Promise<CheckoutResult> {
+  const paymentMode =
+    options.paymentMode ?? (options.useInstallments ? "installments" : "full");
   return apiRequest<CheckoutResult>("/cart/checkout", {
     method: "POST",
     body: JSON.stringify({
-      use_installments: options.useInstallments ?? false,
+      use_installments: paymentMode === "installments",
+      payment_mode: paymentMode,
       payment_provider: options.paymentProvider ?? null,
     }),
     timeoutMs: 30000,
@@ -228,6 +245,7 @@ export type StudentSession = {
   start_date: string;
   end_date: string;
   teacher_name: string | null;
+  assigned_teacher: AssignedTeacher | null;
   campus_label: string | null;
   meeting_link: string | null;
   status: string;

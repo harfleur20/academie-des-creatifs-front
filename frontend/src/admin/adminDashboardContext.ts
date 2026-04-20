@@ -31,6 +31,7 @@ export type OrderDraft = {
 
 export type EnrollmentDraft = {
   status: EnrollmentStatus;
+  sessionId: number | null;
 };
 
 export type PaymentDraft = {
@@ -73,6 +74,7 @@ export type AdminDashboardOutletContext = {
   enrollmentDrafts: Record<number, EnrollmentDraft>;
   enrollmentStatuses: EnrollmentStatus[];
   syncEnrollmentDraft: (enrollmentId: number, status: EnrollmentStatus) => void;
+  syncEnrollmentSessionDraft: (enrollmentId: number, sessionId: number | null) => void;
   savingEnrollmentId: number | null;
   handleSaveEnrollment: (enrollment: AdminEnrollment) => void;
   enrollmentFeedbackById: Record<number, AdminInlineFeedback>;

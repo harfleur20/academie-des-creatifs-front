@@ -34,7 +34,7 @@ export const USER_MESSAGES = {
 } as const;
 
 function isShortDisplayableMessage(message: string): boolean {
-  return message.trim().length > 0 && message.trim().length <= 120;
+  return message.trim().length > 0 && message.trim().length <= 240;
 }
 
 export function getUserActionErrorMessage(

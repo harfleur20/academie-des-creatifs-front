@@ -25,6 +25,7 @@ const emptyCart: CartSnapshot = {
   allow_installments: false,
   installment_threshold_amount: 100000,
   installment_threshold_label: "100 000 FCFA",
+  installment_schedules_preview: {},
   live_items_count: 0,
   ligne_items_count: 0,
   presentiel_items_count: 0,
@@ -97,7 +98,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       },
       checkout: async (options?: CheckoutOptions) => {
         const result = await checkoutCartRequest(options ?? {});
-        setCart(emptyCart);
+        if (!result.external_redirect_url && !result.payment_links) {
+          const nextCart = await fetchCart();
+          setCart(nextCart);
+        }
         return result;
       },
     }),

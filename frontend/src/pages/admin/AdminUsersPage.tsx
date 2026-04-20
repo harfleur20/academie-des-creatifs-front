@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import {
   FaEdit,
   FaGraduationCap,
@@ -62,6 +63,8 @@ function avatarColor(id: number) {
 }
 
 export default function AdminUsersPage() {
+  const location = useLocation();
+  const rolesMode = location.pathname.startsWith("/admin/roles");
   const {
     loading,
     loadingError,
@@ -75,7 +78,7 @@ export default function AdminUsersPage() {
     userFeedbackById,
   } = useAdminDashboard();
 
-  const [tab, setTab] = useState<Tab>("students");
+  const [tab, setTab] = useState<Tab>(rolesMode ? "roles" : "students");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -83,9 +86,13 @@ export default function AdminUsersPage() {
   const teachers = useMemo(() => users.filter((u) => u.role === "teacher"), [users]);
 
   useEffect(() => {
+    if (rolesMode) {
+      setTab("roles");
+      return;
+    }
     setPage(1);
     setSearch("");
-  }, [tab]);
+  }, [rolesMode, tab]);
 
   useEffect(() => { setPage(1); }, [search]);
 
@@ -119,9 +126,11 @@ export default function AdminUsersPage() {
       <div className="adm-page-header">
         <div>
           <p className="adm-eyebrow">Gestion</p>
-          <h1 className="adm-page-title">Utilisateurs</h1>
+          <h1 className="adm-page-title">{rolesMode ? "Administrateurs & rôles" : "Utilisateurs"}</h1>
           <p className="adm-page-desc">
-            Gérez les étudiants, enseignants et permissions de la plateforme.
+            {rolesMode
+              ? "Contrôlez les rôles système, les accès administrateurs et les statuts de compte."
+              : "Gérez les étudiants, enseignants et permissions de la plateforme."}
           </p>
         </div>
       </div>
@@ -163,24 +172,28 @@ export default function AdminUsersPage() {
         <div className="adm-card">
           {/* Tab bar */}
           <div className="usr-tabs">
-            <button
-              type="button"
-              className={`usr-tab${tab === "students" ? " is-active" : ""}`}
-              onClick={() => setTab("students")}
-            >
-              <FaGraduationCap />
-              Étudiants
-              <span className="usr-tab__count">{students.length}</span>
-            </button>
-            <button
-              type="button"
-              className={`usr-tab${tab === "teachers" ? " is-active" : ""}`}
-              onClick={() => setTab("teachers")}
-            >
-              <FaUserTie />
-              Enseignants
-              <span className="usr-tab__count">{teachers.length}</span>
-            </button>
+            {!rolesMode && (
+              <>
+                <button
+                  type="button"
+                  className={`usr-tab${tab === "students" ? " is-active" : ""}`}
+                  onClick={() => setTab("students")}
+                >
+                  <FaGraduationCap />
+                  Étudiants
+                  <span className="usr-tab__count">{students.length}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`usr-tab${tab === "teachers" ? " is-active" : ""}`}
+                  onClick={() => setTab("teachers")}
+                >
+                  <FaUserTie />
+                  Enseignants
+                  <span className="usr-tab__count">{teachers.length}</span>
+                </button>
+              </>
+            )}
             <button
               type="button"
               className={`usr-tab${tab === "roles" ? " is-active" : ""}`}

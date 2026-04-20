@@ -15,6 +15,7 @@ from app.services.order_access import sync_order_enrollment_access
 from app.services.order_confirmations import send_order_confirmation_for_orders
 from app.services.payments import refresh_payment_states
 from app.services.stripe_payments import (
+    extract_stripe_payment_ids,
     extract_stripe_order_references,
     retrieve_stripe_checkout_session,
     stripe_checkout_session_is_paid,
@@ -57,9 +58,46 @@ def _first_confirmed_payment(db: Session, order_reference: str) -> PaymentRecord
 def _confirm_stripe_orders(
     db: Session,
     order_references: list[str],
+    payment_ids: list[int] | None = None,
 ) -> tuple[list[str], list[str]]:
     matched_orders: list[str] = []
     newly_confirmed_orders: list[str] = []
+
+    if payment_ids:
+        payments = db.scalars(
+            select(PaymentRecord)
+            .where(
+                PaymentRecord.id.in_(payment_ids),
+                PaymentRecord.provider_code == "stripe",
+            )
+            .order_by(PaymentRecord.id.asc())
+        ).all()
+        payments_by_id = {payment.id: payment for payment in payments}
+
+        for payment_id in payment_ids:
+            payment = payments_by_id.get(payment_id)
+            if payment is None:
+                continue
+            if payment.order_reference not in matched_orders:
+                matched_orders.append(payment.order_reference)
+            if payment.status == "confirmed":
+                continue
+            if payment.status not in {"pending", "late", "failed"}:
+                continue
+
+            payment.status = "confirmed"
+            if payment.paid_at is None:
+                from app.core.security import utc_now
+
+                payment.paid_at = utc_now()
+            db.add(payment)
+            db.flush()
+            refresh_payment_states(db, order_reference=payment.order_reference)
+            sync_order_enrollment_access(db, payment.order_reference)
+            if payment.order_reference not in newly_confirmed_orders:
+                newly_confirmed_orders.append(payment.order_reference)
+
+        return matched_orders, newly_confirmed_orders
 
     for order_reference in order_references:
         payment = _first_pending_payment(db, order_reference)
@@ -124,6 +162,7 @@ async def receive_stripe_webhook(
     matched, newly_confirmed = _confirm_stripe_orders(
         db,
         extract_stripe_order_references(session),
+        extract_stripe_payment_ids(session),
     )
 
     db.commit()
@@ -153,6 +192,7 @@ def confirm_stripe_checkout(
         ) from error
 
     order_references = extract_stripe_order_references(session)
+    payment_ids = extract_stripe_payment_ids(session)
     if not order_references:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -181,7 +221,7 @@ def confirm_stripe_checkout(
             "message": "Paiement Stripe encore en cours de confirmation.",
         }
 
-    matched, newly_confirmed = _confirm_stripe_orders(db, order_references)
+    matched, newly_confirmed = _confirm_stripe_orders(db, order_references, payment_ids)
     db.commit()
 
     if newly_confirmed:

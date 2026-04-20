@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 
-UserRole = Literal["admin", "teacher", "student"]
+UserRole = Literal["admin", "teacher", "student", "guest"]
 
 
 class RegisterPayload(BaseModel):

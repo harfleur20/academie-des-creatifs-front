@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
-import { CalendarDays, Check, Plus, Save, Users } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { Award, BookOpen, CalendarDays, Check, ChevronRight, ClipboardList, FileText, HelpCircle, LayoutDashboard, Plus, Save, Users, Video } from "lucide-react";
 
 import {
   createCourseDay,
@@ -18,8 +18,18 @@ import {
   type GradeRow,
   type SessionStudent,
 } from "../lib/catalogApi";
+import {
+  fetchSessionAssignments,
+  fetchSessionCourses,
+  fetchSessionQuizzes,
+  fetchSessionResources,
+  type AssignmentView,
+  type CourseView,
+  type QuizView,
+  type ResourceView,
+} from "../lib/teacherApi";
 
-type Tab = "days" | "students" | "attendance" | "grades";
+type Tab = "overview" | "days" | "content" | "students" | "attendance" | "grades";
 
 const ATTENDANCE_LABELS: Record<AttendanceStatus, string> = {
   present: "Présent",
@@ -35,11 +45,12 @@ const ATTENDANCE_COLORS: Record<AttendanceStatus, string> = {
   excused: "#6366f1",
 };
 
-const DAY_STATUS_LABELS: Record<CourseDay["status"], string> = {
-  planned: "Planifié",
-  live: "En live",
-  done: "Terminé",
+const DAY_STATUS_LABELS: Record<string, string> = {
+  planned:   "Planifié",
+  live:      "En live",
+  done:      "Terminé",
   cancelled: "Annulé",
+  missed:    "Manqué",
 };
 
 function formatDateTime(value: string) {
@@ -68,12 +79,16 @@ export default function TeacherSessionPage() {
   const { sessionId } = useParams();
   const id = Number(sessionId);
 
-  const [tab, setTab] = useState<Tab>("days");
+  const [tab, setTab] = useState<Tab>("overview");
   const [students, setStudents] = useState<SessionStudent[]>([]);
   const [courseDays, setCourseDays] = useState<CourseDay[]>([]);
   const [selectedCourseDayId, setSelectedCourseDayId] = useState<number | null>(null);
   const [attendance, setAttendance] = useState<AttendanceRow[]>([]);
   const [grades, setGrades] = useState<GradeRow[]>([]);
+  const [sessionCourses, setSessionCourses] = useState<CourseView[]>([]);
+  const [sessionQuizzes, setSessionQuizzes] = useState<QuizView[]>([]);
+  const [sessionAssignments, setSessionAssignments] = useState<AssignmentView[]>([]);
+  const [sessionResources, setSessionResources] = useState<ResourceView[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -86,6 +101,7 @@ export default function TeacherSessionPage() {
   const [scoreDraft, setScoreDraft] = useState<Record<number, string>>({});
 
   const [showDayForm, setShowDayForm] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
   const [dayTitle, setDayTitle] = useState("Journée de cours");
   const [dayAt, setDayAt] = useState(defaultCourseDayDate());
   const [dayDuration, setDayDuration] = useState(90);
@@ -102,11 +118,19 @@ export default function TeacherSessionPage() {
       fetchSessionStudents(id),
       fetchSessionCourseDays(id),
       fetchSessionGrades(id),
+      fetchSessionCourses(id),
+      fetchSessionQuizzes(id),
+      fetchSessionAssignments(id),
+      fetchSessionResources(id),
     ])
-      .then(([studentRows, dayRows, gradeRows]) => {
+      .then(([studentRows, dayRows, gradeRows, courseRows, quizRows, assignmentRows, resourceRows]) => {
         setStudents(studentRows);
         setCourseDays(dayRows);
         setGrades(gradeRows);
+        setSessionCourses(courseRows);
+        setSessionQuizzes(quizRows);
+        setSessionAssignments(assignmentRows);
+        setSessionResources(resourceRows);
         const today = new Date().toISOString().slice(0, 10);
         const todayDay = dayRows.find((day) => day.scheduled_at.slice(0, 10) === today);
         setSelectedCourseDayId(todayDay?.id ?? dayRows[0]?.id ?? null);
@@ -257,102 +281,520 @@ export default function TeacherSessionPage() {
       grades.map((grade) => [`${grade.label}-${grade.course_day_id ?? "session"}`, grade]),
     ).values(),
   );
+  const totalLessons = sessionCourses.reduce((sum, course) => sum + course.total_lessons, 0);
+  const contentStats = [
+    { label: "Cours", value: sessionCourses.length, icon: <BookOpen size={16} /> },
+    { label: "Leçons", value: totalLessons, icon: <BookOpen size={16} /> },
+    { label: "Quiz", value: sessionQuizzes.length, icon: <HelpCircle size={16} /> },
+    { label: "Devoirs", value: sessionAssignments.length, icon: <ClipboardList size={16} /> },
+    { label: "Ressources", value: sessionResources.length, icon: <FileText size={16} /> },
+  ];
+
+  const TAB_LABELS: Record<Tab, string> = {
+    overview: "Vue d'ensemble",
+    days: "Journées",
+    content: "Contenu",
+    students: "Étudiants",
+    attendance: "Présences",
+    grades: "Notes",
+  };
 
   return (
-    <div className="dsh-page">
-      <div className="dsh-page__header">
-        <div>
-          <h1>Session #{id}</h1>
-          <p className="dsh-page__subtitle">
-            Suivi pédagogique par journée · <Users size={13} style={{ verticalAlign: "middle" }} />
-            {" "}<strong>{students.length}</strong> étudiant{students.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-      </div>
+    <div className="stu-ov-page">
 
-      <div className="dsh-tabs">
-        {(["days", "students", "attendance", "grades"] as Tab[]).map((item) => (
+      {/* Session hero */}
+      {(() => {
+        const now = Date.now();
+        const nextDay = courseDays.find(d => new Date(d.scheduled_at).getTime() >= now - 3600000);
+        const lastDay = courseDays[courseDays.length - 1];
+        return (
+          <div className="tch-session-hero">
+            <div className="tch-session-hero__left">
+              <p className="stu-hero__eyebrow" style={{ color: "rgba(255,255,255,0.5)", margin: 0 }}>Espace enseignant</p>
+              <h2 className="tch-session-hero__title">Session #{id}</h2>
+              <p className="tch-session-hero__sub">
+                <Users size={13} /> <strong>{students.length}</strong> étudiant{students.length !== 1 ? "s" : ""}
+                <span className="tch-session-hero__sep" />
+                <CalendarDays size={13} /> <strong>{courseDays.length}</strong> journée{courseDays.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+
+            {/* Calendrier pédagogique — remplace les stats */}
+            <div className="tch-session-hero__cal">
+              {nextDay ? (
+                <div className="tch-hero-cal-item">
+                  <span className="tch-hero-cal-item__label">Prochain cours</span>
+                  <strong className="tch-hero-cal-item__title">{nextDay.title}</strong>
+                  <span className="tch-hero-cal-item__date">
+                    {new Date(nextDay.scheduled_at).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}
+                    {" · "}
+                    {new Date(nextDay.scheduled_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                    {" · "}{nextDay.duration_minutes} min
+                  </span>
+                </div>
+              ) : lastDay ? (
+                <div className="tch-hero-cal-item">
+                  <span className="tch-hero-cal-item__label">Dernière journée</span>
+                  <strong className="tch-hero-cal-item__title">{lastDay.title}</strong>
+                  <span className="tch-hero-cal-item__date">
+                    {new Date(lastDay.scheduled_at).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long" })} · {DAY_STATUS_LABELS[lastDay.status]}
+                  </span>
+                </div>
+              ) : (
+                <div className="tch-hero-cal-item">
+                  <span className="tch-hero-cal-item__label">Calendrier</span>
+                  <strong className="tch-hero-cal-item__title">Aucune journée planifiée</strong>
+                  <span className="tch-hero-cal-item__date">Ajoutez une journée dans l'onglet Journées</span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Tabs */}
+      <div className="tch-tabs-bar">
+        {(["overview", "days", "content", "students", "attendance", "grades"] as Tab[]).map((item) => (
           <button
             key={item}
             type="button"
-            className={`dsh-tab${tab === item ? " is-active" : ""}`}
+            className={`tch-tab${tab === item ? " is-active" : ""}`}
             onClick={() => setTab(item)}
           >
-            {{ days: "Journées", students: "Étudiants", attendance: "Présences", grades: "Notes" }[item]}
+            {TAB_LABELS[item]}
           </button>
         ))}
       </div>
 
       {error && <p className="dsh-error">{error}</p>}
 
-      {tab === "days" && (
-        <div className="dsh-section">
-          <div className="dsh-section__header">
-            <div>
-              <h2>Calendrier pédagogique</h2>
-              <p className="dsh-page__subtitle">Chaque live Jitsi crée une journée de cours. Vous pouvez aussi ajouter une journée hors live.</p>
-            </div>
-            <button type="button" className="dsh-btn dsh-btn--primary" onClick={() => setShowDayForm((value) => !value)}>
-              <Plus size={15} /> Ajouter une journée
+      {tab === "overview" && (
+        <div className="tch-overview-grid">
+
+          {/* ① KPI cards — en premier */}
+          <div className="tch-overview-kpis">
+            <button type="button" className="tch-ov-kpi tch-ov-kpi--blue" onClick={() => setTab("days")}>
+              <CalendarDays size={22} />
+              <strong>{courseDays.length}</strong>
+              <span>Journées</span>
+            </button>
+            <button type="button" className="tch-ov-kpi tch-ov-kpi--green" onClick={() => setTab("students")}>
+              <Users size={22} />
+              <strong>{students.length}</strong>
+              <span>Étudiants</span>
+            </button>
+            <button type="button" className="tch-ov-kpi tch-ov-kpi--purple" onClick={() => setTab("content")}>
+              <HelpCircle size={22} />
+              <strong>{sessionQuizzes.length}</strong>
+              <span>Quiz</span>
+            </button>
+            <button type="button" className="tch-ov-kpi tch-ov-kpi--yellow" onClick={() => setTab("content")}>
+              <ClipboardList size={22} />
+              <strong>{sessionAssignments.length}</strong>
+              <span>Devoirs</span>
+            </button>
+            <button type="button" className="tch-ov-kpi tch-ov-kpi--teal" onClick={() => setTab("content")}>
+              <BookOpen size={22} />
+              <strong>{totalLessons}</strong>
+              <span>Leçons</span>
+            </button>
+            <button type="button" className="tch-ov-kpi tch-ov-kpi--pink" onClick={() => setTab("content")}>
+              <FileText size={22} />
+              <strong>{sessionResources.length}</strong>
+              <span>Ressources</span>
             </button>
           </div>
 
-          {showDayForm && (
-            <div className="dsh-form-card">
-              <h3>Nouvelle journée</h3>
-              <div className="dsh-form-row">
-                <label className="dsh-form-field">
-                  <span>Titre</span>
-                  <input type="text" value={dayTitle} onChange={(e) => setDayTitle(e.target.value)} />
-                </label>
-                <label className="dsh-form-field">
-                  <span>Date et heure</span>
-                  <input type="datetime-local" value={dayAt} onChange={(e) => setDayAt(e.target.value)} />
-                </label>
-                <label className="dsh-form-field">
-                  <span>Durée</span>
-                  <select value={dayDuration} onChange={(e) => setDayDuration(Number(e.target.value))}>
-                    <option value={60}>1h</option>
-                    <option value={90}>1h30</option>
-                    <option value={120}>2h</option>
-                    <option value={180}>3h</option>
-                  </select>
-                </label>
-              </div>
-              <div className="dsh-form-actions">
-                <button type="button" className="dsh-btn dsh-btn--ghost" onClick={() => setShowDayForm(false)}>Annuler</button>
-                <button type="button" className="dsh-btn dsh-btn--primary" disabled={saving} onClick={() => { void handleCreateCourseDay(); }}>
-                  {saving ? "Création..." : "Créer la journée"}
-                </button>
-              </div>
+          {/* ② Calendrier des journées */}
+          <div className="stu-ov-card">
+            <div className="stu-ov-card__head">
+              <span className="stu-ov-card__title"><CalendarDays size={16} /> Journées de cours</span>
+              <button type="button" className="stu-ov-see-all" onClick={() => setTab("days")}>
+                Tout voir <ChevronRight size={13} />
+              </button>
             </div>
-          )}
+            {courseDays.length === 0 ? (
+              <p className="stu-courses-empty">Aucune journée planifiée. <button type="button" style={{ color: "#6366f1", background: "none", border: "none", cursor: "pointer", font: "inherit", fontWeight: 600 }} onClick={() => setTab("days")}>Ajouter →</button></p>
+            ) : (
+              <div className="stu-courses-list">
+                {courseDays.slice(0, 5).map((day) => {
+                  const dayColors = {
+                    done:      { bg: "#d1fae5", color: "#065f46" },
+                    live:      { bg: "#dbeafe", color: "#1e40af" },
+                    planned:   { bg: "#f3f4f6", color: "#6b7280" },
+                    cancelled: { bg: "#fee2e2", color: "#991b1b" },
+                  };
+                  const dc = dayColors[day.status as keyof typeof dayColors] ?? dayColors.planned;
+                  return (
+                    <div key={day.id} className="stu-course-row">
+                      <div className="stu-course-row__info">
+                        <strong>{day.title}</strong>
+                        <span>{new Date(day.scheduled_at).toLocaleString("fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · {day.duration_minutes} min</span>
+                      </div>
+                      <div className="stu-course-row__right">
+                        <span className="stu-course-row__badge" style={{ background: dc.bg, color: dc.color }}>
+                          {DAY_STATUS_LABELS[day.status]}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
-          {courseDays.length === 0 ? (
-            <div className="dsh-empty"><p>Aucune journée de cours planifiée.</p></div>
-          ) : (
-            <div className="dsh-list">
-              {courseDays.map((day) => (
-                <button
-                  type="button"
-                  className={`dsh-list-item dsh-course-day-item${day.id === selectedCourseDayId ? " is-active" : ""}`}
-                  key={day.id}
-                  onClick={() => setSelectedCourseDayId(day.id)}
-                >
-                  <div className="dsh-list-item__icon"><CalendarDays size={18} /></div>
-                  <div className="dsh-list-item__main">
-                    <strong>{day.title}</strong>
-                    <span className="dsh-list-item__meta">
-                      {formatDateTime(day.scheduled_at)} · {day.duration_minutes} min · {DAY_STATUS_LABELS[day.status]}
-                    </span>
-                    <span className="dsh-list-item__desc">
-                      {day.attendance_count} présence{day.attendance_count !== 1 ? "s" : ""} · {day.quiz_count} quiz · {day.assignment_count} devoir{day.assignment_count !== 1 ? "s" : ""} · {day.grade_count} note{day.grade_count !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                </button>
-              ))}
+          {/* ③ Liste des étudiants (aperçu) */}
+          <div className="stu-ov-card">
+            <div className="stu-ov-card__head">
+              <span className="stu-ov-card__title"><Users size={16} /> Étudiants inscrits</span>
+              <button type="button" className="stu-ov-see-all" onClick={() => setTab("students")}>
+                Tout voir <ChevronRight size={13} />
+              </button>
             </div>
-          )}
+            {students.length === 0 ? (
+              <p className="stu-courses-empty">Aucun étudiant inscrit pour le moment.</p>
+            ) : (
+              <div className="stu-courses-list">
+                {students.slice(0, 5).map((s, i) => (
+                  <div key={s.enrollment_id} className="stu-course-row">
+                    <div className="stu-course-row__info">
+                      <strong>{s.full_name}</strong>
+                      <span>{s.email}</span>
+                    </div>
+                    <div className="stu-course-row__right">
+                      <span className="stu-course-row__badge" style={{
+                        background: s.enrollment_status === "active" ? "#dcfce7" : "#f1f5f9",
+                        color: s.enrollment_status === "active" ? "#14532d" : "#475569",
+                      }}>
+                        {s.enrollment_status === "active" ? "Actif" : s.enrollment_status}
+                      </span>
+                      {s.student_code && (
+                        <span style={{ fontSize: "0.7rem", color: "#6b7280" }}>#{i + 1}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ④ Actions rapides — en dernier */}
+          <div className="stu-ov-card">
+            <div className="stu-ov-card__head">
+              <span className="stu-ov-card__title"><LayoutDashboard size={16} /> Actions rapides</span>
+            </div>
+            <div className="stu-shortcuts-grid">
+              <button type="button" className="stu-shortcut-card" onClick={() => setTab("attendance")}>
+                <span className="stu-shortcut-card__icon" style={{ background: "linear-gradient(135deg,#22c55e,#16a34a)" }}><Users size={18} /></span>
+                <span className="stu-shortcut-card__label">Saisir les présences</span>
+                <ChevronRight size={14} className="stu-shortcut-card__arrow" />
+              </button>
+              <button type="button" className="stu-shortcut-card" onClick={() => setTab("grades")}>
+                <span className="stu-shortcut-card__icon" style={{ background: "linear-gradient(135deg,#f59e0b,#d97706)" }}><Award size={18} /></span>
+                <span className="stu-shortcut-card__label">Saisir les notes</span>
+                <ChevronRight size={14} className="stu-shortcut-card__arrow" />
+              </button>
+              <button type="button" className="stu-shortcut-card" onClick={() => setTab("days")}>
+                <span className="stu-shortcut-card__icon" style={{ background: "linear-gradient(135deg,#0ea5e9,#0284c7)" }}><CalendarDays size={18} /></span>
+                <span className="stu-shortcut-card__label">Journées de cours</span>
+                <ChevronRight size={14} className="stu-shortcut-card__arrow" />
+              </button>
+              <button type="button" className="stu-shortcut-card" onClick={() => setTab("content")}>
+                <span className="stu-shortcut-card__icon" style={{ background: "linear-gradient(135deg,#6366f1,#4f46e5)" }}><BookOpen size={18} /></span>
+                <span className="stu-shortcut-card__label">Contenu pédagogique</span>
+                <ChevronRight size={14} className="stu-shortcut-card__arrow" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "days" && (() => {
+        // ── Week helpers ──────────────────────────────────────────────
+        const today = new Date();
+        // Monday of current week + offset
+        const monday = new Date(today);
+        monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) + weekOffset * 7);
+        monday.setHours(0, 0, 0, 0);
+        const weekDays = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(monday);
+          d.setDate(monday.getDate() + i);
+          return d;
+        });
+        const toYMD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+        const todayYMD = toYMD(today);
+        const dayNames = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+        const weekLabel = `${monday.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${weekDays[6].toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}`;
+
+        // Group course days by YMD
+        const byDay: Record<string, CourseDay[]> = {};
+        for (const day of courseDays) {
+          const ymd = day.scheduled_at.slice(0, 10);
+          (byDay[ymd] ??= []).push(day);
+        }
+
+        const DAY_COLORS: Record<string, { bg: string; border: string; text: string; badge: string; badgeText: string }> = {
+          planned:   { bg: "#fffbeb", border: "#fde68a", text: "#1f2559", badge: "#fef3c7", badgeText: "#92400e" },
+          live:      { bg: "#eff6ff", border: "#93c5fd", text: "#1e40af", badge: "#dbeafe", badgeText: "#1e40af" },
+          done:      { bg: "#f0fdf4", border: "#86efac", text: "#14532d", badge: "#dcfce7", badgeText: "#14532d" },
+          cancelled: { bg: "#fff1f2", border: "#fca5a5", text: "#991b1b", badge: "#fee2e2", badgeText: "#991b1b" },
+          missed:    { bg: "#fef2f2", border: "#fca5a5", text: "#7f1d1d", badge: "#fee2e2", badgeText: "#991b1b" },
+        };
+
+        const now = new Date();
+        const resolveStatus = (ev: CourseDay) => {
+          const isPast = new Date(ev.scheduled_at) < now;
+          if (ev.status === "done") return "done";
+          if (ev.status === "cancelled") return "cancelled";
+          if (ev.status === "live") return "live";
+          if (isPast && ev.attendance_count > 0) return "done";
+          if (isPast && ev.attendance_count === 0) return "missed";
+          return ev.status;
+        };
+
+        return (
+          <div className="tch-timetable-section">
+            {/* Header: nav + add button */}
+            <div className="tch-timetable-header">
+              <div className="tch-timetable-nav">
+                <button type="button" className="tch-tt-nav-btn" onClick={() => setWeekOffset(w => w - 1)}>‹</button>
+                <span className="tch-tt-week-label">{weekLabel}</span>
+                <button type="button" className="tch-tt-nav-btn" onClick={() => setWeekOffset(w => w + 1)}>›</button>
+                {weekOffset !== 0 && (
+                  <button type="button" className="tch-tt-today-btn" onClick={() => setWeekOffset(0)}>Aujourd'hui</button>
+                )}
+              </div>
+              <button type="button" className="dsh-btn dsh-btn--primary" onClick={() => setShowDayForm(v => !v)}>
+                <Plus size={15} /> Ajouter une journée
+              </button>
+            </div>
+
+            {/* Add form */}
+            {showDayForm && (
+              <div className="dsh-form-card">
+                <h3>Nouvelle journée</h3>
+                <div className="dsh-form-row">
+                  <label className="dsh-form-field">
+                    <span>Titre</span>
+                    <input type="text" value={dayTitle} onChange={(e) => setDayTitle(e.target.value)} />
+                  </label>
+                  <label className="dsh-form-field">
+                    <span>Date et heure</span>
+                    <input type="datetime-local" value={dayAt} onChange={(e) => setDayAt(e.target.value)} />
+                  </label>
+                  <label className="dsh-form-field">
+                    <span>Durée</span>
+                    <select value={dayDuration} onChange={(e) => setDayDuration(Number(e.target.value))}>
+                      <option value={60}>1h</option>
+                      <option value={90}>1h30</option>
+                      <option value={120}>2h</option>
+                      <option value={180}>3h</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="dsh-form-actions">
+                  <button type="button" className="dsh-btn dsh-btn--ghost" onClick={() => setShowDayForm(false)}>Annuler</button>
+                  <button type="button" className="dsh-btn dsh-btn--primary" disabled={saving} onClick={() => { void handleCreateCourseDay(); }}>
+                    {saving ? "Création..." : "Créer la journée"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Timetable grid */}
+            <div className="tch-timetable">
+              {weekDays.map((day, i) => {
+                const ymd = toYMD(day);
+                const events = byDay[ymd] ?? [];
+                const isToday = ymd === todayYMD;
+                return (
+                  <div key={ymd} className={`tch-tt-col${isToday ? " is-today" : ""}`}>
+                    <div className="tch-tt-col__head">
+                      <span className="tch-tt-col__dow">{dayNames[i]}</span>
+                      <span className={`tch-tt-col__date${isToday ? " is-today" : ""}`}>
+                        {day.getDate()}
+                      </span>
+                    </div>
+                    <div className="tch-tt-col__body">
+                      {events.length === 0 ? (
+                        <div className="tch-tt-empty" />
+                      ) : events.map((ev) => {
+                        const rs = resolveStatus(ev);
+                        const c = DAY_COLORS[rs] ?? DAY_COLORS.planned;
+                        const timeStr = new Date(ev.scheduled_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+                        const endMs = new Date(ev.scheduled_at).getTime() + ev.duration_minutes * 60000;
+                        const endStr = new Date(endMs).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+                        return (
+                          <button
+                            key={ev.id}
+                            type="button"
+                            className={`tch-tt-event${ev.id === selectedCourseDayId ? " is-selected" : ""}`}
+                            style={{ background: c.bg, color: c.text }}
+                            onClick={() => setSelectedCourseDayId(ev.id === selectedCourseDayId ? null : ev.id)}
+                          >
+                            <span className="tch-tt-event__time">{timeStr} – {endStr}</span>
+                            <strong className="tch-tt-event__title">{ev.title}</strong>
+                            <span className="tch-tt-event__badge" style={{ background: c.badge, color: c.badgeText }}>
+                              {DAY_STATUS_LABELS[rs]}
+                            </span>
+                            <span className="tch-tt-event__meta">
+                              {ev.attendance_count} prés. · {ev.duration_minutes} min
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Selected day detail */}
+            {selectedCourseDayId && (() => {
+              const sel = courseDays.find(d => d.id === selectedCourseDayId);
+              if (!sel) return null;
+              const rs = resolveStatus(sel);
+              const c = DAY_COLORS[rs] ?? DAY_COLORS.planned;
+              return (
+                <div className="tch-tt-detail">
+                  <div className="tch-tt-detail__head">
+                    <strong>{sel.title}</strong>
+                    <span className="tch-tt-event__badge" style={{ background: c.badge, color: c.badgeText }}>{DAY_STATUS_LABELS[rs]}</span>
+                  </div>
+                  <div className="tch-tt-detail__meta">
+                    <span><CalendarDays size={13} /> {formatDateTime(sel.scheduled_at)}</span>
+                    <span>· {sel.duration_minutes} min</span>
+                    <span>· {sel.attendance_count} présence{sel.attendance_count !== 1 ? "s" : ""}</span>
+                    <span>· {sel.quiz_count} quiz</span>
+                    <span>· {sel.assignment_count} devoir{sel.assignment_count !== 1 ? "s" : ""}</span>
+                    <span>· {sel.grade_count} note{sel.grade_count !== 1 ? "s" : ""}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <button type="button" className="dsh-btn dsh-btn--sm dsh-btn--ghost" onClick={() => { setTab("attendance"); }}>
+                      Saisir les présences
+                    </button>
+                    <button type="button" className="dsh-btn dsh-btn--sm dsh-btn--ghost" onClick={() => { setTab("grades"); }}>
+                      Saisir les notes
+                    </button>
+                    <button type="button" className="dsh-btn dsh-btn--sm dsh-btn--ghost" style={{ color: "#6b7280" }} onClick={() => setSelectedCourseDayId(null)}>
+                      Fermer
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* All days outside current week — summary */}
+            {courseDays.length > 0 && (
+              <div className="tch-tt-all-summary">
+                <span>{courseDays.length} journée{courseDays.length !== 1 ? "s" : ""} au total sur la formation</span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {tab === "content" && (
+        <div className="dsh-section">
+          <div className="dsh-section__header">
+            <div>
+              <h2>Contenu pédagogique de la session</h2>
+              <p className="dsh-page__subtitle">Cours, quiz, devoirs et ressources rattachés à cette cohorte.</p>
+            </div>
+            <div className="teacher-session-content-actions">
+              <Link className="dsh-btn dsh-btn--ghost dsh-btn--sm" to="/espace/enseignant/cours">Gérer les cours</Link>
+              <Link className="dsh-btn dsh-btn--ghost dsh-btn--sm" to="/espace/enseignant/quizz">Gérer les quiz</Link>
+              <Link className="dsh-btn dsh-btn--ghost dsh-btn--sm" to="/espace/enseignant/devoirs">Gérer les devoirs</Link>
+            </div>
+          </div>
+
+          <div className="teacher-session-content-stats">
+            {contentStats.map((stat) => (
+              <article className="teacher-session-content-stat" key={stat.label}>
+                <span>{stat.icon}</span>
+                <strong>{stat.value}</strong>
+                <small>{stat.label}</small>
+              </article>
+            ))}
+          </div>
+
+          <div className="teacher-session-content-grid">
+            <section className="teacher-session-content-card">
+              <div className="teacher-session-content-card__head">
+                <h3><BookOpen size={15} /> Programme</h3>
+                <Link to="/espace/enseignant/cours">Ouvrir</Link>
+              </div>
+              {sessionCourses.length === 0 ? (
+                <p className="dsh-empty-inline">Aucun cours structuré pour cette session.</p>
+              ) : (
+                <div className="teacher-session-content-list">
+                  {sessionCourses.map((course) => (
+                    <article key={course.id}>
+                      <strong>{course.title}</strong>
+                      <span>{course.chapters.length} chapitre{course.chapters.length !== 1 ? "s" : ""} · {course.total_lessons} leçon{course.total_lessons !== 1 ? "s" : ""}</span>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="teacher-session-content-card">
+              <div className="teacher-session-content-card__head">
+                <h3><HelpCircle size={15} /> Quiz & examens</h3>
+                <Link to="/espace/enseignant/quizz">Ouvrir</Link>
+              </div>
+              {sessionQuizzes.length === 0 ? (
+                <p className="dsh-empty-inline">Aucun quiz créé pour cette session.</p>
+              ) : (
+                <div className="teacher-session-content-list">
+                  {sessionQuizzes.map((quiz) => (
+                    <article key={quiz.id}>
+                      <strong>{quiz.title}</strong>
+                      <span>{quiz.status} · {quiz.questions.length} question{quiz.questions.length !== 1 ? "s" : ""}</span>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="teacher-session-content-card">
+              <div className="teacher-session-content-card__head">
+                <h3><ClipboardList size={15} /> Devoirs</h3>
+                <Link to="/espace/enseignant/devoirs">Ouvrir</Link>
+              </div>
+              {sessionAssignments.length === 0 ? (
+                <p className="dsh-empty-inline">Aucun devoir créé pour cette session.</p>
+              ) : (
+                <div className="teacher-session-content-list">
+                  {sessionAssignments.map((assignment) => (
+                    <article key={assignment.id}>
+                      <strong>{assignment.title}</strong>
+                      <span>{formatDateTime(assignment.due_date)} · {assignment.submissions_count} rendu{assignment.submissions_count !== 1 ? "s" : ""}</span>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="teacher-session-content-card">
+              <div className="teacher-session-content-card__head">
+                <h3><FileText size={15} /> Ressources</h3>
+                <Link to="/espace/enseignant/ressources">Ouvrir</Link>
+              </div>
+              {sessionResources.length === 0 ? (
+                <p className="dsh-empty-inline">Aucune ressource publiée pour cette session.</p>
+              ) : (
+                <div className="teacher-session-content-list">
+                  {sessionResources.map((resource) => (
+                    <article key={resource.id}>
+                      <strong>{resource.title}</strong>
+                      <span>{resource.resource_type} · {resource.published_at ? formatDateTime(resource.published_at) : "publication immédiate"}</span>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
         </div>
       )}
 

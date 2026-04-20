@@ -1,4 +1,5 @@
 import { FormEvent } from "react";
+import { Link } from "react-router-dom";
 import {
   FaArrowUpRightFromSquare,
   FaFacebookF,
@@ -7,6 +8,7 @@ import {
   FaWhatsapp,
   FaYoutube,
 } from "react-icons/fa6";
+import { HelpCircle } from "lucide-react";
 
 export default function SiteFooter() {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -97,6 +99,11 @@ export default function SiteFooter() {
             <p>
               Notre <a href="/">politique de formation</a>
             </p>
+
+            <Link to="/aide" className="footer-help-link">
+              <HelpCircle size={14} />
+              Aide &amp; support
+            </Link>
 
             <div className="social-media-link">
               <a

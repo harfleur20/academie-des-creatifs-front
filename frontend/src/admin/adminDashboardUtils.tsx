@@ -28,6 +28,18 @@ export function dashboardTypeLabel(formatType: FormationFormat) {
 }
 
 export function statusLabel(status: string) {
+  if (status === "guest") {
+    return "Prospect";
+  }
+  if (status === "student") {
+    return "Étudiant";
+  }
+  if (status === "teacher") {
+    return "Enseignant";
+  }
+  if (status === "admin") {
+    return "Administrateur";
+  }
   const normalized = status.replace(/_/g, " ");
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }

@@ -220,6 +220,17 @@ export default function AdminPaymentsPage() {
                       <td>
                         <strong style={{ display: "block", fontSize: "0.875rem" }}>{payment.payer_name}</strong>
                         <span className="adm-td-muted">{payment.provider_code}</span>
+                        {payment.provider_checkout_url && (
+                          <a
+                            className="adm-td-muted"
+                            href={payment.provider_checkout_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ display: "block", marginTop: 4 }}
+                          >
+                            Lien de paiement
+                          </a>
+                        )}
                       </td>
                       <td>
                         <strong>{payment.amount_label}</strong>

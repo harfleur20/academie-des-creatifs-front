@@ -21,18 +21,23 @@ def create_stripe_checkout_session(
     success_url: str,
     cancel_url: str,
     customer_email: str | None = None,
+    payment_ids: list[int] | None = None,
 ) -> str:
     stripe = _get_stripe_module()
     if stripe is None:
         raise RuntimeError("Le module Stripe n'est pas installe sur ce serveur.")
     stripe.api_key = settings.stripe_secret_key
+    metadata = {"order_references": ",".join(order_references)}
+    if payment_ids:
+        metadata["payment_ids"] = ",".join(str(payment_id) for payment_id in payment_ids)
+
     payload: dict[str, object] = {
         "payment_method_types": ["card"],
         "line_items": line_items,
         "mode": "payment",
         "success_url": success_url,
         "cancel_url": cancel_url,
-        "metadata": {"order_references": ",".join(order_references)},
+        "metadata": metadata,
     }
     if customer_email:
         payload["customer_email"] = customer_email
@@ -54,7 +59,7 @@ def build_stripe_line_item(name: str, amount: int, currency: str) -> dict:
 
 
 def build_stripe_success_url(frontend_url: str) -> str:
-    return f"{frontend_url}/espace/etudiant?source=stripe&session_id={{CHECKOUT_SESSION_ID}}"
+    return f"{frontend_url}/espace?source=stripe&session_id={{CHECKOUT_SESSION_ID}}"
 
 
 def build_stripe_cancel_url(frontend_url: str) -> str:
@@ -83,6 +88,22 @@ def extract_stripe_order_references(session: object) -> list[str]:
     else:
         raw_references = str(getattr(metadata, "order_references", "") or "")
     return [reference.strip() for reference in raw_references.split(",") if reference.strip()]
+
+
+def extract_stripe_payment_ids(session: object) -> list[int]:
+    metadata = _session_value(session, "metadata") or {}
+    raw_ids = ""
+    if isinstance(metadata, dict):
+        raw_ids = str(metadata.get("payment_ids") or "")
+    else:
+        raw_ids = str(getattr(metadata, "payment_ids", "") or "")
+
+    payment_ids: list[int] = []
+    for raw_id in raw_ids.split(","):
+        raw_id = raw_id.strip()
+        if raw_id.isdigit():
+            payment_ids.append(int(raw_id))
+    return payment_ids
 
 
 def _session_value(session: object, key: str):

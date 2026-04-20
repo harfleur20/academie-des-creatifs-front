@@ -7,7 +7,7 @@ import {
 
 export { ApiRequestError } from "./apiClient";
 
-export type UserRole = "admin" | "teacher" | "student";
+export type UserRole = "admin" | "teacher" | "student" | "guest";
 
 export type AuthUser = {
   id: number;

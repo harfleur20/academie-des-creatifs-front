@@ -61,7 +61,7 @@ const STEPS = [
       },
       {
         title: "Tarification claire avec options de paiement flexibles",
-        detail: "Le prix est affiché clairement sur chaque fiche. Des options de paiement en plusieurs tranches sont disponibles sur la majorité des formations.",
+        detail: "Le prix est affiché clairement sur chaque fiche. Des options de paiement en plusieurs tranches sont proposées à partir de 100 000 FCFA de commande quand la durée de session le permet.",
       },
     ],
   },
@@ -161,7 +161,7 @@ const FAQS = [
   },
   {
     q: "Peut-on payer en plusieurs fois ?",
-    a: "Oui, un plan de paiement en plusieurs tranches est disponible sur la plupart des formations. Les modalités sont indiquées sur la fiche de chaque formation.",
+    a: "Oui, un plan de paiement en plusieurs tranches peut être proposé dès 100 000 FCFA de commande, selon la durée de la session et le calendrier d'échéances.",
   },
 ];
 

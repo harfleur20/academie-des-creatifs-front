@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import require_roles
 from app.db.session import get_db
 from app.schemas.catalog import (
+    AdminCourseDayStatusUpdate,
     AdminEnrollmentItem,
     AdminEnrollmentUpdate,
     AdminFormationSessionCreate,
@@ -14,6 +15,7 @@ from app.schemas.catalog import (
     AdminDashboardOverview,
     AdminFormationCreate,
     AdminFormationUpdate,
+    AdminMissedCourseDay,
     AdminOnsiteSessionItem,
     AdminOnsiteSessionUpdate,
     AdminOrderItem,
@@ -25,11 +27,13 @@ from app.schemas.catalog import (
     AdminUserUpdate,
 )
 from app.services.catalog import (
+    admin_patch_course_day_status,
     create_admin_onsite_session,
     create_catalog_entry,
     get_admin_overview,
     list_admin_enrollments,
     list_admin_catalog_items,
+    list_admin_missed_course_days,
     list_admin_onsite_sessions,
     list_admin_orders,
     list_admin_payments,
@@ -177,7 +181,11 @@ def patch_admin_enrollment(
     payload: AdminEnrollmentUpdate,
     db: Session = Depends(get_db),
 ) -> AdminEnrollmentItem:
-    updated = update_admin_enrollment(db, enrollment_id, payload)
+    try:
+        updated = update_admin_enrollment(db, enrollment_id, payload)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if updated is None:
         raise HTTPException(status_code=404, detail="Inscription introuvable.")
     return updated
@@ -264,3 +272,20 @@ def post_admin_payment_reminder(
     if updated is None:
         raise HTTPException(status_code=404, detail="Paiement introuvable.")
     return updated
+
+
+@router.get("/missed-course-days", response_model=list[AdminMissedCourseDay])
+def get_missed_course_days(db: Session = Depends(get_db)) -> list[AdminMissedCourseDay]:
+    return list_admin_missed_course_days(db)
+
+
+@router.patch("/course-days/{course_day_id}/status", status_code=204)
+def patch_course_day_status(
+    course_day_id: int,
+    payload: AdminCourseDayStatusUpdate,
+    db: Session = Depends(get_db),
+) -> None:
+    try:
+        admin_patch_course_day_status(db, course_day_id, payload)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
