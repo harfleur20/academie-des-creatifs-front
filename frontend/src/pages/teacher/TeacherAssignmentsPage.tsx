@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle, Clock, MessageSquare, Plus, Trash2, Users } from "lucide-react";
+import { CheckCircle, Clock, MessageSquare, Plus, Trash2, Users, Wand2 } from "lucide-react";
 import AssignmentConversationPanel from "../../components/AssignmentConversationPanel";
 import {
   createAssignment,
@@ -10,6 +10,7 @@ import {
   fetchSessionAssignments,
   fetchSessionCourseDays,
   fetchTeacherOverview,
+  generateAssignmentDraft,
   markSubmissionReviewed,
   uploadTeacherAsset,
   type AssignmentComment,
@@ -28,6 +29,13 @@ function fileNameFromUrl(url: string) {
   }
 }
 
+function toDateTimeLocal(value: Date) {
+  const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+type AssignmentCreationMode = "manual" | "ai";
+
 export default function TeacherAssignmentsPage() {
   const [sessions, setSessions] = useState<TeacherSession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
@@ -38,9 +46,15 @@ export default function TeacherAssignmentsPage() {
   const [selectedAssignment, setSelectedAssignment] = useState<AssignmentView | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [creationMode, setCreationMode] = useState<AssignmentCreationMode>("manual");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [reviewScores, setReviewScores] = useState<Record<number, string>>({});
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiLevel, setAiLevel] = useState("");
+  const [aiObjectives, setAiObjectives] = useState("");
+  const [aiDurationDays, setAiDurationDays] = useState(7);
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   const [title, setTitle] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -85,6 +99,53 @@ export default function TeacherAssignmentsPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "Impossible de charger les devoirs."));
   }, [selectedSessionId]);
 
+  function resetAssignmentForm() {
+    setCreationMode("manual");
+    setTitle("");
+    setInstructions("");
+    setDueDate("");
+    setIsFinalProject(false);
+    setAiTopic("");
+    setAiLevel("");
+    setAiObjectives("");
+    setAiDurationDays(7);
+    setError("");
+  }
+
+  async function handleGenerateAssignmentDraft() {
+    if (!selectedSessionId) return;
+    if (!aiTopic.trim()) {
+      setError("Indiquez le sujet du devoir à générer.");
+      return;
+    }
+    setAiGenerating(true);
+    setError("");
+    try {
+      const draft = await generateAssignmentDraft({
+        session_id: selectedSessionId,
+        topic: aiTopic.trim(),
+        level: aiLevel.trim() || null,
+        objectives: aiObjectives.trim() || null,
+        course_day_id: selectedCourseDayId,
+        duration_days: aiDurationDays,
+        is_final_project: isFinalProject,
+      });
+      setTitle(draft.title);
+      setInstructions(draft.instructions);
+      setIsFinalProject(draft.is_final_project);
+      if (!dueDate) {
+        const deadline = new Date();
+        deadline.setDate(deadline.getDate() + draft.duration_days);
+        deadline.setHours(23, 59, 0, 0);
+        setDueDate(toDateTimeLocal(deadline));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de générer le devoir.");
+    } finally {
+      setAiGenerating(false);
+    }
+  }
+
   async function handleCreate() {
     if (!selectedSessionId || !title.trim() || !dueDate) {
       setError("Titre et date limite requis.");
@@ -102,10 +163,7 @@ export default function TeacherAssignmentsPage() {
       });
       setAssignments((prev) => [...prev, assignment]);
       setShowForm(false);
-      setTitle("");
-      setInstructions("");
-      setDueDate("");
-      setIsFinalProject(false);
+      resetAssignmentForm();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur.");
     } finally {
@@ -247,7 +305,7 @@ export default function TeacherAssignmentsPage() {
               ))}
             </select>
           </label>
-          <button type="button" className="dsh-btn dsh-btn--primary" onClick={() => setShowForm((value) => !value)}>
+          <button type="button" className="dsh-btn dsh-btn--primary" onClick={() => { if (showForm) resetAssignmentForm(); setShowForm((value) => !value); }}>
             <Plus size={15} />
             Créer un devoir
           </button>
@@ -259,6 +317,79 @@ export default function TeacherAssignmentsPage() {
       {showForm ? (
         <div className="dsh-form-card">
           <h3>Nouveau devoir</h3>
+          <div className="create-mode-tabs" role="tablist" aria-label="Mode de création du devoir">
+            <button
+              type="button"
+              className={`create-mode-tabs__btn${creationMode === "manual" ? " is-active" : ""}`}
+              onClick={() => setCreationMode("manual")}
+            >
+              Manuel
+            </button>
+            <button
+              type="button"
+              className={`create-mode-tabs__btn${creationMode === "ai" ? " is-active" : ""}`}
+              onClick={() => setCreationMode("ai")}
+            >
+              <Wand2 size={14} />
+              Avec IA
+            </button>
+          </div>
+
+          {creationMode === "ai" ? (
+            <div className="ai-draft-panel">
+              <label className="dsh-form-field">
+                <span>Sujet à générer avec l'IA</span>
+                <input
+                  type="text"
+                  value={aiTopic}
+                  onChange={(e) => setAiTopic(e.target.value)}
+                  placeholder="ex: devoir pratique sur une campagne social media"
+                />
+              </label>
+              <button
+                type="button"
+                className="dsh-btn dsh-btn--ghost"
+                disabled={aiGenerating || !selectedSessionId}
+                onClick={handleGenerateAssignmentDraft}
+              >
+                <Wand2 size={15} />
+                {aiGenerating ? "Génération…" : "Générer"}
+              </button>
+              <div className="ai-draft-options">
+                <label className="dsh-form-field">
+                  <span>Niveau <small>(optionnel)</small></span>
+                  <input
+                    type="text"
+                    value={aiLevel}
+                    onChange={(e) => setAiLevel(e.target.value)}
+                    placeholder="ex: intermédiaire"
+                  />
+                </label>
+                <label className="dsh-form-field">
+                  <span>Délai suggéré</span>
+                  <select
+                    className="dsh-select"
+                    value={aiDurationDays}
+                    onChange={(e) => setAiDurationDays(Number(e.target.value))}
+                  >
+                    {[1, 2, 3, 5, 7, 10, 14, 21, 30].map((days) => (
+                      <option key={days} value={days}>{days} jour{days > 1 ? "s" : ""}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="dsh-form-field ai-draft-options__wide">
+                  <span>Objectifs / contraintes <small>(optionnel)</small></span>
+                  <textarea
+                    className="dsh-textarea"
+                    rows={2}
+                    value={aiObjectives}
+                    onChange={(e) => setAiObjectives(e.target.value)}
+                    placeholder="ex: demander un rendu PDF, inclure un barème et une présentation courte"
+                  />
+                </label>
+              </div>
+            </div>
+          ) : null}
           <div className="dsh-form-row">
             <label className="dsh-form-field">
               <span>Journée de cours <small>(optionnel)</small></span>
@@ -306,7 +437,7 @@ export default function TeacherAssignmentsPage() {
             />
           </label>
           <div className="dsh-form-actions">
-            <button type="button" className="dsh-btn dsh-btn--ghost" onClick={() => setShowForm(false)}>Annuler</button>
+            <button type="button" className="dsh-btn dsh-btn--ghost" onClick={() => { setShowForm(false); resetAssignmentForm(); }}>Annuler</button>
             <button type="button" className="dsh-btn dsh-btn--primary" disabled={saving} onClick={handleCreate}>
               {saving ? "Création…" : "Créer le devoir"}
             </button>

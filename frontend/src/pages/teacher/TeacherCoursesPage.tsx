@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   BookOpen, ChevronDown, ChevronRight, FileText, Link2, Plus,
-  Trash2, Video, Image, X, HelpCircle, ClipboardList, FolderOpen,
+  Trash2, Video, Image, X, HelpCircle, ClipboardList, FolderOpen, Wand2,
 } from "lucide-react";
 import {
   fetchTeacherOverview,
@@ -15,12 +15,15 @@ import {
   fetchSessionQuizzes,
   fetchSessionAssignments,
   fetchSessionResources,
+  generateCourseDraft,
+  generateCourseDraftFromDocument,
   uploadTeacherAsset,
   type TeacherSession,
   type CourseView,
   type ChapterView,
   type LessonView,
   type LessonType,
+  type AiCourseDraft,
   type QuizView,
   type AssignmentView,
   type ResourceView,
@@ -55,6 +58,8 @@ const EMPTY_LESSON = (chapterId: number): LessonFormState => ({
   uploadState: "idle", uploadProgress: 0,
 });
 
+type CourseCreationMode = "manual" | "ai";
+
 export default function TeacherCoursesPage() {
   const [sessions, setSessions]                 = useState<TeacherSession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
@@ -64,9 +69,18 @@ export default function TeacherCoursesPage() {
 
   // Course creation form
   const [showCourseForm, setShowCourseForm]     = useState(false);
+  const [courseCreationMode, setCourseCreationMode] = useState<CourseCreationMode>("manual");
   const [courseTitle, setCourseTitle]           = useState("");
   const [courseDesc, setCourseDesc]             = useState("");
   const [savingCourse, setSavingCourse]         = useState(false);
+  const [aiCourseTopic, setAiCourseTopic]       = useState("");
+  const [aiCourseDocument, setAiCourseDocument] = useState<File | null>(null);
+  const [aiCourseLevel, setAiCourseLevel]       = useState("");
+  const [aiCourseObjectives, setAiCourseObjectives] = useState("");
+  const [aiCourseChapterCount, setAiCourseChapterCount] = useState(3);
+  const [aiCourseLessonsPerChapter, setAiCourseLessonsPerChapter] = useState(3);
+  const [aiGeneratingCourse, setAiGeneratingCourse] = useState(false);
+  const [pendingCourseDraft, setPendingCourseDraft] = useState<AiCourseDraft | null>(null);
 
   // Chapter form (courseId → title)
   const [chapterForms, setChapterForms]         = useState<Record<number, string>>({});
@@ -103,14 +117,94 @@ export default function TeacherCoursesPage() {
     fetchSessionResources(selectedSessionId).then(setResources).catch(() => {});
   }, [selectedSessionId]);
 
+  function resetCourseForm() {
+    setCourseCreationMode("manual");
+    setCourseTitle("");
+    setCourseDesc("");
+    setAiCourseTopic("");
+    setAiCourseDocument(null);
+    setAiCourseLevel("");
+    setAiCourseObjectives("");
+    setAiCourseChapterCount(3);
+    setAiCourseLessonsPerChapter(3);
+    setPendingCourseDraft(null);
+    setError("");
+  }
+
+  async function handleGenerateCourseDraft() {
+    if (!selectedSessionId) return;
+    if (!aiCourseDocument && !aiCourseTopic.trim()) {
+      setError("Indiquez le sujet du cours à générer.");
+      return;
+    }
+    setAiGeneratingCourse(true);
+    setError("");
+    try {
+      const commonPayload = {
+        session_id: selectedSessionId,
+        level: aiCourseLevel.trim() || null,
+        objectives: aiCourseObjectives.trim() || null,
+        chapters_count: aiCourseChapterCount,
+        lessons_per_chapter: aiCourseLessonsPerChapter,
+      };
+      const draft = aiCourseDocument
+        ? await generateCourseDraftFromDocument(aiCourseDocument, commonPayload)
+        : await generateCourseDraft({
+          ...commonPayload,
+          topic: aiCourseTopic.trim(),
+        });
+      setPendingCourseDraft(draft);
+      setCourseTitle(draft.title);
+      setCourseDesc(draft.description);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de générer le cours.");
+    } finally {
+      setAiGeneratingCourse(false);
+    }
+  }
+
   async function handleCreateCourse() {
     if (!selectedSessionId || !courseTitle.trim()) { setError("Titre requis."); return; }
     setSavingCourse(true); setError("");
     try {
       const course = await createCourse(selectedSessionId, { title: courseTitle.trim(), description: courseDesc.trim() });
-      setCourses((p) => [...p, course]);
-      setShowCourseForm(false); setCourseTitle(""); setCourseDesc("");
+      let createdCourse = course;
+      const openedChapterIds: number[] = [];
+      if (pendingCourseDraft?.chapters.length) {
+        const createdChapters: ChapterView[] = [];
+        for (const [chapterIndex, chapterDraft] of pendingCourseDraft.chapters.entries()) {
+          const chapter = await createChapter(course.id, {
+            title: chapterDraft.title.trim(),
+            order_index: chapterIndex,
+          });
+          openedChapterIds.push(chapter.id);
+          const lessons: LessonView[] = [];
+          for (const [lessonIndex, lessonDraft] of chapterDraft.lessons.entries()) {
+            const lesson = await createLesson(chapter.id, {
+              title: lessonDraft.title.trim(),
+              lesson_type: "text",
+              content: lessonDraft.content.trim(),
+              order_index: lessonIndex,
+            });
+            lessons.push(lesson);
+          }
+          createdChapters.push({ ...chapter, lessons });
+        }
+        createdCourse = {
+          ...course,
+          chapters: createdChapters,
+          total_lessons: createdChapters.reduce((sum, chapter) => sum + chapter.lessons.length, 0),
+        };
+      }
+      setCourses((p) => [...p, createdCourse]);
+      setShowCourseForm(false);
+      resetCourseForm();
       setExpandedCourses((s) => new Set(s).add(course.id));
+      setExpandedChapters((s) => {
+        const next = new Set(s);
+        openedChapterIds.forEach((id) => next.add(id));
+        return next;
+      });
     } catch (e) { setError(e instanceof Error ? e.message : "Erreur."); }
     finally { setSavingCourse(false); }
   }
@@ -214,7 +308,7 @@ export default function TeacherCoursesPage() {
             </select>
           </label>
           <button type="button" className="dsh-btn dsh-btn--primary"
-            onClick={() => { setShowCourseForm((v) => !v); setError(""); }}>
+            onClick={() => { if (showCourseForm) resetCourseForm(); setShowCourseForm((v) => !v); setError(""); }}>
             {showCourseForm ? <X size={15} /> : <Plus size={15} />}
             {showCourseForm ? "Annuler" : "Nouveau cours"}
           </button>
@@ -227,6 +321,109 @@ export default function TeacherCoursesPage() {
       {showCourseForm && (
         <div className="dsh-form-card">
           <h3>Nouveau cours</h3>
+          <div className="create-mode-tabs" role="tablist" aria-label="Mode de création du cours">
+            <button
+              type="button"
+              className={`create-mode-tabs__btn${courseCreationMode === "manual" ? " is-active" : ""}`}
+              onClick={() => { setCourseCreationMode("manual"); setPendingCourseDraft(null); }}
+            >
+              Manuel
+            </button>
+            <button
+              type="button"
+              className={`create-mode-tabs__btn${courseCreationMode === "ai" ? " is-active" : ""}`}
+              onClick={() => setCourseCreationMode("ai")}
+            >
+              <Wand2 size={14} />
+              Avec IA
+            </button>
+          </div>
+
+          {courseCreationMode === "ai" ? (
+            <div className="ai-draft-panel">
+              <label className="dsh-form-field">
+                <span>Prompt <small>(optionnel si document ajouté)</small></span>
+                <input
+                  type="text"
+                  value={aiCourseTopic}
+                  onChange={(e) => setAiCourseTopic(e.target.value)}
+                  placeholder="ex: bases du marketing digital pour débutants"
+                />
+              </label>
+              <button
+                type="button"
+                className="dsh-btn dsh-btn--ghost"
+                disabled={aiGeneratingCourse || !selectedSessionId}
+                onClick={handleGenerateCourseDraft}
+              >
+                <Wand2 size={15} />
+                {aiGeneratingCourse ? "Génération…" : "Générer"}
+              </button>
+              <label className="ai-doc-picker">
+                <span>Document PDF ou Word</span>
+                <input
+                  type="file"
+                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  onChange={(event) => setAiCourseDocument(event.target.files?.[0] ?? null)}
+                />
+                <small>
+                  {aiCourseDocument ? aiCourseDocument.name : "L'IA peut reconstruire le programme complet depuis un support."}
+                </small>
+              </label>
+              <div className="ai-draft-options">
+                <label className="dsh-form-field">
+                  <span>Niveau <small>(optionnel)</small></span>
+                  <input
+                    type="text"
+                    value={aiCourseLevel}
+                    onChange={(e) => setAiCourseLevel(e.target.value)}
+                    placeholder="ex: débutant, intermédiaire"
+                  />
+                </label>
+              <label className="dsh-form-field">
+                <span>Chapitres</span>
+                <select
+                  className="dsh-select"
+                  value={aiCourseChapterCount}
+                  onChange={(e) => setAiCourseChapterCount(Number(e.target.value))}
+                >
+                  {[1, 2, 3, 4, 5, 6].map((count) => (
+                    <option key={count} value={count}>{count}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="dsh-form-field">
+                <span>Leçons / chapitre</span>
+                <select
+                  className="dsh-select"
+                  value={aiCourseLessonsPerChapter}
+                  onChange={(e) => setAiCourseLessonsPerChapter(Number(e.target.value))}
+                >
+                  {[1, 2, 3, 4, 5, 6].map((count) => (
+                    <option key={count} value={count}>{count}</option>
+                  ))}
+                </select>
+              </label>
+                <label className="dsh-form-field ai-draft-options__wide">
+                  <span>Objectifs pédagogiques <small>(optionnel)</small></span>
+                  <textarea
+                    className="dsh-textarea"
+                    rows={2}
+                    value={aiCourseObjectives}
+                    onChange={(e) => setAiCourseObjectives(e.target.value)}
+                    placeholder="ex: savoir créer une campagne simple et mesurer les résultats"
+                  />
+                </label>
+              </div>
+            </div>
+          ) : null}
+
+          {courseCreationMode === "ai" && pendingCourseDraft ? (
+            <span className="dsh-form-hint">
+              Brouillon IA prêt : {pendingCourseDraft.chapters.length} chapitre{pendingCourseDraft.chapters.length !== 1 ? "s" : ""} et{" "}
+              {pendingCourseDraft.chapters.reduce((sum, chapter) => sum + chapter.lessons.length, 0)} leçon{pendingCourseDraft.chapters.reduce((sum, chapter) => sum + chapter.lessons.length, 0) !== 1 ? "s" : ""} seront ajoutés à la création.
+            </span>
+          ) : null}
           <div className="dsh-form-row">
             <label className="dsh-form-field">
               <span>Titre du cours</span>
@@ -239,7 +436,7 @@ export default function TeacherCoursesPage() {
               onChange={(e) => setCourseDesc(e.target.value)} placeholder="Décrivez l'objectif du cours…" />
           </label>
           <div className="dsh-form-actions">
-            <button type="button" className="dsh-btn dsh-btn--ghost" onClick={() => { setShowCourseForm(false); setCourseTitle(""); setCourseDesc(""); }}>Annuler</button>
+            <button type="button" className="dsh-btn dsh-btn--ghost" onClick={() => { setShowCourseForm(false); resetCourseForm(); }}>Annuler</button>
             <button type="button" className="dsh-btn dsh-btn--primary" disabled={savingCourse} onClick={handleCreateCourse}>
               {savingCourse ? "Création…" : "Créer le cours"}
             </button>

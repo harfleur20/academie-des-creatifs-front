@@ -8,6 +8,7 @@ from app.models.entities import (
     UserRecord,
 )
 from app.schemas.teacher import TeacherOverview, TeacherSessionItem
+from app.services.teacher_codes import ensure_teacher_profile
 
 
 def list_teacher_sessions(db: Session, user: UserRecord) -> list[TeacherSessionItem]:
@@ -50,12 +51,16 @@ def list_teacher_sessions(db: Session, user: UserRecord) -> list[TeacherSessionI
 
 
 def get_teacher_overview(db: Session, user: UserRecord) -> TeacherOverview:
+    profile = ensure_teacher_profile(db, user)
+    db.commit()
+
     sessions = list_teacher_sessions(db, user)
     planned_sessions_count = sum(1 for item in sessions if item.status == "planned")
     open_sessions_count = sum(1 for item in sessions if item.status == "open")
     total_students_count = sum(item.enrolled_count for item in sessions)
 
     return TeacherOverview(
+        teacher_code=profile.teacher_code,
         assigned_sessions_count=len(sessions),
         planned_sessions_count=planned_sessions_count,
         open_sessions_count=open_sessions_count,

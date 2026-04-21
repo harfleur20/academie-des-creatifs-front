@@ -5,6 +5,12 @@ import "react-phone-number-input/style.css";
 import { FaTimes, FaArrowRight, FaArrowLeft, FaWhatsapp, FaStar, FaCheckCircle } from "react-icons/fa";
 import { getSuggestions, type DiagnosticData } from "../lib/diagnosticApi";
 import "../styles/diagnostic.css";
+import { IoMdRocket } from "react-icons/io";
+import { SiBoat } from "react-icons/si";
+import { IoSearchCircle } from "react-icons/io5";
+import { FaVideo } from "react-icons/fa6";
+import { GiSchoolBag } from "react-icons/gi";
+import { WiStars } from "react-icons/wi";
 
 const DOMAINS = [
   "Design Graphique", "Marketing Digital", "Vidéo & Motion",
@@ -87,8 +93,12 @@ export default function DiagnosticPage() {
       setWaMessage(res.whatsapp_message);
       setDirection("forward");
       setStep(9);
-    } catch {
-      setError("Une erreur est survenue. Veuillez réessayer.");
+    } catch (submissionError) {
+      const message =
+        submissionError instanceof Error && submissionError.message
+          ? submissionError.message
+          : "Une erreur est survenue. Veuillez réessayer.";
+      setError(message);
       setStep(7);
     } finally { setLoading(false); }
   }
@@ -212,8 +222,8 @@ export default function DiagnosticPage() {
             <h2 className="diag-reveal diag-reveal--2">Quel est votre niveau actuel ?</h2>
             <div className="diag-level-cards diag-reveal diag-reveal--3">
               {[
-                { value: "debutant", label: "Débutant", desc: "Je commence depuis zéro", emoji: "🌱" },
-                { value: "intermediaire", label: "Intermédiaire", desc: "J'ai quelques bases", emoji: "🚀" },
+                { value: "debutant", label: "Débutant", desc: "Je commence depuis zéro", emoji: <SiBoat className="rocket"/> },
+                { value: "intermediaire", label: "Intermédiaire", desc: "J'ai quelques bases", emoji: <IoMdRocket className="rocket" /> },
               ].map(({ value, label, desc, emoji }) => (
                 <button key={value} type="button"
                   className={`diag-level-card${data.level === value ? " is-selected" : ""}`}
@@ -238,7 +248,10 @@ export default function DiagnosticPage() {
             <h2 className="diag-reveal diag-reveal--2">Où êtes-vous basé ?</h2>
             <div className="diag-fields diag-reveal diag-reveal--3">
               <div className="diag-country-wrap">
-                <input className="diag-input" placeholder="🔍 Nationalité…"
+                <span className="diag-input-icon">
+                 <IoSearchCircle />
+                  </span>
+                <input className="diag-input" placeholder="Nationalité…"
                   value={countrySearch}
                   onChange={(e) => { setCountrySearch(e.target.value); set("nationality", ""); }} />
                 {countrySearch && !data.nationality && filtered.length > 0 && (
@@ -257,15 +270,20 @@ export default function DiagnosticPage() {
               <p className="diag-sublabel">Type de formation souhaité</p>
               <div className="diag-chips diag-chips--training">
                 {[
-                  { value: "online", label: "💻 En ligne" },
-                  { value: "presentiel", label: "🏫 En présentiel" },
-                  { value: "both", label: "✨ Les deux" },
-                ].map(({ value, label }) => (
-                  <button key={value} type="button"
-                    className={`diag-chip${data.trainingType === value ? " is-selected" : ""}`}
-                    onClick={() => set("trainingType", value)}>{label}
-                  </button>
-                ))}
+                    { value: "online", label: "En ligne", icon: FaVideo },
+                    { value: "presentiel", label: "En présentiel", icon: GiSchoolBag },
+                    { value: "both", label: "Les deux", icon: WiStars },
+                  ].map(({ value, label, icon: Icon }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`diag-chip${data.trainingType === value ? " is-selected" : ""}`}
+                      onClick={() => set("trainingType", value)}
+                    >
+                      <Icon className="diag-chip-icon" />
+                      {label}
+                    </button>
+                  ))}
               </div>
             </div>
             <div className="diag-nav-inline diag-reveal diag-reveal--4">

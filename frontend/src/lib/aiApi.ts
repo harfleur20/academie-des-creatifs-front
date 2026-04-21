@@ -3,6 +3,14 @@ import { apiRequest } from "./apiClient";
 export type AiChatMessage = {
   role: "user" | "assistant";
   content: string;
+  actions?: AiChatAction[];
+};
+
+export type AiChatAction = {
+  id: string;
+  label: string;
+  href: string;
+  style?: "primary" | "secondary";
 };
 
 export type AiChatRequest = {
@@ -10,11 +18,18 @@ export type AiChatRequest = {
   formation_title: string;
   module_title?: string;
   lesson_title?: string;
+  enrollment_id?: number;
+  assistant_mode?:
+    | "student_learning"
+    | "ecommerce_support"
+    | "teacher_assistant"
+    | "admin_assistant";
   history: AiChatMessage[];
 };
 
 export type AiChatResponse = {
   reply: string;
+  actions?: AiChatAction[];
 };
 
 export async function sendAiChatMessage(

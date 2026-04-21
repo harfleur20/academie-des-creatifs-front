@@ -38,12 +38,12 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: #f3f4f6;
+  background: #ffffff;
   z-index: 9;
 }
 .diag-progress__bar {
   height: 100%;
-  background: var(--couleur-secondaire, #1c8480);
+  background-color: #ffffff;
   transition: width 0.4s cubic-bezier(.4,0,.2,1);
   border-radius: 0 2px 2px 0;
 }
@@ -272,11 +272,53 @@
 .diag-level-card:hover { border-color: var(--couleur-secondaire); }
 .diag-level-card.is-selected {
   border-color: var(--couleur-secondaire);
-  background: rgba(28,132,128,0.05);
+  /* background: rgba(28,132,128,0.05); */
 }
 .diag-level-card__emoji { font-size: 2rem; }
 .diag-level-card strong { font-size: 1rem; color: var(--couleur-principale); }
 .diag-level-card span { font-size: 0.82rem; color: #6b7280; }
+
+.diag-country-wrap {
+  position: relative;
+}
+
+.diag-input-icon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #9b9ea4;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.diag-input {
+  width: 100%;
+  padding: 12px 14px 12px 42px;
+  border-radius: 10px;
+  border: 1px solid #dcdfe4;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.diag-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.diag-chip-icon {
+  font-size: 18px;
+}
+
+.rocket{
+  font-size: 2.8rem;
+  color: var(--couleur-principale);
+}
 
 /* ── Country picker ── */
 .diag-country-wrap { position: relative; }

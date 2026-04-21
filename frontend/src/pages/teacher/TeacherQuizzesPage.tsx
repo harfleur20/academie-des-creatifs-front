@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle, Plus, Trash2, Users, X, BarChart2, Calendar, BookOpen, Timer } from "lucide-react";
+import { CheckCircle, Plus, Trash2, Users, X, BarChart2, Calendar, BookOpen, Timer, Wand2 } from "lucide-react";
 import {
   fetchTeacherOverview,
   fetchSessionCourseDays,
@@ -8,6 +8,7 @@ import {
   updateQuiz,
   deleteQuiz,
   fetchQuizResults,
+  generateQuizDraft,
   type TeacherSession,
   type CourseDay,
   type QuizView,
@@ -16,6 +17,7 @@ import {
 
 type QuestionDraft = { text: string; options: string[]; correct_index: number };
 const EMPTY_QUESTION: QuestionDraft = { text: "", options: ["", "", ""], correct_index: 0 };
+type QuizCreationMode = "manual" | "ai";
 
 const STATUS_MAP = {
   draft:  { label: "Brouillon", color: "gray" },
@@ -32,8 +34,15 @@ export default function TeacherQuizzesPage() {
   const [results, setResults]               = useState<QuizResults | null>(null);
   const [isLoading, setIsLoading]           = useState(true);
   const [showForm, setShowForm]             = useState(false);
+  const [creationMode, setCreationMode]     = useState<QuizCreationMode>("manual");
   const [saving, setSaving]                 = useState(false);
   const [error, setError]                   = useState("");
+  const [aiTopic, setAiTopic]               = useState("");
+  const [aiLevel, setAiLevel]               = useState("");
+  const [aiObjectives, setAiObjectives]     = useState("");
+  const [aiQuestionsCount, setAiQuestionsCount] = useState(5);
+  const [aiOptionsPerQuestion, setAiOptionsPerQuestion] = useState(4);
+  const [aiGenerating, setAiGenerating]     = useState(false);
 
   const [title, setTitle]                   = useState("");
   const [scheduledAt, setScheduledAt]       = useState("");
@@ -93,7 +102,49 @@ export default function TeacherQuizzesPage() {
   }
 
   function resetForm() {
-    setTitle(""); setScheduledAt(""); setDurationMinutes(null); setQuestions([{ ...EMPTY_QUESTION }]); setError("");
+    setCreationMode("manual");
+    setTitle("");
+    setScheduledAt("");
+    setDurationMinutes(null);
+    setQuestions([{ ...EMPTY_QUESTION }]);
+    setAiTopic("");
+    setAiLevel("");
+    setAiObjectives("");
+    setAiQuestionsCount(5);
+    setAiOptionsPerQuestion(4);
+    setError("");
+  }
+
+  async function handleGenerateQuizDraft() {
+    if (!selectedSessionId) return;
+    if (!aiTopic.trim()) {
+      setError("Indiquez le sujet du quiz à générer.");
+      return;
+    }
+    setAiGenerating(true);
+    setError("");
+    try {
+      const draft = await generateQuizDraft({
+        session_id: selectedSessionId,
+        topic: aiTopic.trim(),
+        level: aiLevel.trim() || null,
+        objectives: aiObjectives.trim() || null,
+        course_day_id: selectedCourseDayId,
+        questions_count: aiQuestionsCount,
+        options_per_question: aiOptionsPerQuestion,
+      });
+      setTitle(draft.title);
+      setDurationMinutes(draft.duration_minutes);
+      setQuestions(draft.questions.map((question) => ({
+        text: question.text,
+        options: question.options.length >= 2 ? question.options : ["", ""],
+        correct_index: Math.min(question.correct_index, Math.max(question.options.length - 1, 0)),
+      })));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de générer le quiz.");
+    } finally {
+      setAiGenerating(false);
+    }
   }
 
   async function handleCreate() {
@@ -176,6 +227,91 @@ export default function TeacherQuizzesPage() {
       {showForm && (
         <div className="dsh-form-card">
           <h3>Nouveau quiz</h3>
+          <div className="create-mode-tabs" role="tablist" aria-label="Mode de création du quiz">
+            <button
+              type="button"
+              className={`create-mode-tabs__btn${creationMode === "manual" ? " is-active" : ""}`}
+              onClick={() => setCreationMode("manual")}
+            >
+              Manuel
+            </button>
+            <button
+              type="button"
+              className={`create-mode-tabs__btn${creationMode === "ai" ? " is-active" : ""}`}
+              onClick={() => setCreationMode("ai")}
+            >
+              <Wand2 size={14} />
+              Avec IA
+            </button>
+          </div>
+
+          {creationMode === "ai" ? (
+            <div className="ai-draft-panel">
+              <label className="dsh-form-field">
+                <span>Sujet à générer avec l'IA</span>
+                <input
+                  type="text"
+                  value={aiTopic}
+                  onChange={(e) => setAiTopic(e.target.value)}
+                  placeholder="ex: quiz sur les fondamentaux du branding"
+                />
+              </label>
+              <button
+                type="button"
+                className="dsh-btn dsh-btn--ghost"
+                disabled={aiGenerating || !selectedSessionId}
+                onClick={handleGenerateQuizDraft}
+              >
+                <Wand2 size={15} />
+                {aiGenerating ? "Génération…" : "Générer"}
+              </button>
+              <div className="ai-draft-options">
+                <label className="dsh-form-field">
+                  <span>Niveau <small>(optionnel)</small></span>
+                  <input
+                    type="text"
+                    value={aiLevel}
+                    onChange={(e) => setAiLevel(e.target.value)}
+                    placeholder="ex: débutant à intermédiaire"
+                  />
+                </label>
+                <label className="dsh-form-field">
+                  <span>Questions</span>
+                  <select
+                    className="dsh-select"
+                    value={aiQuestionsCount}
+                    onChange={(e) => setAiQuestionsCount(Number(e.target.value))}
+                  >
+                    {[2, 3, 5, 8, 10, 15, 20].map((count) => (
+                      <option key={count} value={count}>{count}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="dsh-form-field">
+                  <span>Options / question</span>
+                  <select
+                    className="dsh-select"
+                    value={aiOptionsPerQuestion}
+                    onChange={(e) => setAiOptionsPerQuestion(Number(e.target.value))}
+                  >
+                    {[2, 3, 4, 5, 6].map((count) => (
+                      <option key={count} value={count}>{count}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="dsh-form-field ai-draft-options__wide">
+                  <span>Objectifs évalués <small>(optionnel)</small></span>
+                  <textarea
+                    className="dsh-textarea"
+                    rows={2}
+                    value={aiObjectives}
+                    onChange={(e) => setAiObjectives(e.target.value)}
+                    placeholder="ex: vérifier la compréhension des canaux, des personas et des indicateurs"
+                  />
+                </label>
+              </div>
+            </div>
+          ) : null}
           <div className="dsh-form-row">
             <label className="dsh-form-field">
               <span>Journée de cours <small>(optionnel)</small></span>

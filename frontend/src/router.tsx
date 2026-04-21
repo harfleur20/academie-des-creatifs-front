@@ -50,6 +50,7 @@ const StudentResultsPage = lazy(() => import("./pages/student/StudentResultsPage
 const StudentPaymentsPage = lazy(() => import("./pages/student/StudentPaymentsPage"));
 const StudentCoursesPage = lazy(() => import("./pages/student/StudentCoursesPage"));
 const StudentProfilePage = lazy(() => import("./pages/student/StudentProfilePage"));
+const StudentClassPage = lazy(() => import("./pages/student/StudentClassPage"));
 const TeacherProfilePage = lazy(() => import("./pages/teacher/TeacherProfilePage"));
 const AdminProfilePage = lazy(() => import("./pages/admin/AdminProfilePage"));
 const HelpPage = lazy(() => import("./pages/HelpPage"));
@@ -162,6 +163,7 @@ export const router = createBrowserRouter([
           { path: "formations", element: routePage(<StudentFormationsPage />) },
           { path: "parcours", element: routePage(<StudentParcoursPage />) },
           { path: "cours", element: routePage(<StudentCoursesPage />) },
+          { path: "classe", element: routePage(<StudentClassPage />) },
           { path: "quizz", element: routePage(<StudentQuizzesPage />) },
           { path: "ressources", element: routePage(<StudentResourcesPage />) },
           { path: "devoirs", element: routePage(<StudentAssignmentsPage />) },

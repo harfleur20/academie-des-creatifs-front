@@ -18,6 +18,7 @@ export type TeacherSession = {
 };
 
 export type TeacherOverview = {
+  teacher_code: string | null;
   assigned_sessions_count: number;
   planned_sessions_count: number;
   open_sessions_count: number;
@@ -28,6 +29,114 @@ export type TeacherOverview = {
 
 export async function fetchTeacherOverview(): Promise<TeacherOverview> {
   return apiRequest<TeacherOverview>("/teacher/overview");
+}
+
+// ── AI draft generation ─────────────────────────────────────────────────────
+
+const AI_GENERATION_TIMEOUT_MS = 180 * 1000;
+
+export type AiGenerationBasePayload = {
+  session_id: number;
+  topic: string;
+  level?: string | null;
+  objectives?: string | null;
+};
+
+export type AiCourseDraftPayload = AiGenerationBasePayload & {
+  chapters_count?: number;
+  lessons_per_chapter?: number;
+};
+
+export type AiLessonDraft = {
+  title: string;
+  content: string;
+};
+
+export type AiChapterDraft = {
+  title: string;
+  lessons: AiLessonDraft[];
+};
+
+export type AiCourseDraft = {
+  title: string;
+  description: string;
+  chapters: AiChapterDraft[];
+};
+
+export type AiQuizDraftPayload = AiGenerationBasePayload & {
+  course_day_id?: number | null;
+  questions_count?: number;
+  options_per_question?: number;
+};
+
+export type AiQuizQuestionDraft = {
+  text: string;
+  options: string[];
+  correct_index: number;
+};
+
+export type AiQuizDraft = {
+  title: string;
+  duration_minutes: number | null;
+  questions: AiQuizQuestionDraft[];
+};
+
+export type AiAssignmentDraftPayload = AiGenerationBasePayload & {
+  course_day_id?: number | null;
+  duration_days?: number;
+  is_final_project?: boolean;
+};
+
+export type AiAssignmentDraft = {
+  title: string;
+  instructions: string;
+  is_final_project: boolean;
+  duration_days: number;
+};
+
+export async function generateCourseDraft(payload: AiCourseDraftPayload): Promise<AiCourseDraft> {
+  return apiRequest<AiCourseDraft>("/teacher/ai/course-draft", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    timeoutMs: AI_GENERATION_TIMEOUT_MS,
+  });
+}
+
+export async function generateCourseDraftFromDocument(
+  file: File,
+  payload: Omit<AiCourseDraftPayload, "topic">,
+): Promise<AiCourseDraft> {
+  const params = new URLSearchParams({
+    session_id: String(payload.session_id),
+    filename: file.name,
+    chapters_count: String(payload.chapters_count ?? 3),
+    lessons_per_chapter: String(payload.lessons_per_chapter ?? 3),
+  });
+  if (payload.level?.trim()) params.set("level", payload.level.trim());
+  if (payload.objectives?.trim()) params.set("objectives", payload.objectives.trim());
+
+  return apiRequest<AiCourseDraft>(`/teacher/ai/course-draft/document?${params.toString()}`, {
+    method: "POST",
+    body: file,
+    headers: { "Content-Type": file.type || "application/octet-stream" },
+    timeoutMs: AI_GENERATION_TIMEOUT_MS,
+  });
+}
+
+export async function generateQuizDraft(payload: AiQuizDraftPayload): Promise<AiQuizDraft> {
+  return apiRequest<AiQuizDraft>("/teacher/ai/quiz-draft", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    timeoutMs: AI_GENERATION_TIMEOUT_MS,
+  });
+}
+
+export async function generateAssignmentDraft(payload: AiAssignmentDraftPayload): Promise<AiAssignmentDraft> {
+  return apiRequest<AiAssignmentDraft>("/teacher/ai/assignment-draft", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    timeoutMs: AI_GENERATION_TIMEOUT_MS,
+  });
 }
 
 // ── Quiz ─────────────────────────────────────────────────────────────────────

@@ -210,6 +210,43 @@
   letter-spacing: 0.05em;
 }
 
+.cv-formation-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.cv-formation-block:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.cv-formation-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.25rem 0.15rem 0;
+}
+
+.cv-formation-head__label {
+  width: fit-content;
+  padding: 0.16rem 0.48rem;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.cv-formation-head strong {
+  color: #4f46e5;
+  font-size: 0.98rem;
+  font-weight: 850;
+  line-height: 1.3;
+}
+
 .cv-course-block { display: flex; flex-direction: column; gap: 0.25rem; }
 
 .cv-progress-row {
@@ -352,7 +389,97 @@
   font-size: 0.9rem;
   line-height: 1.75;
   color: #374151;
-  white-space: pre-wrap;
+  white-space: normal;
+}
+
+.cv-text-content :where(h1, h2, h3, p, ul, ol, blockquote, table) {
+  margin: 0;
+}
+
+.cv-text-content > * + * {
+  margin-top: 1rem;
+}
+
+.cv-text-content h1,
+.cv-text-content h2,
+.cv-text-content h3 {
+  color: #111827;
+  line-height: 1.25;
+}
+
+.cv-text-content h1 {
+  font-size: 1.25rem;
+  font-weight: 850;
+}
+
+.cv-text-content h2 {
+  margin-top: 1.45rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eef2f7;
+  font-size: 1.05rem;
+  font-weight: 820;
+}
+
+.cv-text-content h3 {
+  font-size: 0.96rem;
+  font-weight: 800;
+}
+
+.cv-text-content p {
+  line-height: 1.78;
+}
+
+.cv-text-content ul,
+.cv-text-content ol {
+  display: grid;
+  gap: 0.45rem;
+  padding-left: 1.35rem;
+}
+
+.cv-text-content li {
+  line-height: 1.65;
+}
+
+.cv-text-content strong {
+  color: #111827;
+  font-weight: 820;
+}
+
+.cv-text-content blockquote {
+  padding: 0.85rem 1rem;
+  border-left: 4px solid #6366f1;
+  border-radius: 0 10px 10px 0;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.cv-text-content code {
+  padding: 0.1rem 0.28rem;
+  border-radius: 5px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 0.92em;
+}
+
+.cv-text-content table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow-x: auto;
+  font-size: 0.84rem;
+}
+
+.cv-text-content th,
+.cv-text-content td {
+  padding: 0.55rem 0.65rem;
+  border: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: top;
+}
+
+.cv-text-content th {
+  background: #f8fafc;
+  color: #111827;
+  font-weight: 800;
 }
 
 .cv-video-embed {
@@ -385,6 +512,91 @@
 }
 .cv-pdf-block strong, .cv-linked-block strong { font-size: 1rem; color: #111827; }
 .cv-pdf-block p, .cv-linked-block p { font-size: 0.85rem; color: #6b7280; margin: 0; }
+
+.cv-lesson-extras {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #eef2f7;
+}
+
+.cv-lesson-extras h3 {
+  margin: 0 0 0.75rem;
+  color: #111827;
+  font-size: 0.95rem;
+  font-weight: 850;
+}
+
+.cv-lesson-extras__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.75rem;
+}
+
+.cv-lesson-extra {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 0.65rem;
+  align-items: start;
+  padding: 0.9rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  color: #374151;
+  text-decoration: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.cv-lesson-extra:hover {
+  transform: translateY(-1px);
+  border-color: #c7d2fe;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.cv-lesson-extra__icon {
+  grid-row: span 3;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.cv-lesson-extra__icon--resource {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.cv-lesson-extra__icon--quiz {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.cv-lesson-extra__icon--assignment {
+  background: #eff6ff;
+  color: #0284c7;
+}
+
+.cv-lesson-extra strong {
+  color: #111827;
+  font-size: 0.85rem;
+  font-weight: 850;
+}
+
+.cv-lesson-extra span:not(.cv-lesson-extra__icon) {
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.cv-lesson-extra em {
+  color: #4f46e5;
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 850;
+}
 
 .cv-empty-state { color: #9ca3af; font-size: 0.85rem; font-style: italic; }
 

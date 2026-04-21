@@ -240,7 +240,16 @@ export default function StudentClassicWorkspacePage() {
 
       <AiChatWidget
         formationTitle={enrollment.formation_title}
+        enrollmentId={enrollment.id}
         moduleTitle={modules[activeModuleIndex]?.title}
+        panelSubtitle={enrollment.session_label || "Modules et progression"}
+        introTitle="Je peux vous aider a vous repérer dans votre formation."
+        introText="Demandez ou vous en etes, quel module reprendre ou comment valider votre parcours."
+        suggestions={[
+          "Ou en est ma progression ?",
+          "Quel module dois-je continuer maintenant ?",
+          "Comment obtenir mon certificat ?",
+        ]}
       />
     </div>
   );

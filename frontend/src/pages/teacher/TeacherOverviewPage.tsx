@@ -240,10 +240,10 @@ export default function TeacherOverviewPage() {
               <p className="stu-hero__eyebrow">Espace enseignant</p>
               <h2 className="stu-hero__title">Bonjour, {firstName}&nbsp;👋</h2>
               <p className="stu-hero__sub">
-                Sessions actives&nbsp;: <strong>{openSessions} ouverte{openSessions !== 1 ? "s" : ""}</strong>
+                Code enseignant&nbsp;: <strong>{overview?.teacher_code ?? "Non attribué"}</strong>
               </p>
               <p className="stu-hero__desc">
-                Gérez vos cours, lives, présences et notes pour chaque session.
+                {openSessions} session{openSessions !== 1 ? "s" : ""} ouverte{openSessions !== 1 ? "s" : ""}. Gérez vos cours, lives, présences et notes pour chaque session.
               </p>
             </div>
             <TeacherIllustration />

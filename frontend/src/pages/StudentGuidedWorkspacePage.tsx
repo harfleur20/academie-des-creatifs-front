@@ -346,7 +346,18 @@ export default function StudentGuidedWorkspacePage() {
         )}
       </section>
 
-      <AiChatWidget formationTitle={enrollment.formation_title} />
+      <AiChatWidget
+        formationTitle={enrollment.formation_title}
+        enrollmentId={enrollment.id}
+        panelSubtitle={enrollment.session_label || "Cohorte live connectee"}
+        introTitle="Je peux m'appuyer sur votre session actuelle."
+        introText="Demandez le prochain cours, les devoirs a rendre, les quiz ouverts ou un point sur vos resultats."
+        suggestions={[
+          "Quand est mon prochain cours ?",
+          "Quels devoirs dois-je rendre ?",
+          "Quels quiz sont encore ouverts ?",
+        ]}
+      />
 
       <section className="workspace-section">
         <div className="workspace-section__heading">

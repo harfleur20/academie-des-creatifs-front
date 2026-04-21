@@ -2204,6 +2204,187 @@ React will try to recreate this component tree from scratch using the error boun
   11896 |    opacity: 1;
   11897 |    cursor: default;[39m
       at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord [2m20:21:15[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/components/AiChatWidget.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:21:15[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/components/AiChatWidget.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:21:15[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/components/AiChatWidget.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:28:30[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/components/AiChatWidget.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:28:30[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/components/AiChatWidget.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:28:30[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/components/AiChatWidget.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:28:31[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/components/AiChatWidget.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:28:34[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Failed to load url /src/components/AiChatWidget.tsx (resolved id: C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/components/AiChatWidget.tsx) in C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/pages/StudentGuidedWorkspacePage.tsx. Does the file exist?
+[2m20:33:44[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/components/AiChatWidget.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:33:44[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/components/AiChatWidget.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:33:44[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/components/AiChatWidget.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:33:44[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/components/AiChatWidget.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:33:44[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: Failed to load url /src/components/AiChatWidget.tsx (resolved id: C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/components/AiChatWidget.tsx) in C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/pages/StudentGuidedWorkspacePage.tsx. Does the file exist?
+[2m20:52:38[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16659:8: Missed semicolon[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16659:7
+[33m  16657 |    border: 1px solid rgba(24, 167, 163, 0.18);
+  16658 |    background: 
+  16659 |    color: #fff;
+        |         ^
+  16660 |    cursor: pointer;
+  16661 |    display: flex;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.checkMissedSemicolon (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:138:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:296:12)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m20:52:38[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:52:39[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16659:8: Missed semicolon[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16659:7
+[33m  16657 |    border: 1px solid rgba(24, 167, 163, 0.18);
+  16658 |    background: 
+  16659 |    color: #fff;
+        |         ^
+  16660 |    cursor: pointer;
+  16661 |    display: flex;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.checkMissedSemicolon (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:138:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:296:12)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m20:52:39[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16659:8: Missed semicolon[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16659:7
+[33m  16657 |    border: 1px solid rgba(24, 167, 163, 0.18);
+  16658 |    background: 
+  16659 |    color: #fff;
+        |         ^
+  16660 |    cursor: pointer;
+  16661 |    display: flex;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.checkMissedSemicolon (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:138:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:296:12)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m20:52:39[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:52:39[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16659:8: Missed semicolon[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16659:7
+[33m  16657 |    border: 1px solid rgba(24, 167, 163, 0.18);
+  16658 |    background: 
+  16659 |    color: #fff;
+        |         ^
+  16660 |    cursor: pointer;
+  16661 |    display: flex;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.checkMissedSemicolon (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:138:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:296:12)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m20:52:39[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:52:39[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16659:8: Missed semicolon[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16659:7
+[33m  16657 |    border: 1px solid rgba(24, 167, 163, 0.18);
+  16658 |    background: 
+  16659 |    color: #fff;
+        |         ^
+  16660 |    cursor: pointer;
+  16661 |    display: flex;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.checkMissedSemicolon (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:138:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:296:12)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m20:52:40[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16659:8: Missed semicolon[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16659:7
+[33m  16657 |    border: 1px solid rgba(24, 167, 163, 0.18);
+  16658 |    background: 
+  16659 |    color: #fff;
+        |         ^
+  16660 |    cursor: pointer;
+  16661 |    display: flex;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.checkMissedSemicolon (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:138:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:296:12)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m20:52:40[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:52:43[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16649:1: Unclosed block[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16649:0
+[33m  16647 |  
+  16648 |  /* ── AI Chat Widget ── */
+  16649 |  .ai-chat-fab {
+        |  ^
+  16650 |    position: fixed;
+  16651 |    bottom: 1.75rem;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unclosedBlock (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:575:22)
+      at Parser.endFile (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:335:35)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:476:10)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:52:43[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16649:1: Unclosed block[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16649:0
+[33m  16647 |  
+  16648 |  /* ── AI Chat Widget ── */
+  16649 |  .ai-chat-fab {
+        |  ^
+  16650 |    position: fixed;
+  16651 |    bottom: 1.75rem;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unclosedBlock (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:575:22)
+      at Parser.endFile (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:335:35)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:476:10)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:52:43[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:52:43[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:52:44[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16659:3: Unknown word color[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16659:2
+[33m  16657 |    border: 1px solid rgba(24, 167, 163, 0.18);
+  16658 |    background-
+  16659 |    color: #fff;
+        |    ^
+  16660 |    cursor: pointer;
+  16661 |    display: flex;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
       at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
       at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
       at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
@@ -2213,6 +2394,1111 @@ React will try to recreate this component tree from scratch using the error boun
       at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
       at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
       at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
-[2m09:39:52[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
-[2m09:39:52[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
-[2m09:39:52[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:52:44[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16659:3: Unknown word color[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16659:2
+[33m  16657 |    border: 1px solid rgba(24, 167, 163, 0.18);
+  16658 |    background-
+  16659 |    color: #fff;
+        |    ^
+  16660 |    cursor: pointer;
+  16661 |    display: flex;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m20:52:44[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:52:44[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:52:44[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16659:3: Unknown word color
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16659:2
+[33m  16657 |    border: 1px solid rgba(24, 167, 163, 0.18);
+  16658 |    background-
+  16659 |    color: #fff;
+        |    ^
+  16660 |    cursor: pointer;
+  16661 |    display: flex;[39m
+[2m20:52:46[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16659:3: Unknown word color[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16659:2
+[33m  16657 |    border: 1px solid rgba(24, 167, 163, 0.18);
+  16658 |    background-color
+  16659 |    color: #fff;
+        |    ^
+  16660 |    cursor: pointer;
+  16661 |    display: flex;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m20:52:46[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:52:47[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16659:3: Unknown word color[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16659:2
+[33m  16657 |    border: 1px solid rgba(24, 167, 163, 0.18);
+  16658 |    background-color
+  16659 |    color: #fff;
+        |    ^
+  16660 |    cursor: pointer;
+  16661 |    display: flex;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m20:52:47[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:52:47[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16659:3: Unknown word color[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16659:2
+[33m  16657 |    border: 1px solid rgba(24, 167, 163, 0.18);
+  16658 |    background-color
+  16659 |    color: #fff;
+        |    ^
+  16660 |    cursor: pointer;
+  16661 |    display: flex;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m20:52:47[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16659:3: Unknown word color[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16659:2
+[33m  16657 |    border: 1px solid rgba(24, 167, 163, 0.18);
+  16658 |    background-color
+  16659 |    color: #fff;
+        |    ^
+  16660 |    cursor: pointer;
+  16661 |    display: flex;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m20:52:47[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:52:47[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16659:3: Unknown word color[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16659:2
+[33m  16657 |    border: 1px solid rgba(24, 167, 163, 0.18);
+  16658 |    background-color: ;
+  16659 |    color: #fff;
+        |    ^
+  16660 |    cursor: pointer;
+  16661 |    display: flex;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m20:52:47[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:52:47[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:53:44[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:13038:3: Unknown word align-ite[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:13038:2
+[33m  13036 |    letter-spacing: 0.02em;
+  13037 |    display: flex;
+  13038 |    align-items: center;
+        |    ^
+  13039 |    justify-content: center;
+  13040 |    flex-shrink: 0;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:53:44[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:13038:3: Unknown word align-ite[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:13038:2
+[33m  13036 |    letter-spacing: 0.02em;
+  13037 |    display: flex;
+  13038 |    align-items: center;
+        |    ^
+  13039 |    justify-content: center;
+  13040 |    flex-shrink: 0;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:53:44[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:53:44[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:54:41[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16649:1: Unclosed block[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16649:0
+[33m  16647 |  
+  16648 |  /* ── AI Chat Widget ── */
+  16649 |  .ai-chat-fab {
+        |  ^
+  16650 |    position: fixed;
+  16651 |    bottom: 1.75rem;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unclosedBlock (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:575:22)
+      at Parser.endFile (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:335:35)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:476:10)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:54:41[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16649:1: Unclosed block[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16649:0
+[33m  16647 |  
+  16648 |  /* ── AI Chat Widget ── */
+  16649 |  .ai-chat-fab {
+        |  ^
+  16650 |    position: fixed;
+  16651 |    bottom: 1.75rem;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unclosedBlock (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:575:22)
+      at Parser.endFile (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:335:35)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:476:10)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:54:41[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:54:41[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:18[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:18[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:18[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:19[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:19[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:19[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:19[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background-[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background-
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:19[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background-[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background-
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:19[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:19[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:19[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background-[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background-
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:19[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:19[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:19[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background-[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background-
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:20[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background-[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background-
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:20[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:20[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background-
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background-
+        |    ^
+  16679 |  }
+  16680 |  [39m
+[2m20:55:21[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:22[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background-colo[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background-colo
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:22[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background-colo[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background-colo
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:22[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:22[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:22[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background-colo[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background-colo
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:22[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background-colo[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background-colo
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:22[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background-colo[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background-colo
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:22[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:22[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:22[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background-colo[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background-colo
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:22[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:22[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16678:3: Unknown word background-colo[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16678:2
+[33m  16676 |  
+  16677 |  .ai-chat-fab.is-open {
+  16678 |    background-colo
+        |    ^
+  16679 |  }
+  16680 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:23[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:23[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:31[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16649:1: Unclosed block[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16649:0
+[33m  16647 |  
+  16648 |  /* ── AI Chat Widget ── */
+  16649 |  .ai-chat-fab {
+        |  ^
+  16650 |    position: fixed;
+  16651 |    bottom: 1.75rem;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unclosedBlock (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:575:22)
+      at Parser.endFile (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:335:35)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:476:10)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:31[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16649:1: Unclosed block[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16649:0
+[33m  16647 |  
+  16648 |  /* ── AI Chat Widget ── */
+  16649 |  .ai-chat-fab {
+        |  ^
+  16650 |    position: fixed;
+  16651 |    bottom: 1.75rem;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unclosedBlock (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:575:22)
+      at Parser.endFile (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:335:35)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:476:10)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:31[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:31[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:45[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:13038:3: Unknown word align-ite[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:13038:2
+[33m  13036 |    letter-spacing: 0.02em;
+  13037 |    display: flex;
+  13038 |    align-items: center;
+        |    ^
+  13039 |    justify-content: center;
+  13040 |    flex-shrink: 0;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:45[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:13038:3: Unknown word align-ite[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:13038:2
+[33m  13036 |    letter-spacing: 0.02em;
+  13037 |    display: flex;
+  13038 |    align-items: center;
+        |    ^
+  13039 |    justify-content: center;
+  13040 |    flex-shrink: 0;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:45[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:45[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:45[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:55:57[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:13038:3: Unknown word align-ite[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:13038:2
+[33m  13036 |    letter-spacing: 0.02em;
+  13037 |    display: flex;
+  13038 |    align-items: center;
+        |    ^
+  13039 |    justify-content: center;
+  13040 |    flex-shrink: 0;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m20:55:57[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:10:31[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word backgroun[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    backgroun;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:10:31[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word backgroun[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    backgroun;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:10:32[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:10:32[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:10:32[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word backgroun[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    backgroun;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:10:32[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word backgroun[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    backgroun;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:10:32[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:10:33[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word backgroun[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    backgroun;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:10:33[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:10:33[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:10:34[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word background-[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    background-;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:10:34[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:10:34[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word background-[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    background-;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:10:34[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word background-[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    background-;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:10:34[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:10:35[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word background-[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    background-;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:10:35[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word background-[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    background-;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:10:35[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:10:35[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:10:35[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word background-
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    background-c;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+[2m21:10:36[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word background-c[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    background-c;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:10:36[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word background-c[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    background-c;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:10:36[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:10:36[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word background-c[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    background-c;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:10:36[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:10:36[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word background-c[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    background-c;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:437:12)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:10:36[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:10:36[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:10:36[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m Pre-transform error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16907:3: Unknown word background-c
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16907:2
+[33m  16905 |  
+  16906 |  .ai-chat-msg--user .ai-chat-msg__bubble {
+  16907 |    background-c;
+        |    ^
+  16908 |    color: #fff;
+  16909 |    box-shadow: 0 16px 28px rgba(17, 25, 60, 0.14);[39m
+[2m21:15:30[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16649:1: Unclosed block[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16649:0
+[33m  16647 |  
+  16648 |  /* ── AI Chat Widget ── */
+  16649 |  .ai-chat-fab {
+        |  ^
+  16650 |    position: fixed;
+  16651 |    bottom: 1.75rem;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unclosedBlock (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:575:22)
+      at Parser.endFile (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:335:35)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:476:10)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:15:30[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css:16649:1: Unclosed block[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/global.css[39m:16649:0
+[33m  16647 |  
+  16648 |  /* ── AI Chat Widget ── */
+  16649 |  .ai-chat-fab {
+        |  ^
+  16650 |    position: fixed;
+  16651 |    bottom: 1.75rem;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unclosedBlock (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:575:22)
+      at Parser.endFile (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:335:35)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:476:10)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+      at async compileCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20859:26)
+[2m21:15:30[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:15:30[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m21:15:30[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/global.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m22:25:16[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mError handled by React Router default ErrorBoundary: ReferenceError: IoMdRocket is not defined
+    at DiagnosticPage (http://localhost:3000/src/pages/DiagnosticPage.tsx?t=1776716715749:660:41)
+    at Object.react_stack_bottom_frame (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:12868:12)
+    at renderWithHooks (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:4213:19)
+    at updateFunctionComponent (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:5569:16)
+    at beginWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:6140:20)
+    at runWithFiberInDEV (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:851:66)
+    at performUnitOfWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8429:92)
+    at workLoopSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8325:37)
+    at renderRootSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8309:6)
+    at performWorkOnRoot (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:7957:181)
+[2m22:25:16[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mError handled by React Router default ErrorBoundary: ReferenceError: IoMdRocket is not defined
+    at DiagnosticPage (http://localhost:3000/src/pages/DiagnosticPage.tsx?t=1776716715749:660:41)
+    at Object.react_stack_bottom_frame (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:12868:12)
+    at renderWithHooks (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:4213:19)
+    at updateFunctionComponent (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:5569:16)
+    at beginWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:6140:20)
+    at runWithFiberInDEV (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:851:66)
+    at performUnitOfWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8429:92)
+    at workLoopSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8325:37)
+    at renderRootSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8309:6)
+    at performWorkOnRoot (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:7994:27)
+[2m22:25:16[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mReferenceError: IoMdRocket is not defined
+    at DiagnosticPage (http://localhost:3000/src/pages/DiagnosticPage.tsx?t=1776716715749:660:41)
+    at Object.react_stack_bottom_frame (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:12868:12)
+    at renderWithHooks (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:4213:19)
+    at updateFunctionComponent (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:5569:16)
+    at beginWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:6140:20)
+    at runWithFiberInDEV (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:851:66)
+    at performUnitOfWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8429:92)
+    at workLoopSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8325:37)
+    at renderRootSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8309:6)
+    at performWorkOnRoot (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:7994:27)
+
+The above error occurred in the <DiagnosticPage> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, RenderErrorBoundary.
+
+[2m22:25:16[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mReact Router caught the following error during render ReferenceError: IoMdRocket is not defined
+    at DiagnosticPage (http://localhost:3000/src/pages/DiagnosticPage.tsx?t=1776716715749:660:41)
+    at Object.react_stack_bottom_frame (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:12868:12)
+    at renderWithHooks (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:4213:19)
+    at updateFunctionComponent (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:5569:16)
+    at beginWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:6140:20)
+    at runWithFiberInDEV (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:851:66)
+    at performUnitOfWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8429:92)
+    at workLoopSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8325:37)
+    at renderRootSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8309:6)
+    at performWorkOnRoot (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:7994:27)
+[2m22:27:36[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+
+[31m[PARSE_ERROR] Error:[0m Unexpected token
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/pages/DiagnosticPage.tsx:220:98 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m220 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mv[0m[38;5;249ma[0m[38;5;249ml[0m[38;5;249mu[0m[38;5;249me[0m[38;5;249m:[0m[38;5;249m [0m[38;5;249m"[0m[38;5;249md[0m[38;5;249me[0m[38;5;249mb[0m[38;5;249mu[0m[38;5;249mt[0m[38;5;249ma[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m"[0m[38;5;249m,[0m[38;5;249m [0m[38;5;249ml[0m[38;5;249ma[0m[38;5;249mb[0m[38;5;249me[0m[38;5;249ml[0m[38;5;249m:[0m[38;5;249m [0m[38;5;249m"[0m[38;5;249mD[0m[38;5;249mé[0m[38;5;249mb[0m[38;5;249mu[0m[38;5;249mt[0m[38;5;249ma[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m"[0m[38;5;249m,[0m[38;5;249m [0m[38;5;249md[0m[38;5;249me[0m[38;5;249ms[0m[38;5;249mc[0m[38;5;249m:[0m[38;5;249m [0m[38;5;249m"[0m[38;5;249mJ[0m[38;5;249me[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mc[0m[38;5;249me[0m[38;5;249m [0m[38;5;249md[0m[38;5;249me[0m[38;5;249mp[0m[38;5;249mu[0m[38;5;249mi[0m[38;5;249ms[0m[38;5;249m [0m[38;5;249mz[0m[38;5;249mé[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249m"[0m[38;5;249m,[0m[38;5;249m [0m[38;5;249me[0m[38;5;249mm[0m[38;5;249mo[0m[38;5;249mj[0m[38;5;249mi[0m[38;5;249m:[0m[38;5;249m [0m[38;5;249m [0m}[38;5;249m,[0m
+ [38;5;240m    │[0m                                                                                                  ┬  
+ [38;5;240m    │[0m                                                                                                  ╰── 
+[38;5;246m─────╯[0m
+[39m
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/pages/DiagnosticPage.tsx[39m
+      at transformWithOxc (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:3720:19)
+      at TransformPluginContext.transform (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:3788:26)
+      at EnvironmentPluginContainer.transform (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:30048:51)
+      at async loadAndTransform (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:24177:26)
+      at async viteTransformMiddleware (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:24986:20)
+[2m22:27:36[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/pages/DiagnosticPage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m22:27:51[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mReceived `true` for a non-boolean attribute `cl`.
+
+If you want to write it to the DOM, pass a string instead: cl="true" or cl={value.toString()}.
+[2m22:31:17[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mError handled by React Router default ErrorBoundary: ReferenceError: SiBoat is not defined
+    at DiagnosticPage (http://localhost:3000/src/pages/DiagnosticPage.tsx?t=1776717077016:661:41)
+    at Object.react_stack_bottom_frame (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:12868:12)
+    at renderWithHooks (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:4213:19)
+    at updateFunctionComponent (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:5569:16)
+    at beginWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:6140:20)
+    at runWithFiberInDEV (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:851:66)
+    at performUnitOfWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8429:92)
+    at workLoopSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8325:37)
+    at renderRootSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8309:6)
+    at performWorkOnRoot (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:7957:181)
+[2m22:31:17[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mError handled by React Router default ErrorBoundary: ReferenceError: SiBoat is not defined
+    at DiagnosticPage (http://localhost:3000/src/pages/DiagnosticPage.tsx?t=1776717077016:661:41)
+    at Object.react_stack_bottom_frame (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:12868:12)
+    at renderWithHooks (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:4213:19)
+    at updateFunctionComponent (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:5569:16)
+    at beginWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:6140:20)
+    at runWithFiberInDEV (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:851:66)
+    at performUnitOfWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8429:92)
+    at workLoopSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8325:37)
+    at renderRootSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8309:6)
+    at performWorkOnRoot (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:7994:27)
+[2m22:31:17[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mReferenceError: SiBoat is not defined
+    at DiagnosticPage (http://localhost:3000/src/pages/DiagnosticPage.tsx?t=1776717077016:661:41)
+    at Object.react_stack_bottom_frame (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:12868:12)
+    at renderWithHooks (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:4213:19)
+    at updateFunctionComponent (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:5569:16)
+    at beginWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:6140:20)
+    at runWithFiberInDEV (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:851:66)
+    at performUnitOfWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8429:92)
+    at workLoopSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8325:37)
+    at renderRootSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8309:6)
+    at performWorkOnRoot (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:7994:27)
+
+The above error occurred in the <DiagnosticPage> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, RenderErrorBoundary.
+
+[2m22:31:17[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mReact Router caught the following error during render ReferenceError: SiBoat is not defined
+    at DiagnosticPage (http://localhost:3000/src/pages/DiagnosticPage.tsx?t=1776717077016:661:41)
+    at Object.react_stack_bottom_frame (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:12868:12)
+    at renderWithHooks (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:4213:19)
+    at updateFunctionComponent (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:5569:16)
+    at beginWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:6140:20)
+    at runWithFiberInDEV (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:851:66)
+    at performUnitOfWork (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8429:92)
+    at workLoopSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8325:37)
+    at renderRootSync (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:8309:6)
+    at performWorkOnRoot (http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=fe713776:7994:27)
+[2m23:12:51[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [31m[Unhandled rejection] [1mError[22m: Connexion impossible pour le moment. Reessayez.
+[39m > apiRequest src/lib/apiClient.ts:145:10
+    143 |      }
+    144 |  
+    145 |      throw new ApiRequestError(
+        |            ^
+    146 |        "Connexion impossible pour le moment. Reessayez.",
+    147 |        0,
+ > logout src/lib/authApi.ts:75:4
+ > logout src/auth/AuthContext.tsx:92:8
+ > handleLogout src/components/SiteHeader.tsx:182:4
+

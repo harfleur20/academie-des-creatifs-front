@@ -50,6 +50,8 @@ from app.schemas.commerce import (
     QuizAnswerPayload,
     StudentAssignmentView,
     StudentDashboardSummary,
+    StudentClassView,
+    StudentClassmateView,
     StudentOrderGroupView,
     StudentOrderView,
     StudentPaymentLineView,
@@ -81,6 +83,28 @@ from app.services.payments import payment_due_label, refresh_payment_states
 
 QUIZ_RETRY_HOURS = 8
 QUIZ_PASS_PCT = 80.0
+BADGE_CLASS_META = {
+    "aventurier": {
+        "label": "Aventurier",
+        "image_url": "/Badges/bg-avanturier.svg",
+    },
+    "debutant": {
+        "label": "Débutant",
+        "image_url": "/Badges/bg-debutant.svg",
+    },
+    "intermediaire": {
+        "label": "Intermédiaire",
+        "image_url": "/Badges/bg-interm%C3%A9diare.svg",
+    },
+    "semi_pro": {
+        "label": "Semi-pro",
+        "image_url": "/Badges/bg-semi-pro.svg",
+    },
+    "professionnel": {
+        "label": "Professionnel",
+        "image_url": "/Badges/bg-professionnel.svg",
+    },
+}
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -146,6 +170,151 @@ def read_my_sessions(
         )
         for s, f in rows
     ]
+
+
+def _session_lesson_ids(db: Session, session_id: int) -> list[int]:
+    course_ids = db.scalars(
+        select(CourseRecord.id).where(CourseRecord.session_id == session_id)
+    ).all()
+    if not course_ids:
+        return []
+
+    chapter_ids = db.scalars(
+        select(ChapterRecord.id).where(ChapterRecord.course_id.in_(course_ids))
+    ).all()
+    if not chapter_ids:
+        return []
+
+    return list(
+        db.scalars(
+            select(LessonRecord.id).where(LessonRecord.chapter_id.in_(chapter_ids))
+        ).all()
+    )
+
+
+def _lesson_progress_for_enrollment(
+    db: Session,
+    enrollment: EnrollmentRecord,
+    lesson_ids: list[int],
+) -> tuple[int, int, float]:
+    total_lessons = len(lesson_ids)
+    if total_lessons == 0:
+        return 0, 0, 0.0
+
+    completed_lessons = int(
+        db.scalar(
+            select(func.count())
+            .select_from(LessonProgressRecord)
+            .where(
+                LessonProgressRecord.enrollment_id == enrollment.id,
+                LessonProgressRecord.lesson_id.in_(lesson_ids),
+            )
+        )
+        or 0
+    )
+    progress_pct = round((completed_lessons / total_lessons) * 100, 1)
+    return total_lessons, completed_lessons, progress_pct
+
+
+def _build_classmate_view(
+    db: Session,
+    enrollment: EnrollmentRecord,
+    user: UserRecord,
+    lesson_ids: list[int],
+    current_user_id: int,
+) -> StudentClassmateView:
+    total_lessons, completed_lessons, progress_pct = _lesson_progress_for_enrollment(
+        db,
+        enrollment,
+        lesson_ids,
+    )
+    badge_progress = compute_enrollment_badge_progress(
+        db,
+        enrollment,
+        enrollment.session_id or 0,
+        total_lessons,
+        completed_lessons,
+        progress_pct,
+    )
+    badge_meta = BADGE_CLASS_META.get(badge_progress.level, BADGE_CLASS_META["aventurier"])
+
+    return StudentClassmateView(
+        user_id=user.id,
+        enrollment_id=enrollment.id,
+        full_name=user.full_name,
+        avatar_url=user.avatar_url,
+        student_code=user.student_code,
+        badge_level=badge_progress.level,
+        badge_label=badge_meta["label"],
+        badge_image_url=badge_meta["image_url"],
+        badge_ring_pct=badge_progress.ring_pct,
+        is_current_user=user.id == current_user_id,
+    )
+
+
+@router.get("/classes", response_model=list[StudentClassView])
+def read_my_classes(
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> list[StudentClassView]:
+    rows = db.execute(
+        select(EnrollmentRecord, FormationSessionRecord, FormationRecord)
+        .join(FormationSessionRecord, EnrollmentRecord.session_id == FormationSessionRecord.id)
+        .join(FormationRecord, FormationRecord.id == FormationSessionRecord.formation_id)
+        .where(
+            EnrollmentRecord.user_id == current_user.id,
+            EnrollmentRecord.status.in_(["active", "pending"]),
+            FormationSessionRecord.status.in_(["planned", "open"]),
+        )
+        .order_by(FormationSessionRecord.start_date.asc())
+    ).all()
+
+    result: list[StudentClassView] = []
+    seen_session_ids: set[int] = set()
+    for _own_enrollment, session, formation in rows:
+        if session.id in seen_session_ids:
+            continue
+        seen_session_ids.add(session.id)
+
+        classmate_rows = db.execute(
+            select(EnrollmentRecord, UserRecord)
+            .join(UserRecord, UserRecord.id == EnrollmentRecord.user_id)
+            .where(
+                EnrollmentRecord.session_id == session.id,
+                EnrollmentRecord.status.in_(["active", "pending", "completed"]),
+                UserRecord.status == "active",
+            )
+            .order_by(UserRecord.full_name.asc())
+        ).all()
+        lesson_ids = _session_lesson_ids(db, session.id)
+
+        result.append(
+            StudentClassView(
+                session_id=session.id,
+                formation_id=formation.id,
+                formation_title=formation.title,
+                formation_slug=formation.slug,
+                format_type=formation.format_type,  # type: ignore[arg-type]
+                session_label=session.label,
+                start_date=session.start_date,
+                end_date=session.end_date,
+                status=session.status,
+                teacher_name=session.teacher_name,
+                campus_label=session.campus_label,
+                classmates=[
+                    _build_classmate_view(
+                        db,
+                        enrollment,
+                        user,
+                        lesson_ids,
+                        current_user.id,
+                    )
+                    for enrollment, user in classmate_rows
+                ],
+            )
+        )
+
+    return result
 
 
 def _count_course_day_rows(db: Session, model: type, course_day_id: int) -> int:
@@ -1351,6 +1520,16 @@ def _resolve_student_lesson(
     )
 
 
+def _lesson_ids_for_session(db: Session, session_id: int) -> set[int]:
+    ids = db.scalars(
+        select(LessonRecord.id)
+        .join(ChapterRecord, ChapterRecord.id == LessonRecord.chapter_id)
+        .join(CourseRecord, CourseRecord.id == ChapterRecord.course_id)
+        .where(CourseRecord.session_id == session_id)
+    ).all()
+    return set(ids)
+
+
 @router.get("/courses", response_model=list[StudentCourseView])
 def read_my_courses(
     db: Session = Depends(get_db),
@@ -1360,14 +1539,41 @@ def read_my_courses(
     if not session_ids:
         return []
 
-    # Fetch enrollment id for progress lookup
     enrollments = db.scalars(
         select(EnrollmentRecord).where(
             EnrollmentRecord.user_id == current_user.id,
             EnrollmentRecord.status.in_(["active", "completed"]),
+            EnrollmentRecord.session_id.in_(session_ids),
         )
     ).all()
-    enrollment_id_by_session = {e.session_id: e.id for e in enrollments}
+    enrollment_by_session = {e.session_id: e for e in enrollments if e.session_id is not None}
+
+    completed_ids_by_session: dict[int, set[int]] = {}
+    badge_progress_by_session = {}
+    for session_id in session_ids:
+        lesson_ids = _lesson_ids_for_session(db, session_id)
+        enrollment = enrollment_by_session.get(session_id)
+        completed_ids: set[int] = set()
+        if enrollment:
+            rows = db.scalars(
+                select(LessonProgressRecord.lesson_id).where(
+                    LessonProgressRecord.enrollment_id == enrollment.id
+                )
+            ).all()
+            completed_ids = set(rows) & lesson_ids
+        completed_ids_by_session[session_id] = completed_ids
+        total_lessons = len(lesson_ids)
+        completed_lessons = len(completed_ids)
+        progress_pct = round((completed_lessons / total_lessons * 100) if total_lessons > 0 else 0, 1)
+        if enrollment:
+            badge_progress_by_session[session_id] = compute_enrollment_badge_progress(
+                db,
+                enrollment,
+                session_id,
+                total_lessons,
+                completed_lessons,
+                progress_pct,
+            )
 
     courses = db.scalars(
         select(CourseRecord)
@@ -1378,17 +1584,9 @@ def read_my_courses(
 
     result: list[StudentCourseView] = []
     for course in courses:
-        enrollment_id = enrollment_id_by_session.get(course.session_id)
-
-        # Collect completed lesson ids for this enrollment
-        completed_ids: set[int] = set()
-        if enrollment_id:
-            rows = db.scalars(
-                select(LessonProgressRecord.lesson_id).where(
-                    LessonProgressRecord.enrollment_id == enrollment_id
-                )
-            ).all()
-            completed_ids = set(rows)
+        completed_ids = completed_ids_by_session.get(course.session_id, set())
+        session = db.get(FormationSessionRecord, course.session_id)
+        formation = db.get(FormationRecord, session.formation_id) if session else None
 
         chapters = db.scalars(
             select(ChapterRecord)
@@ -1398,6 +1596,7 @@ def read_my_courses(
 
         chapter_views: list[StudentChapterView] = []
         total_lessons = 0
+        course_lesson_ids: set[int] = set()
         for ch in chapters:
             lessons = db.scalars(
                 select(LessonRecord)
@@ -1405,6 +1604,7 @@ def read_my_courses(
                 .order_by(LessonRecord.order_index)
             ).all()
             total_lessons += len(lessons)
+            course_lesson_ids.update(lesson.id for lesson in lessons)
             chapter_views.append(StudentChapterView(
                 id=ch.id,
                 title=ch.title,
@@ -1412,25 +1612,17 @@ def read_my_courses(
                 lessons=[_resolve_student_lesson(db, l, completed_ids) for l in lessons],
             ))
 
-        completed_lessons = len(completed_ids)
+        completed_lessons = len(course_lesson_ids & completed_ids)
         progress_pct = round((completed_lessons / total_lessons * 100) if total_lessons > 0 else 0, 1)
-
-        _enrollment = next((e for e in enrollments if e.id == enrollment_id), None)
-        badge_progress = (
-            compute_enrollment_badge_progress(
-                db,
-                _enrollment,
-                course.session_id,
-                total_lessons,
-                completed_lessons,
-                progress_pct,
-            )
-            if _enrollment else None
-        )
+        badge_progress = badge_progress_by_session.get(course.session_id)
 
         result.append(StudentCourseView(
             id=course.id,
             session_id=course.session_id,
+            formation_id=session.formation_id if session else 0,
+            formation_title=formation.title if formation else "",
+            formation_slug=formation.slug if formation else "",
+            session_label=session.label if session else "",
             title=course.title,
             description=course.description,
             chapters=chapter_views,
@@ -1453,17 +1645,16 @@ def read_my_courses(
         if not session or not formation:
             continue
         progress_pct = 0.0
-        badge_progress = compute_enrollment_badge_progress(
-            db,
-            enrollment,
-            session.id,
-            0,
-            0,
-            progress_pct,
+        badge_progress = badge_progress_by_session.get(session.id) or compute_enrollment_badge_progress(
+            db, enrollment, session.id, 0, 0, progress_pct
         )
         result.append(StudentCourseView(
             id=-enrollment.id,
             session_id=session.id,
+            formation_id=formation.id,
+            formation_title=formation.title,
+            formation_slug=formation.slug,
+            session_label=session.label,
             title=formation.title,
             description="Cours en préparation.",
             chapters=[],

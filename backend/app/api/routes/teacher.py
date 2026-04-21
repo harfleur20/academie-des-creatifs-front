@@ -1,8 +1,14 @@
+import json
+import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
+from importlib import import_module
+from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
+from zipfile import BadZipFile, ZipFile
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -16,6 +22,7 @@ from app.models.entities import (
     ChapterRecord,
     CourseRecord,
     EnrollmentRecord,
+    FormationRecord,
     FormationSessionRecord,
     GradeRecord,
     LessonRecord,
@@ -62,6 +69,7 @@ from app.schemas.teacher import (
     TeacherOverview,
     TeacherSessionStudent,
 )
+from app.services.ai_client import resolve_ai_runtime_config, run_ai_chat
 from app.services.formation_sessions import validate_live_event_in_session
 from app.services.teacher import get_teacher_overview
 
@@ -99,6 +107,9 @@ MAX_VIDEO_BYTES = 30 * 1024 * 1024   #  30 MB
 MAX_PDF_BYTES   = 5  * 1024 * 1024   #   5 MB
 MAX_ARCHIVE_BYTES = 50 * 1024 * 1024  #  50 MB
 MAX_DOC_BYTES = 10 * 1024 * 1024      #  10 MB
+AI_DOCUMENT_MAX_BYTES = 8 * 1024 * 1024
+AI_DOCUMENT_TEXT_MAX_CHARS = 24000
+AI_LESSON_MIN_CONTENT_CHARS = 900
 
 
 @router.get("/overview", response_model=TeacherOverview)
@@ -311,6 +322,496 @@ def _serialize_course_day(db: Session, course_day: SessionCourseDayRecord) -> Co
         grade_count=_count_for_day(db, GradeRecord, course_day.id),
         created_at=course_day.created_at,
     )
+
+
+# ── AI draft generation ─────────────────────────────────
+
+class _AITextModel(BaseModel):
+    @field_validator(
+        "title",
+        "description",
+        "content",
+        "instructions",
+        "level",
+        "objectives",
+        check_fields=False,
+    )
+    @classmethod
+    def strip_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip()
+
+
+class AIGenerationBasePayload(_AITextModel):
+    session_id: int = Field(gt=0)
+    topic: str = Field(min_length=3, max_length=255)
+    level: str | None = Field(default=None, max_length=120)
+    objectives: str | None = Field(default=None, max_length=1200)
+
+    @field_validator("topic")
+    @classmethod
+    def strip_topic(cls, value: str) -> str:
+        cleaned = value.strip()
+        if len(cleaned) < 3:
+            raise ValueError("Sujet requis.")
+        return cleaned
+
+
+class AICourseDraftPayload(AIGenerationBasePayload):
+    chapters_count: int = Field(default=3, ge=1, le=6)
+    lessons_per_chapter: int = Field(default=3, ge=1, le=6)
+
+
+class AIQuizDraftPayload(AIGenerationBasePayload):
+    course_day_id: int | None = None
+    questions_count: int = Field(default=5, ge=2, le=20)
+    options_per_question: int = Field(default=4, ge=2, le=6)
+
+
+class AIAssignmentDraftPayload(AIGenerationBasePayload):
+    course_day_id: int | None = None
+    duration_days: int = Field(default=7, ge=1, le=60)
+    is_final_project: bool = False
+
+
+class AIGeneratedLessonDraft(_AITextModel):
+    title: str = Field(min_length=1, max_length=255)
+    content: str = Field(min_length=AI_LESSON_MIN_CONTENT_CHARS, max_length=12000)
+
+
+class AIGeneratedChapterDraft(_AITextModel):
+    title: str = Field(min_length=1, max_length=255)
+    lessons: list[AIGeneratedLessonDraft] = Field(min_length=1, max_length=8)
+
+
+class AIGeneratedCourseDraft(_AITextModel):
+    title: str = Field(min_length=1, max_length=255)
+    description: str = Field(default="", max_length=1200)
+    chapters: list[AIGeneratedChapterDraft] = Field(min_length=1, max_length=8)
+
+
+class AIGeneratedQuizQuestionDraft(_AITextModel):
+    text: str = Field(min_length=1, max_length=1000)
+    options: list[str] = Field(min_length=2, max_length=8)
+    correct_index: int = Field(ge=0)
+
+    @field_validator("options")
+    @classmethod
+    def clean_options(cls, value: list[str]) -> list[str]:
+        cleaned = [str(option).strip() for option in value if str(option).strip()]
+        if len(cleaned) < 2:
+            raise ValueError("Une question doit avoir au moins deux options.")
+        return cleaned[:8]
+
+    @model_validator(mode="after")
+    def clamp_correct_index(self) -> "AIGeneratedQuizQuestionDraft":
+        if self.correct_index >= len(self.options):
+            self.correct_index = 0
+        return self
+
+
+class AIGeneratedQuizDraft(_AITextModel):
+    title: str = Field(min_length=1, max_length=255)
+    duration_minutes: int | None = Field(default=None, ge=1, le=240)
+    questions: list[AIGeneratedQuizQuestionDraft] = Field(min_length=1, max_length=30)
+
+
+class AIGeneratedAssignmentDraft(_AITextModel):
+    title: str = Field(min_length=1, max_length=255)
+    instructions: str = Field(min_length=1, max_length=8000)
+    is_final_project: bool = False
+    duration_days: int = Field(default=7, ge=1, le=60)
+
+
+def _compact_generation_value(value: object, max_chars: int = 900) -> str:
+    if value in (None, "", [], {}):
+        return "Non renseigne"
+    try:
+        text = json.dumps(value, ensure_ascii=False)
+    except TypeError:
+        text = str(value)
+    text = text.strip()
+    return text[:max_chars] + ("..." if len(text) > max_chars else "")
+
+
+def _generation_context_for_session(
+    db: Session,
+    session: FormationSessionRecord,
+    course_day: SessionCourseDayRecord | None = None,
+) -> str:
+    formation = db.get(FormationRecord, session.formation_id)
+    formation_title = formation.title if formation else "Formation non renseignee"
+    formation_level = formation.level if formation else "Non renseigne"
+    formation_format = formation.format_type if formation else "Non renseigne"
+    formation_intro = formation.intro if formation else ""
+    day_line = ""
+    if course_day is not None:
+        day_line = (
+            f"\nJournee ciblee: {course_day.title}, "
+            f"{course_day.scheduled_at.isoformat()}, {course_day.duration_minutes} minutes."
+        )
+    return (
+        f"Formation: {formation_title}\n"
+        f"Niveau catalogue: {formation_level}\n"
+        f"Format: {formation_format}\n"
+        f"Session: {session.label}, du {session.start_date.isoformat()} au {session.end_date.isoformat()}\n"
+        f"Introduction catalogue: {_compact_generation_value(formation_intro, 700)}\n"
+        f"Objectifs catalogue: {_compact_generation_value(formation.objective_items if formation else None)}\n"
+        f"Modules catalogue: {_compact_generation_value(formation.module_items if formation else None)}\n"
+        f"Projets catalogue: {_compact_generation_value(formation.project_items if formation else None)}"
+        f"{day_line}"
+    )
+
+
+def _parse_ai_json_object(raw_reply: str) -> dict[str, object]:
+    text = raw_reply.strip()
+    if text.startswith("```"):
+        text = "\n".join(
+            line for line in text.splitlines() if not line.strip().startswith("```")
+        ).strip()
+    start = text.find("{")
+    end = text.rfind("}")
+    if start < 0 or end <= start:
+        raise ValueError("La reponse IA ne contient pas d'objet JSON.")
+    data = json.loads(text[start : end + 1])
+    if not isinstance(data, dict):
+        raise ValueError("La reponse IA doit etre un objet JSON.")
+    return data
+
+
+def _run_teacher_ai_generation(
+    *,
+    system_prompt: str,
+    user_prompt: str,
+    max_tokens: int,
+) -> dict[str, object]:
+    if resolve_ai_runtime_config() is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Le service IA n'est pas configure.",
+        )
+    try:
+        reply = run_ai_chat(
+            system_prompt=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+            max_tokens=max_tokens,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Le service IA n'est pas disponible. Verifiez la configuration.",
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="La generation IA a echoue.",
+        ) from exc
+    try:
+        return _parse_ai_json_object(reply)
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="La reponse IA n'est pas un JSON valide.",
+        ) from exc
+
+
+def _teacher_ai_system_prompt() -> str:
+    return (
+        "Tu es un concepteur pedagogique francophone pour l'Academie des Creatifs. "
+        "Tu produis des contenus directement exploitables par un professeur. "
+        "Respecte le contexte de formation fourni. "
+        "Retourne uniquement un objet JSON valide, sans commentaire, sans bloc ```. "
+        "Les champs content des lecons peuvent utiliser du Markdown pedagogique."
+    )
+
+
+def _course_content_requirements(chapters_count: int, lessons_per_chapter: int) -> str:
+    return (
+        "Qualite obligatoire des lecons:\n"
+        f"- chaque lecon doit contenir au moins {AI_LESSON_MIN_CONTENT_CHARS} caracteres utiles;\n"
+        "- chaque champ content doit etre un mini-cours complet, pas un resume;\n"
+        "- structure chaque lecon avec des sous-titres Markdown: ## Objectif, ## Notions cles, "
+        "## Explication detaillee, ## Exemple concret, ## Methode pas a pas, "
+        "## Exercice pratique, ## A retenir;\n"
+        "- illustre avec des exemples concrets, mini-cas, listes d'actions, erreurs frequentes "
+        "et analogies utiles lorsque c'est pertinent;\n"
+        "- evite les phrases vagues comme 'approfondir le sujet'; donne de la matiere enseignable;\n"
+        f"- la description ne doit jamais annoncer un nombre different de {chapters_count} chapitres "
+        f"et {chapters_count * lessons_per_chapter} lecons;\n"
+        "- les titres de chapitres doivent suivre l'ordre logique Chapitre 1, Chapitre 2, etc."
+    )
+
+
+def _validate_course_draft_shape(
+    draft: AIGeneratedCourseDraft,
+    chapters_count: int,
+    lessons_per_chapter: int,
+) -> AIGeneratedCourseDraft:
+    if len(draft.chapters) != chapters_count:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=(
+                "L'IA n'a pas respecté la structure demandée : "
+                f"{chapters_count} chapitres attendus, {len(draft.chapters)} reçu(s)."
+            ),
+        )
+    for chapter_index, chapter in enumerate(draft.chapters, start=1):
+        if len(chapter.lessons) != lessons_per_chapter:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=(
+                    "L'IA n'a pas respecté la structure demandée : "
+                    f"{lessons_per_chapter} leçons attendues dans le chapitre {chapter_index}, "
+                    f"{len(chapter.lessons)} reçue(s)."
+                ),
+            )
+        for lesson_index, lesson in enumerate(chapter.lessons, start=1):
+            if len(lesson.content.strip()) < AI_LESSON_MIN_CONTENT_CHARS:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=(
+                        "L'IA a généré une leçon trop légère : "
+                        f"chapitre {chapter_index}, leçon {lesson_index}."
+                    ),
+                )
+    return draft
+
+
+def _extract_docx_text(content: bytes) -> str:
+    try:
+        with ZipFile(BytesIO(content)) as archive:
+            xml_content = archive.read("word/document.xml")
+    except (BadZipFile, KeyError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Document Word invalide ou illisible.",
+        ) from exc
+
+    root = ET.fromstring(xml_content)
+    namespace = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    paragraphs: list[str] = []
+    for paragraph in root.iter(f"{namespace}p"):
+        parts = [node.text or "" for node in paragraph.iter(f"{namespace}t")]
+        line = "".join(parts).strip()
+        if line:
+            paragraphs.append(line)
+    return "\n".join(paragraphs)
+
+
+def _extract_pdf_text(content: bytes) -> str:
+    try:
+        pypdf = import_module("pypdf")
+    except ModuleNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="La lecture PDF nécessite la dépendance pypdf côté serveur.",
+        ) from exc
+
+    try:
+        reader = pypdf.PdfReader(BytesIO(content))
+        pages = reader.pages[:80]
+        return "\n".join((page.extract_text() or "").strip() for page in pages)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="PDF invalide ou illisible.",
+        ) from exc
+
+
+def _extract_ai_document_text(filename: str, content: bytes) -> str:
+    if not content:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Document vide.")
+    if len(content) > AI_DOCUMENT_MAX_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Document trop lourd. Limite : 8 MB.",
+        )
+
+    suffix = Path(filename).suffix.lower()
+    if suffix == ".docx":
+        text = _extract_docx_text(content)
+    elif suffix == ".pdf":
+        text = _extract_pdf_text(content)
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Format non supporté. Utilisez un fichier PDF ou Word .docx.",
+        )
+
+    cleaned = "\n".join(line.strip() for line in text.splitlines() if line.strip())
+    if len(cleaned) < 80:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le document ne contient pas assez de texte exploitable.",
+        )
+    return cleaned[:AI_DOCUMENT_TEXT_MAX_CHARS]
+
+
+@router.post("/ai/course-draft", response_model=AIGeneratedCourseDraft)
+def generate_course_draft(
+    payload: AICourseDraftPayload,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(_teacher),
+) -> AIGeneratedCourseDraft:
+    session = _get_session_for_teacher(db, payload.session_id, current_user.full_name)
+    context = _generation_context_for_session(db, session)
+    data = _run_teacher_ai_generation(
+        system_prompt=_teacher_ai_system_prompt(),
+        max_tokens=12000,
+        user_prompt=(
+            f"{context}\n\n"
+            f"Sujet a developper: {payload.topic}\n"
+            f"Niveau souhaite: {payload.level or 'adapte au catalogue'}\n"
+            f"Objectifs specifiques du professeur: {payload.objectives or 'Non renseignes'}\n\n"
+            "Genere un cours complet en francais avec:\n"
+            f"- exactement {payload.chapters_count} chapitres;\n"
+            f"- exactement {payload.lessons_per_chapter} lecons texte par chapitre;\n"
+            "- des contenus de lecon riches, explicatifs, illustres par exemples et actionnables.\n\n"
+            f"{_course_content_requirements(payload.chapters_count, payload.lessons_per_chapter)}\n\n"
+            "Schema JSON attendu:\n"
+            '{"title":"...","description":"...",'
+            '"chapters":[{"title":"...","lessons":[{"title":"...","content":"..."}]}]}'
+        ),
+    )
+    try:
+        draft = AIGeneratedCourseDraft.model_validate(data)
+        return _validate_course_draft_shape(
+            draft,
+            payload.chapters_count,
+            payload.lessons_per_chapter,
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="La reponse IA du cours est invalide ou trop légère.",
+        ) from exc
+
+
+@router.post("/ai/course-draft/document", response_model=AIGeneratedCourseDraft)
+async def generate_course_draft_from_document(
+    request: Request,
+    session_id: int = Query(gt=0),
+    filename: str = Query(min_length=1, max_length=255),
+    level: str | None = Query(default=None, max_length=120),
+    objectives: str | None = Query(default=None, max_length=1200),
+    chapters_count: int = Query(default=3, ge=1, le=6),
+    lessons_per_chapter: int = Query(default=3, ge=1, le=6),
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(_teacher),
+) -> AIGeneratedCourseDraft:
+    session = _get_session_for_teacher(db, session_id, current_user.full_name)
+    document_text = _extract_ai_document_text(filename, await request.body())
+    context = _generation_context_for_session(db, session)
+    data = _run_teacher_ai_generation(
+        system_prompt=_teacher_ai_system_prompt(),
+        max_tokens=14000,
+        user_prompt=(
+            f"{context}\n\n"
+            f"Document fourni: {filename}\n"
+            f"Niveau souhaite: {level or 'deduit du document et du catalogue'}\n"
+            f"Objectifs specifiques du professeur: {objectives or 'Non renseignes'}\n\n"
+            "Recree un programme complet de formation a partir du document ci-dessous. "
+            "Si le document contient deja un plan, conserve sa logique et rends-la exploitable "
+            "dans la plateforme. Si le document est un support brut, transforme-le en chapitres "
+            "progressifs avec des lecons texte claires.\n\n"
+            f"Contraintes: exactement {chapters_count} chapitres; exactement "
+            f"{lessons_per_chapter} lecons texte par chapitre; contenu en francais; "
+            "pas de liens inventes.\n\n"
+            f"{_course_content_requirements(chapters_count, lessons_per_chapter)}\n\n"
+            "Texte extrait du document:\n"
+            f"{document_text}\n\n"
+            "Schema JSON attendu:\n"
+            '{"title":"...","description":"...",'
+            '"chapters":[{"title":"...","lessons":[{"title":"...","content":"..."}]}]}'
+        ),
+    )
+    try:
+        draft = AIGeneratedCourseDraft.model_validate(data)
+        return _validate_course_draft_shape(
+            draft,
+            chapters_count,
+            lessons_per_chapter,
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="La reponse IA du document est invalide ou trop légère.",
+        ) from exc
+
+
+@router.post("/ai/quiz-draft", response_model=AIGeneratedQuizDraft)
+def generate_quiz_draft(
+    payload: AIQuizDraftPayload,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(_teacher),
+) -> AIGeneratedQuizDraft:
+    session = _get_session_for_teacher(db, payload.session_id, current_user.full_name)
+    course_day = _resolve_course_day_for_session(db, session, payload.course_day_id)
+    context = _generation_context_for_session(db, session, course_day)
+    data = _run_teacher_ai_generation(
+        system_prompt=_teacher_ai_system_prompt(),
+        max_tokens=2400,
+        user_prompt=(
+            f"{context}\n\n"
+            f"Sujet du quiz: {payload.topic}\n"
+            f"Niveau souhaite: {payload.level or 'adapte au catalogue'}\n"
+            f"Objectifs specifiques du professeur: {payload.objectives or 'Non renseignes'}\n\n"
+            f"Genere exactement {payload.questions_count} questions a choix multiple. "
+            f"Chaque question doit avoir exactement {payload.options_per_question} options. "
+            "correct_index est l'index zero-based de la bonne reponse. "
+            "Evite les questions pieges et couvre comprehension, application et analyse.\n\n"
+            "Schema JSON attendu:\n"
+            '{"title":"...","duration_minutes":30,'
+            '"questions":[{"text":"...","options":["...","..."],"correct_index":0}]}'
+        ),
+    )
+    try:
+        return AIGeneratedQuizDraft.model_validate(data)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="La reponse IA du quiz est invalide.",
+        ) from exc
+
+
+@router.post("/ai/assignment-draft", response_model=AIGeneratedAssignmentDraft)
+def generate_assignment_draft(
+    payload: AIAssignmentDraftPayload,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(_teacher),
+) -> AIGeneratedAssignmentDraft:
+    session = _get_session_for_teacher(db, payload.session_id, current_user.full_name)
+    course_day = _resolve_course_day_for_session(db, session, payload.course_day_id)
+    context = _generation_context_for_session(db, session, course_day)
+    data = _run_teacher_ai_generation(
+        system_prompt=_teacher_ai_system_prompt(),
+        max_tokens=2200,
+        user_prompt=(
+            f"{context}\n\n"
+            f"Sujet du devoir: {payload.topic}\n"
+            f"Niveau souhaite: {payload.level or 'adapte au catalogue'}\n"
+            f"Objectifs specifiques du professeur: {payload.objectives or 'Non renseignes'}\n"
+            f"Delai recommande: {payload.duration_days} jours\n"
+            f"Projet final: {'oui' if payload.is_final_project else 'non'}\n\n"
+            "Genere une consigne claire avec livrables attendus, criteres de reussite, "
+            "format de rendu et bareme indicatif sur 20. Le devoir doit etre realiste "
+            "pour des etudiants de cette formation.\n\n"
+            "Schema JSON attendu:\n"
+            '{"title":"...","instructions":"...","is_final_project":false,"duration_days":7}'
+        ),
+    )
+    try:
+        draft = AIGeneratedAssignmentDraft.model_validate(data)
+        draft.duration_days = payload.duration_days
+        if payload.is_final_project:
+            draft.is_final_project = True
+        return draft
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="La reponse IA du devoir est invalide.",
+        ) from exc
 
 
 # ── students list ──────────────────────────────────────

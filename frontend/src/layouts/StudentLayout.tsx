@@ -15,6 +15,7 @@ import {
   LogOut,
   Search,
   Settings,
+  Users,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import NotifBell from "../components/NotifBell";
@@ -40,6 +41,7 @@ const navGroups: NavGroup[] = [
     items: [
       { to: "/espace/etudiant/formations",  label: "Mes parcours", icon: <BookOpen size={15} /> },
       { to: "/espace/etudiant/cours",       label: "Mes cours",           icon: <GraduationCap size={15} /> },
+      { to: "/espace/etudiant/classe",      label: "Ma classe",           icon: <Users size={15} /> },
       { to: "/espace/etudiant/quizz",       label: "Quizz",               icon: <HelpCircle size={15} /> },
       { to: "/espace/etudiant/ressources",  label: "Ressources",          icon: <FolderOpen size={15} /> },
       { to: "/espace/etudiant/devoirs",     label: "Devoirs",             icon: <ClipboardList size={15} /> },

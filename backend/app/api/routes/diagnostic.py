@@ -1,9 +1,13 @@
-from importlib import import_module
+import json
+import re
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.db.session import get_db
+from app.services.ai_client import resolve_ai_runtime_config, run_ai_chat
+from app.services.catalog import list_catalog_items
 
 router = APIRouter(prefix="/diagnostic", tags=["diagnostic"])
 
@@ -26,120 +30,154 @@ class SuggestionResponse(BaseModel):
     whatsapp_message: str
 
 
-def _module_exists(name: str) -> bool:
+def _format_catalog_context(db: Session) -> tuple[str, list[str]]:
+    formations = list_catalog_items(db)
+    if not formations:
+        return "Aucune formation cataloguee pour le moment.", []
+
+    lines: list[str] = []
+    titles: list[str] = []
+    for formation in formations:
+        titles.append(formation.title)
+        format_label = {
+            "ligne": "en ligne",
+            "live": "live",
+            "presentiel": "en presentiel",
+        }.get(formation.format_type, formation.format_type)
+        lines.append(
+            f'- {formation.title} | categorie: {formation.category} | niveau: {formation.level} '
+            f'| format: {format_label} | prix: {formation.current_price_label}'
+        )
+
+    return "\n".join(lines), titles
+
+
+def _parse_suggestions(raw: str) -> list[dict[str, str]]:
+    candidate = raw.strip()
+    if candidate.startswith("```"):
+        candidate = re.sub(r"^```(?:json)?\s*", "", candidate)
+        candidate = re.sub(r"\s*```$", "", candidate)
+
+    match = re.search(r"\{.*\}", candidate, re.DOTALL)
+    if not match:
+        return []
+
     try:
-        import_module(name)
-    except ModuleNotFoundError:
-        return False
-    return True
+        parsed = json.loads(match.group())
+    except json.JSONDecodeError:
+        return []
+
+    suggestions: list[dict[str, str]] = []
+    for item in parsed.get("suggestions", [])[:3]:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title", "")).strip()
+        reason = str(item.get("reason", "")).strip()
+        if title and reason:
+            suggestions.append({"title": title, "reason": reason})
+    return suggestions
 
 
-def _call_ai(prompt: str) -> str:
-    if settings.openai_api_key and _module_exists("openai"):
-        openai_mod = import_module("openai")
-        client = openai_mod.OpenAI(api_key=settings.openai_api_key)
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            max_tokens=600,
-            messages=[{"role": "user", "content": prompt}],
+def _fallback_suggestions(data: DiagnosticData, catalog_titles: list[str]) -> list[str]:
+    if not catalog_titles:
+        return [
+            "Design Graphique — Proposition de base selon votre profil.",
+            "Marketing Digital — Proposition de base selon votre profil.",
+        ]
+
+    level_label = "debutant" if data.level == "debutant" else "intermediaire"
+    selected = catalog_titles[:3]
+    return [
+        (
+            f"{title} — Proposition adaptee a votre niveau {level_label}, "
+            f"a votre interet pour {data.domain or 'ce domaine'} et a votre objectif de progression."
         )
-        return resp.choices[0].message.content or ""
-
-    if settings.anthropic_api_key and _module_exists("anthropic"):
-        anthropic_mod = import_module("anthropic")
-        client = anthropic_mod.Anthropic(api_key=settings.anthropic_api_key)
-        resp = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=600,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return resp.content[0].text if resp.content else ""
-
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail="Service IA non configuré.",
-    )
+        for title in selected
+    ]
 
 
 @router.post("/suggest", response_model=SuggestionResponse)
-def suggest_formations(data: DiagnosticData) -> SuggestionResponse:
+def suggest_formations(data: DiagnosticData, db: Session = Depends(get_db)) -> SuggestionResponse:
     name = (data.first_name or data.last_name).strip() or "l'apprenant"
-    level_label = "débutant" if data.level == "debutant" else "intermédiaire"
+    level_label = "debutant" if data.level == "debutant" else "intermediaire"
     training_label = {
         "online": "en ligne",
-        "presentiel": "en présentiel",
-        "both": "en ligne ou en présentiel",
+        "presentiel": "en presentiel",
+        "both": "en ligne ou en presentiel",
     }.get(data.training_type, data.training_type)
 
-    prompt = f"""Tu es un conseiller pédagogique de l'Académie des Créatifs, école de créativité francophone.
-
-Voici le profil d'un candidat :
-- Prénom/Nom : {name}
-- Domaine d'intérêt : {data.domain}
-- Auto-évaluation dans ce domaine : {data.self_rating}/10
+    catalog_context, catalog_titles = _format_catalog_context(db)
+    system_prompt = (
+        "Tu es un conseiller pedagogique de l'Academie des Creatifs. "
+        "Tu recommandes exactement 3 formations du catalogue fourni, sans en inventer. "
+        "Tu reponds uniquement en JSON strict."
+    )
+    user_prompt = f"""Voici le profil d'un candidat :
+- Prenom/Nom : {name}
+- Domaine d'interet : {data.domain}
+- Auto-evaluation dans ce domaine : {data.self_rating}/10
 - Niveau : {level_label}
-- Nationalité : {data.nationality}
+- Nationalite : {data.nationality}
 - Ville : {data.city}
-- Type de formation souhaité : {training_label}
+- Type de formation souhaite : {training_label}
 - Attentes : {data.expectations}
 
-Propose 3 formations spécifiques de l'Académie des Créatifs adaptées à ce profil parmi :
-Design Graphique, Marketing Digital, Vidéo & Motion, Intelligence Artificielle & Outils IA, No-Code & Tech, Freelance & Business Créatif, Photoshop Maîtrise Totale, Community Management & Personal Branding.
+Voici les formations actuellement disponibles :
+{catalog_context}
 
+Propose exactement 3 formations adaptees a ce profil.
 Pour chaque formation, donne :
-1. Le titre exact
-2. Une phrase de justification personnalisée (pourquoi c'est adapté à CE profil)
+1. le titre exact du catalogue
+2. une justification courte, personnalisee, concrete
 
-Réponds en JSON strict avec ce format :
+Reponds en JSON strict avec ce format :
 {{"suggestions": [{{"title": "...", "reason": "..."}}]}}
 Ne mets rien d'autre que le JSON."""
 
-    raw = _call_ai(prompt)
-
-    import json, re
-    match = re.search(r'\{.*\}', raw, re.DOTALL)
-    suggestions_list: list[str] = []
-    if match:
+    raw = ""
+    if resolve_ai_runtime_config() is not None:
         try:
-            parsed = json.loads(match.group())
-            for s in parsed.get("suggestions", [])[:3]:
-                suggestions_list.append(f"**{s['title']}** — {s['reason']}")
+            raw = run_ai_chat(
+                system_prompt=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+                max_tokens=700,
+            )
         except Exception:
-            pass
+            raw = ""
 
+    parsed_suggestions = _parse_suggestions(raw)
+    suggestions_list = [
+        f"**{item['title']}** — {item['reason']}"
+        for item in parsed_suggestions
+    ]
     if not suggestions_list:
-        suggestions_list = [
-            "Design Graphique — Formation recommandée selon votre profil",
-            "Marketing Digital — Complémentaire à votre domaine",
-        ]
+        suggestions_list = _fallback_suggestions(data, catalog_titles)
 
     training_type_fr = {
         "online": "En ligne",
-        "presentiel": "En présentiel",
-        "both": "En ligne ou présentiel",
+        "presentiel": "En presentiel",
+        "both": "En ligne ou presentiel",
     }.get(data.training_type, data.training_type)
 
     wa_lines = [
-        f"👋 Bonjour ! Je viens de compléter le diagnostic de l'Académie des Créatifs.",
-        f"",
-        f"👤 *Nom :* {name}",
-        f"🎯 *Domaine :* {data.domain}",
-        f"📊 *Auto-évaluation :* {data.self_rating}/10",
-        f"🏆 *Niveau :* {level_label.capitalize()}",
-        f"🌍 *Pays :* {data.nationality}",
-        f"📍 *Ville :* {data.city}",
-        f"💻 *Préférence :* {training_type_fr}",
-        f"💬 *Attentes :* {data.expectations}",
-        f"",
-        f"✨ *Formations suggérées :*",
+        "Bonjour ! Je viens de completer le diagnostic de l'Academie des Creatifs.",
+        "",
+        f"Nom : {name}",
+        f"Domaine : {data.domain}",
+        f"Auto-evaluation : {data.self_rating}/10",
+        f"Niveau : {level_label.capitalize()}",
+        f"Pays : {data.nationality}",
+        f"Ville : {data.city}",
+        f"Preference : {training_type_fr}",
+        f"Attentes : {data.expectations}",
+        "",
+        "Formations suggerees :",
     ]
-    for s in suggestions_list:
-        clean = re.sub(r'\*\*?', '', s)
-        wa_lines.append(f"• {clean}")
-
-    wa_message = "\n".join(wa_lines)
+    for suggestion in suggestions_list:
+        clean = re.sub(r"\*\*?", "", suggestion)
+        wa_lines.append(f"- {clean}")
 
     return SuggestionResponse(
         suggestions=suggestions_list,
-        whatsapp_message=wa_message,
+        whatsapp_message="\n".join(wa_lines),
     )

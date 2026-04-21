@@ -416,6 +416,7 @@ class TeacherSessionItem(BaseModel):
 
 
 class TeacherOverview(BaseModel):
+    teacher_code: str | None = None
     assigned_sessions_count: int
     planned_sessions_count: int
     open_sessions_count: int

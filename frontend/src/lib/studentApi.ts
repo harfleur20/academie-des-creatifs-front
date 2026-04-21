@@ -246,6 +246,40 @@ export async function fetchEnrollmentResults(enrollmentId: number): Promise<Stud
   return apiRequest<StudentEnrollmentResults>(`/me/enrollments/${enrollmentId}/results`);
 }
 
+// ── Classmates ─────────────────────────────────────────────────────────────
+
+export type StudentClassmate = {
+  user_id: number;
+  enrollment_id: number;
+  full_name: string;
+  avatar_url: string | null;
+  student_code: string | null;
+  badge_level: string;
+  badge_label: string;
+  badge_image_url: string;
+  badge_ring_pct: number;
+  is_current_user: boolean;
+};
+
+export type StudentClass = {
+  session_id: number;
+  formation_id: number;
+  formation_title: string;
+  formation_slug: string;
+  format_type: "live" | "ligne" | "presentiel";
+  session_label: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  teacher_name: string | null;
+  campus_label: string | null;
+  classmates: StudentClassmate[];
+};
+
+export async function fetchMyClasses(): Promise<StudentClass[]> {
+  return apiRequest<StudentClass[]>("/me/classes");
+}
+
 // ── Course days ─────────────────────────────────────────────────────────────
 
 export type StudentCourseDay = {
@@ -302,6 +336,10 @@ export type StudentChapter = {
 export type StudentCourse = {
   id: number;
   session_id: number;
+  formation_id: number;
+  formation_title: string;
+  formation_slug: string;
+  session_label: string;
   title: string;
   description: string;
   chapters: StudentChapter[];

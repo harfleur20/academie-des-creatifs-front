@@ -176,6 +176,34 @@ class StudentSessionView(BaseModel):
     status: str
 
 
+class StudentClassmateView(BaseModel):
+    user_id: int
+    enrollment_id: int
+    full_name: str
+    avatar_url: str | None = None
+    student_code: str | None = None
+    badge_level: str
+    badge_label: str
+    badge_image_url: str
+    badge_ring_pct: float = 0.0
+    is_current_user: bool = False
+
+
+class StudentClassView(BaseModel):
+    session_id: int
+    formation_id: int
+    formation_title: str
+    formation_slug: str
+    format_type: FormatType
+    session_label: str
+    start_date: date
+    end_date: date
+    status: str
+    teacher_name: str | None = None
+    campus_label: str | None = None
+    classmates: list[StudentClassmateView] = Field(default_factory=list)
+
+
 class StudentCourseDayView(BaseModel):
     id: int
     session_id: int
@@ -359,6 +387,10 @@ class StudentChapterView(BaseModel):
 class StudentCourseView(BaseModel):
     id: int
     session_id: int
+    formation_id: int
+    formation_title: str
+    formation_slug: str
+    session_label: str
     title: str
     description: str
     chapters: list[StudentChapterView] = []
