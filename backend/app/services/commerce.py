@@ -8,13 +8,20 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.entities import (
+    AssignmentRecord,
+    AssignmentSubmissionRecord,
     CartItemRecord,
     EnrollmentRecord,
     FavoriteItemRecord,
     FormationRecord,
     FormationSessionRecord,
+    GradeRecord,
     OrderRecord,
     PaymentRecord,
+    QuizAttemptRecord,
+    QuizRecord,
+    ResourceRecord,
+    SessionLiveEventRecord,
     TeacherProfileRecord,
     UserRecord,
 )
@@ -352,6 +359,9 @@ def build_favorite_snapshot(
 
 
 def list_cart_snapshot(db: Session, user: UserRecord) -> CartSnapshot:
+    if user.role not in {"guest", "student"}:
+        return build_cart_snapshot(db, [])
+
     rows = db.execute(
         select(CartItemRecord, FormationRecord)
         .join(FormationRecord, CartItemRecord.formation_id == FormationRecord.id)
@@ -359,6 +369,21 @@ def list_cart_snapshot(db: Session, user: UserRecord) -> CartSnapshot:
         .order_by(CartItemRecord.created_at.desc())
     ).all()
     return build_cart_snapshot(db, rows)
+
+
+def ensure_commerce_user(user: UserRecord) -> None:
+    if user.role not in {"guest", "student"}:
+        if user.role == "admin":
+            detail = "Votre compte administrateur ne peut pas effectuer d'achat."
+        elif user.role == "teacher":
+            detail = "Votre compte enseignant ne peut pas effectuer d'achat."
+        else:
+            detail = "Ce compte ne peut pas effectuer d'achat."
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=detail,
+        )
 
 
 def list_favorite_snapshot(db: Session, user: UserRecord) -> FavoriteSnapshot:
@@ -372,6 +397,8 @@ def list_favorite_snapshot(db: Session, user: UserRecord) -> FavoriteSnapshot:
 
 
 def add_item_to_cart(db: Session, user: UserRecord, formation_slug: str) -> CartSnapshot:
+    ensure_commerce_user(user)
+
     formation = db.scalar(select(FormationRecord).where(FormationRecord.slug == formation_slug))
     if formation is None:
         raise HTTPException(status_code=404, detail="Formation introuvable.")
@@ -1162,6 +1189,8 @@ def checkout_cart(
     use_installments: bool = False,
     payment_provider: str | None = None,
 ) -> CheckoutResponse:
+    ensure_commerce_user(user)
+
     rows = db.execute(
         select(CartItemRecord, FormationRecord)
         .join(FormationRecord, CartItemRecord.formation_id == FormationRecord.id)
@@ -1199,6 +1228,8 @@ def checkout_student_payment(
     payment_id: int,
     payment_provider: str | None = None,
 ) -> CheckoutResponse:
+    ensure_commerce_user(user)
+
     payment = db.get(PaymentRecord, payment_id)
     if payment is None:
         raise HTTPException(status_code=404, detail="Paiement introuvable.")
@@ -1420,8 +1451,8 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
                     f"pour {formation_title} a été confirmé."
                 )
                 tone = "success"
-                action_label = "Accéder à mon espace"
-                action_path = "/espace/etudiant"
+                action_label = "Paiements"
+                action_path = "/espace/etudiant/paiements"
                 created_at = combine_date_to_utc(payment.paid_at or payment.created_at)
             elif payment.status == "pending" and payment.due_date is not None and payment.due_date <= today:
                 title = "Paiement à régler"
@@ -1430,8 +1461,8 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
                     f"pour {formation_title} est disponible au règlement."
                 )
                 tone = "warning"
-                action_label = "Voir mes notifications"
-                action_path = "/notifications"
+                action_label = "Payer"
+                action_path = "/espace/etudiant/paiements"
                 created_at = combine_date_to_utc(day=payment.due_date)
             elif (
                 payment.status == "pending"
@@ -1444,8 +1475,8 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
                     f"pour {formation_title} approche."
                 )
                 tone = "warning"
-                action_label = "Voir mes notifications"
-                action_path = "/notifications"
+                action_label = "Paiements"
+                action_path = "/espace/etudiant/paiements"
                 created_at = combine_date_to_utc(day=payment.due_date)
             else:
                 title = "Paiement à régulariser"
@@ -1454,8 +1485,8 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
                     f"pour {formation_title} nécessite une régularisation."
                 )
                 tone = "warning"
-                action_label = "Voir mes notifications"
-                action_path = "/notifications"
+                action_label = "Paiements"
+                action_path = "/espace/etudiant/paiements"
                 created_at = combine_date_to_utc(payment.created_at)
 
             notifications.append(
@@ -1495,10 +1526,231 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
                     tone="info",
                     category="enrollment",
                     created_at=combine_date_to_utc(enrollment.created_at),
-                    action_label="Ouvrir le parcours",
+                    action_label="Parcours",
                     action_path=workspace_path,
                 )
             )
+
+        active_enrollment_rows = [
+            (enrollment, formation)
+            for enrollment, formation in enrollment_rows
+            if enrollment.status in ("active", "completed") and enrollment.session_id is not None
+        ]
+        session_ids = sorted(
+            {int(enrollment.session_id) for enrollment, _formation in active_enrollment_rows}
+        )
+        enrollment_ids = [enrollment.id for enrollment, _formation in active_enrollment_rows]
+        enrollment_by_session = {
+            int(enrollment.session_id): enrollment
+            for enrollment, _formation in active_enrollment_rows
+        }
+
+        if session_ids and enrollment_ids:
+            now = utc_now()
+            submitted_rows = db.scalars(
+                select(AssignmentSubmissionRecord).where(
+                    AssignmentSubmissionRecord.enrollment_id.in_(enrollment_ids)
+                )
+            ).all()
+            submitted_pairs = {
+                (submission.assignment_id, submission.enrollment_id)
+                for submission in submitted_rows
+            }
+
+            upcoming_assignment_rows = db.execute(
+                select(AssignmentRecord, FormationSessionRecord)
+                .join(FormationSessionRecord, FormationSessionRecord.id == AssignmentRecord.session_id)
+                .where(
+                    AssignmentRecord.session_id.in_(session_ids),
+                    AssignmentRecord.due_date >= now,
+                    AssignmentRecord.due_date <= now + timedelta(days=7),
+                )
+                .order_by(AssignmentRecord.due_date.asc(), AssignmentRecord.id.asc())
+                .limit(20)
+            ).all()
+            shown_assignment_alerts = 0
+            for assignment, session in upcoming_assignment_rows:
+                enrollment = enrollment_by_session.get(assignment.session_id)
+                if enrollment is None or (assignment.id, enrollment.id) in submitted_pairs:
+                    continue
+                due_text = combine_date_to_utc(assignment.due_date).strftime("%d/%m/%Y a %Hh%M")
+                notifications.append(
+                    NotificationView(
+                        id=f"student-assignment-due-{assignment.id}-{enrollment.id}",
+                        title="Devoir a rendre",
+                        message=(
+                            f"\"{assignment.title}\" est a remettre avant le "
+                            f"{due_text} pour {session.label}."
+                        ),
+                        tone="warning",
+                        category="assignment",
+                        created_at=now,
+                        action_label="Devoirs",
+                        action_path="/espace/etudiant/devoirs",
+                    )
+                )
+                shown_assignment_alerts += 1
+                if shown_assignment_alerts >= 5:
+                    break
+
+            reviewed_submission_rows = db.execute(
+                select(AssignmentSubmissionRecord, AssignmentRecord, FormationSessionRecord)
+                .join(AssignmentRecord, AssignmentRecord.id == AssignmentSubmissionRecord.assignment_id)
+                .join(FormationSessionRecord, FormationSessionRecord.id == AssignmentRecord.session_id)
+                .where(
+                    AssignmentSubmissionRecord.enrollment_id.in_(enrollment_ids),
+                    AssignmentSubmissionRecord.is_reviewed.is_(True),
+                )
+                .order_by(AssignmentSubmissionRecord.updated_at.desc(), AssignmentSubmissionRecord.id.desc())
+                .limit(3)
+            ).all()
+            for submission, assignment, session in reviewed_submission_rows:
+                score_text = ""
+                if submission.review_score is not None:
+                    score_text = (
+                        f" Note: {submission.review_score:g}/"
+                        f"{submission.review_max_score:g}."
+                    )
+                notifications.append(
+                    NotificationView(
+                        id=f"student-assignment-reviewed-{submission.id}",
+                        title="Devoir corrige",
+                        message=f"Votre rendu \"{assignment.title}\" a ete corrige.{score_text}",
+                        tone="success",
+                        category="assignment",
+                        created_at=combine_date_to_utc(submission.updated_at),
+                        action_label="Devoirs",
+                        action_path="/espace/etudiant/devoirs",
+                    )
+                )
+
+            quiz_attempt_rows = db.scalars(
+                select(QuizAttemptRecord).where(QuizAttemptRecord.enrollment_id.in_(enrollment_ids))
+            ).all()
+            attempts_by_quiz_enrollment: dict[tuple[int, int], list[QuizAttemptRecord]] = {}
+            for attempt in quiz_attempt_rows:
+                attempts_by_quiz_enrollment.setdefault(
+                    (attempt.quiz_id, attempt.enrollment_id),
+                    [],
+                ).append(attempt)
+
+            active_quiz_rows = db.execute(
+                select(QuizRecord, FormationSessionRecord)
+                .join(FormationSessionRecord, FormationSessionRecord.id == QuizRecord.session_id)
+                .where(
+                    QuizRecord.session_id.in_(session_ids),
+                    QuizRecord.status == "active",
+                )
+                .order_by(QuizRecord.scheduled_at.asc().nullslast(), QuizRecord.created_at.desc())
+                .limit(10)
+            ).all()
+            shown_quiz_alerts = 0
+            for quiz, session in active_quiz_rows:
+                enrollment = enrollment_by_session.get(quiz.session_id)
+                if enrollment is None:
+                    continue
+                attempts = attempts_by_quiz_enrollment.get((quiz.id, enrollment.id), [])
+                best_score = max((attempt.score_pct for attempt in attempts), default=None)
+                if best_score is not None and best_score >= 50:
+                    continue
+                if len(attempts) >= 2:
+                    continue
+                title = "Quiz disponible" if not attempts else "Quiz a reprendre"
+                notifications.append(
+                    NotificationView(
+                        id=f"student-quiz-open-{quiz.id}-{enrollment.id}",
+                        title=title,
+                        message=f"\"{quiz.title}\" est ouvert pour {session.label}.",
+                        tone="info" if not attempts else "warning",
+                        category="quiz",
+                        created_at=combine_date_to_utc(quiz.scheduled_at or quiz.created_at),
+                        action_label="Quiz",
+                        action_path="/espace/etudiant/quizz",
+                    )
+                )
+                shown_quiz_alerts += 1
+                if shown_quiz_alerts >= 5:
+                    break
+
+            live_rows = db.execute(
+                select(SessionLiveEventRecord, FormationSessionRecord)
+                .join(FormationSessionRecord, FormationSessionRecord.id == SessionLiveEventRecord.session_id)
+                .where(
+                    SessionLiveEventRecord.session_id.in_(session_ids),
+                    SessionLiveEventRecord.status.in_(("scheduled", "planned", "open")),
+                    SessionLiveEventRecord.scheduled_at >= now,
+                    SessionLiveEventRecord.scheduled_at <= now + timedelta(days=2),
+                )
+                .order_by(SessionLiveEventRecord.scheduled_at.asc(), SessionLiveEventRecord.id.asc())
+                .limit(3)
+            ).all()
+            for live, session in live_rows:
+                scheduled = combine_date_to_utc(live.scheduled_at).strftime("%d/%m/%Y a %Hh%M")
+                notifications.append(
+                    NotificationView(
+                        id=f"student-live-{live.id}",
+                        title="Live a venir",
+                        message=f"{live.title} est programme le {scheduled} pour {session.label}.",
+                        tone="info",
+                        category="live",
+                        created_at=now,
+                        action_label="Rejoindre",
+                        action_path=f"/live/{session.id}",
+                    )
+                )
+
+            resource_visible_at = func.coalesce(ResourceRecord.published_at, ResourceRecord.created_at)
+            resource_rows = db.execute(
+                select(ResourceRecord, FormationSessionRecord)
+                .join(FormationSessionRecord, FormationSessionRecord.id == ResourceRecord.session_id)
+                .where(
+                    ResourceRecord.session_id.in_(session_ids),
+                    or_(ResourceRecord.published_at.is_(None), ResourceRecord.published_at <= now),
+                    resource_visible_at >= now - timedelta(days=30),
+                )
+                .order_by(resource_visible_at.desc(), ResourceRecord.id.desc())
+                .limit(3)
+            ).all()
+            for resource, session in resource_rows:
+                notifications.append(
+                    NotificationView(
+                        id=f"student-resource-{resource.id}",
+                        title="Nouvelle ressource",
+                        message=f"\"{resource.title}\" est disponible pour {session.label}.",
+                        tone="info",
+                        category="resource",
+                        created_at=combine_date_to_utc(resource.published_at or resource.created_at),
+                        action_label="Ressources",
+                        action_path="/espace/etudiant/ressources",
+                    )
+                )
+
+            grade_rows = db.execute(
+                select(GradeRecord, FormationSessionRecord)
+                .join(FormationSessionRecord, FormationSessionRecord.id == GradeRecord.session_id)
+                .where(
+                    GradeRecord.enrollment_id.in_(enrollment_ids),
+                    ~GradeRecord.label.ilike("Quiz:%"),
+                )
+                .order_by(GradeRecord.updated_at.desc(), GradeRecord.id.desc())
+                .limit(3)
+            ).all()
+            for grade, session in grade_rows:
+                notifications.append(
+                    NotificationView(
+                        id=f"student-grade-{grade.id}",
+                        title="Nouvelle note",
+                        message=(
+                            f"{grade.label}: {grade.score:g}/{grade.max_score:g} "
+                            f"pour {session.label}."
+                        ),
+                        tone="success",
+                        category="result",
+                        created_at=combine_date_to_utc(grade.updated_at),
+                        action_label="Resultats",
+                        action_path="/espace/etudiant/resultats",
+                    )
+                )
 
         if user.student_code:
             notifications.append(
@@ -1513,7 +1765,7 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
                     tone="success",
                     category="system",
                     created_at=utc_now(),
-                    action_label="Mon espace etudiant",
+                    action_label="Mon code",
                     action_path="/espace/etudiant",
                 )
             )
@@ -1530,7 +1782,7 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
                     tone="info",
                     category="system",
                     created_at=utc_now(),
-                    action_label="Voir le catalogue",
+                    action_label="Catalogue",
                     action_path="/formations",
                 )
             )
@@ -1541,6 +1793,163 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
             .where(FormationSessionRecord.teacher_name == user.full_name)
             .order_by(FormationSessionRecord.start_date.asc())
         ).all()
+        session_ids = [session.id for session in sessions]
+
+        if session_ids:
+            enrollment_rows = db.execute(
+                select(EnrollmentRecord, UserRecord, FormationRecord, FormationSessionRecord)
+                .join(UserRecord, UserRecord.id == EnrollmentRecord.user_id)
+                .join(FormationRecord, FormationRecord.id == EnrollmentRecord.formation_id)
+                .join(FormationSessionRecord, FormationSessionRecord.id == EnrollmentRecord.session_id)
+                .where(
+                    EnrollmentRecord.session_id.in_(session_ids),
+                    EnrollmentRecord.status.in_(("active", "completed")),
+                )
+                .order_by(EnrollmentRecord.created_at.desc(), EnrollmentRecord.id.desc())
+                .limit(5)
+            ).all()
+            for enrollment, student, formation, session in enrollment_rows:
+                notifications.append(
+                    NotificationView(
+                        id=f"teacher-enrollment-{enrollment.id}",
+                        title="Nouvel inscrit",
+                        message=(
+                            f"{student.full_name} a rejoint {session.label} "
+                            f"pour {formation.title}."
+                        ),
+                        tone="success",
+                        category="enrollment",
+                        created_at=combine_date_to_utc(enrollment.created_at),
+                        action_label="Session",
+                        action_path=f"/espace/enseignant/session/{session.id}",
+                    )
+                )
+
+            pending_submission_rows = db.execute(
+                select(
+                    AssignmentSubmissionRecord,
+                    AssignmentRecord,
+                    EnrollmentRecord,
+                    UserRecord,
+                    FormationSessionRecord,
+                )
+                .join(AssignmentRecord, AssignmentRecord.id == AssignmentSubmissionRecord.assignment_id)
+                .join(EnrollmentRecord, EnrollmentRecord.id == AssignmentSubmissionRecord.enrollment_id)
+                .join(UserRecord, UserRecord.id == EnrollmentRecord.user_id)
+                .join(FormationSessionRecord, FormationSessionRecord.id == AssignmentRecord.session_id)
+                .where(
+                    AssignmentRecord.session_id.in_(session_ids),
+                    AssignmentSubmissionRecord.is_reviewed.is_(False),
+                )
+                .order_by(AssignmentSubmissionRecord.submitted_at.desc(), AssignmentSubmissionRecord.id.desc())
+                .limit(5)
+            ).all()
+            for submission, assignment, _enrollment, student, session in pending_submission_rows:
+                notifications.append(
+                    NotificationView(
+                        id=f"teacher-submission-{submission.id}",
+                        title="Nouveau rendu",
+                        message=(
+                            f"{student.full_name} a rendu \"{assignment.title}\" "
+                            f"pour {session.label}."
+                        ),
+                        tone="warning",
+                        category="assignment",
+                        created_at=combine_date_to_utc(submission.submitted_at),
+                        action_label="Corriger",
+                        action_path="/espace/enseignant/devoirs",
+                    )
+                )
+
+            pending_reviews_count = int(
+                db.scalar(
+                    select(func.count(AssignmentSubmissionRecord.id))
+                    .join(AssignmentRecord, AssignmentRecord.id == AssignmentSubmissionRecord.assignment_id)
+                    .where(
+                        AssignmentRecord.session_id.in_(session_ids),
+                        AssignmentSubmissionRecord.is_reviewed.is_(False),
+                    )
+                )
+                or 0
+            )
+            if pending_reviews_count > 1:
+                latest_submission = pending_submission_rows[0][0]
+                notifications.append(
+                    NotificationView(
+                        id=(
+                            f"teacher-pending-reviews-{user.id}-"
+                            f"{pending_reviews_count}-{latest_submission.id}"
+                        ),
+                        title="Corrections en attente",
+                        message=f"{pending_reviews_count} rendus attendent une correction.",
+                        tone="warning",
+                        category="assignment",
+                        created_at=combine_date_to_utc(latest_submission.submitted_at),
+                        action_label="Corriger",
+                        action_path="/espace/enseignant/devoirs",
+                    )
+                )
+
+            quiz_attempt_rows = db.execute(
+                select(
+                    QuizAttemptRecord,
+                    QuizRecord,
+                    EnrollmentRecord,
+                    UserRecord,
+                    FormationSessionRecord,
+                )
+                .join(QuizRecord, QuizRecord.id == QuizAttemptRecord.quiz_id)
+                .join(EnrollmentRecord, EnrollmentRecord.id == QuizAttemptRecord.enrollment_id)
+                .join(UserRecord, UserRecord.id == EnrollmentRecord.user_id)
+                .join(FormationSessionRecord, FormationSessionRecord.id == QuizRecord.session_id)
+                .where(QuizRecord.session_id.in_(session_ids))
+                .order_by(QuizAttemptRecord.submitted_at.desc(), QuizAttemptRecord.id.desc())
+                .limit(5)
+            ).all()
+            for attempt, quiz, _enrollment, student, session in quiz_attempt_rows:
+                notifications.append(
+                    NotificationView(
+                        id=f"teacher-quiz-attempt-{attempt.id}",
+                        title="Quiz soumis",
+                        message=(
+                            f"{student.full_name} a termine \"{quiz.title}\" "
+                            f"avec {attempt.score_pct:.0f}% pour {session.label}."
+                        ),
+                        tone="success" if attempt.score_pct >= 50 else "warning",
+                        category="quiz",
+                        created_at=combine_date_to_utc(attempt.submitted_at),
+                        action_label="Quiz",
+                        action_path="/espace/enseignant/quizz",
+                    )
+                )
+
+            now = utc_now()
+            live_rows = db.execute(
+                select(SessionLiveEventRecord, FormationSessionRecord)
+                .join(FormationSessionRecord, FormationSessionRecord.id == SessionLiveEventRecord.session_id)
+                .where(
+                    SessionLiveEventRecord.session_id.in_(session_ids),
+                    SessionLiveEventRecord.status.in_(("scheduled", "planned", "open")),
+                    SessionLiveEventRecord.scheduled_at >= now,
+                    SessionLiveEventRecord.scheduled_at <= now + timedelta(days=2),
+                )
+                .order_by(SessionLiveEventRecord.scheduled_at.asc(), SessionLiveEventRecord.id.asc())
+                .limit(3)
+            ).all()
+            for live, session in live_rows:
+                scheduled = combine_date_to_utc(live.scheduled_at).strftime("%d/%m/%Y a %Hh%M")
+                notifications.append(
+                    NotificationView(
+                        id=f"teacher-live-{live.id}",
+                        title="Live a venir",
+                        message=f"{live.title} est programme le {scheduled} pour {session.label}.",
+                        tone="info",
+                        category="live",
+                        created_at=now,
+                        action_label="Live",
+                        action_path=f"/espace/enseignant/session/{session.id}",
+                    )
+                )
 
         for session in sessions:
             formation = db.get(FormationRecord, session.formation_id)
@@ -1558,8 +1967,8 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
                     tone="info" if session.status == "open" else "warning",
                     category="session",
                     created_at=combine_date_to_utc(day=session.start_date),
-                    action_label="Ouvrir l'espace enseignant",
-                    action_path="/espace/enseignant",
+                    action_label="Session",
+                    action_path=f"/espace/enseignant/session/{session.id}",
                 )
             )
 
@@ -1575,7 +1984,7 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
                     tone="info",
                     category="system",
                     created_at=utc_now(),
-                    action_label="Ouvrir l'espace enseignant",
+                    action_label="Espace",
                     action_path="/espace/enseignant",
                 )
             )
@@ -1602,8 +2011,8 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
                     tone="warning" if pending_orders > 0 else "info",
                     category="admin",
                     created_at=utc_now(),
-                    action_label="Ouvrir l'administration",
-                    action_path="/admin",
+                    action_label="Commandes",
+                    action_path="/admin/commandes",
                 ),
                 NotificationView(
                     id="admin-pending-payments",
@@ -1614,7 +2023,7 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
                     tone="warning" if pending_payments > 0 else "info",
                     category="admin",
                     created_at=utc_now(),
-                    action_label="Voir les paiements",
+                    action_label="Paiements",
                     action_path="/admin/paiements",
                 ),
                 NotificationView(
@@ -1627,8 +2036,8 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
                     tone="success",
                     category="admin",
                     created_at=utc_now(),
-                    action_label="Voir le dashboard admin",
-                    action_path="/admin",
+                    action_label="Performance",
+                    action_path="/admin/performance",
                 ),
             ]
         )

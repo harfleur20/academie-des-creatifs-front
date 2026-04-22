@@ -35,9 +35,11 @@ import { useCart } from "../cart/CartContext";
 import { useFavorites } from "../favorites/FavoritesContext";
 import { ApiRequestError } from "../lib/apiClient";
 import {
+  getCommerceRoleRestrictedMessage,
   getUserActionErrorMessage,
   USER_MESSAGES,
 } from "../lib/userMessages";
+import { canUseCommerce } from "../lib/commerceAccess";
 import { useToast } from "../toast/ToastContext";
 import VerifiedBadge from "../components/VerifiedBadge";
 
@@ -270,7 +272,7 @@ export default function FormationDetailPage() {
   const { user } = useAuth();
   const { cart, addToCart } = useCart();
   const { toggleFavorite, hasFavorite } = useFavorites();
-  const { success, error: showErrorToast } = useToast();
+  const { success, error: showErrorToast, info } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const [formation, setFormation] = useState<FormationDetailView | null>(null);
@@ -393,7 +395,15 @@ export default function FormationDetailPage() {
       return;
     }
 
+    if (!canUseCommerce(user)) {
+      const message = getCommerceRoleRestrictedMessage(user);
+      setActionMessage(message);
+      showErrorToast(message);
+      return;
+    }
+
     if (target === "cart" && isAlreadyInCart) {
+      info(USER_MESSAGES.cartAlreadyInCart);
       navigate("/panier");
       return;
     }

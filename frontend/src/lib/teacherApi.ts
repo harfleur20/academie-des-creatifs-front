@@ -31,6 +31,66 @@ export async function fetchTeacherOverview(): Promise<TeacherOverview> {
   return apiRequest<TeacherOverview>("/teacher/overview");
 }
 
+export type TeacherPerformanceTone = "good" | "warning" | "danger" | "neutral";
+
+export type TeacherPerformanceKpi = {
+  label: string;
+  value: string;
+  detail: string;
+  tone: TeacherPerformanceTone;
+};
+
+export type TeacherPerformanceSessionRow = {
+  session_id: number;
+  formation_title: string;
+  session_label: string;
+  status: string;
+  enrolled_count: number;
+  seat_capacity: number;
+  fill_rate_pct: number;
+  attendance_rate_pct: number | null;
+  progress_pct: number;
+  pending_reviews_count: number;
+  quiz_average_score_pct: number | null;
+  alert_level: TeacherPerformanceTone;
+};
+
+export type TeacherPerformanceStudentRow = {
+  enrollment_id: number;
+  student_name: string;
+  student_code: string | null;
+  session_id: number;
+  session_label: string;
+  formation_title: string;
+  progress_pct: number;
+  attendance_rate_pct: number | null;
+  average_grade_pct: number | null;
+  pending_reviews_count: number;
+  last_activity_at: string | null;
+  risk_level: TeacherPerformanceTone;
+};
+
+export type TeacherPerformanceAlert = {
+  code: string;
+  title: string;
+  detail: string;
+  tone: TeacherPerformanceTone;
+  action_label: string;
+  action_path: string;
+};
+
+export type TeacherPerformanceOverview = {
+  generated_at: string;
+  kpis: TeacherPerformanceKpi[];
+  sessions: TeacherPerformanceSessionRow[];
+  students: TeacherPerformanceStudentRow[];
+  alerts: TeacherPerformanceAlert[];
+};
+
+export async function fetchTeacherPerformance(): Promise<TeacherPerformanceOverview> {
+  return apiRequest<TeacherPerformanceOverview>("/teacher/performance");
+}
+
 // ── AI draft generation ─────────────────────────────────────────────────────
 
 const AI_GENERATION_TIMEOUT_MS = 180 * 1000;

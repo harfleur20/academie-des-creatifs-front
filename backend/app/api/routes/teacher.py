@@ -67,11 +67,12 @@ from app.schemas.teacher import (
     ResourceCreate,
     ResourceView,
     TeacherOverview,
+    TeacherPerformanceOverview,
     TeacherSessionStudent,
 )
 from app.services.ai_client import resolve_ai_runtime_config, run_ai_chat
 from app.services.formation_sessions import validate_live_event_in_session
-from app.services.teacher import get_teacher_overview
+from app.services.teacher import get_teacher_overview, get_teacher_performance
 
 router = APIRouter(prefix="/teacher", tags=["teacher"])
 
@@ -118,6 +119,14 @@ def read_teacher_overview(
     current_user: UserRecord = Depends(_teacher),
 ) -> TeacherOverview:
     return get_teacher_overview(db, current_user)
+
+
+@router.get("/performance", response_model=TeacherPerformanceOverview)
+def read_teacher_performance(
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(_teacher),
+) -> TeacherPerformanceOverview:
+    return get_teacher_performance(db, current_user)
 
 
 # ── helpers ────────────────────────────────────────────

@@ -22,6 +22,7 @@ from app.schemas.catalog import (
     AdminOrderUpdate,
     AdminPaymentItem,
     AdminPaymentUpdate,
+    AdminPerformanceOverview,
     AdminUploadedAsset,
     AdminUserItem,
     AdminUserUpdate,
@@ -30,6 +31,7 @@ from app.services.catalog import (
     admin_patch_course_day_status,
     create_admin_onsite_session,
     create_catalog_entry,
+    get_admin_performance,
     get_admin_overview,
     list_admin_enrollments,
     list_admin_catalog_items,
@@ -151,6 +153,11 @@ async def upload_admin_asset(
 @router.get("/stats/overview", response_model=AdminDashboardOverview)
 def read_admin_overview(db: Session = Depends(get_db)) -> AdminDashboardOverview:
     return get_admin_overview(db)
+
+
+@router.get("/stats/performance", response_model=AdminPerformanceOverview)
+def read_admin_performance(db: Session = Depends(get_db)) -> AdminPerformanceOverview:
+    return get_admin_performance(db)
 
 
 @router.get("/users", response_model=list[AdminUserItem])

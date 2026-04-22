@@ -95,6 +95,7 @@ def run_ai_chat(
     system_prompt: str,
     messages: list[dict[str, str]],
     max_tokens: int = 1024,
+    timeout_seconds: float | None = None,
 ) -> str:
     runtime = resolve_ai_runtime_config()
     if runtime is None:
@@ -104,7 +105,10 @@ def run_ai_chat(
         if not module_exists("anthropic"):
             raise ValueError("Anthropic SDK is not installed.")
         anthropic_module = import_module("anthropic")
-        client = anthropic_module.Anthropic(api_key=runtime.api_key)
+        kwargs: dict = {"api_key": runtime.api_key}
+        if timeout_seconds is not None:
+            kwargs["timeout"] = timeout_seconds
+        client = anthropic_module.Anthropic(**kwargs)
         response = client.messages.create(
             model=runtime.model,
             max_tokens=max_tokens,
@@ -121,6 +125,8 @@ def run_ai_chat(
     kwargs: dict = {"api_key": runtime.api_key}
     if runtime.base_url:
         kwargs["base_url"] = runtime.base_url
+    if timeout_seconds is not None:
+        kwargs["timeout"] = timeout_seconds
 
     client = OpenAI(**kwargs)
     response = client.chat.completions.create(

@@ -1,5 +1,5 @@
 import json
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 
 from pydantic import ValidationError
 
@@ -9,15 +9,21 @@ from sqlalchemy.orm import Session
 
 from app.models.entities import (
     AttendanceRecord,
+    AssignmentRecord,
     AssignmentSubmissionRecord,
+    ChapterRecord,
+    CourseRecord,
     EnrollmentRecord,
     FormationRecord,
     FormationSessionRecord,
     FormationTeacherRecord,
     GradeRecord,
+    LessonProgressRecord,
+    LessonRecord,
     OrderRecord,
     PaymentRecord,
     QuizAttemptRecord,
+    QuizRecord,
     SessionCourseDayRecord,
     UserRecord,
 )
@@ -37,6 +43,13 @@ from app.schemas.catalog import (
     AdminOrderUpdate,
     AdminPaymentItem,
     AdminPaymentUpdate,
+    AdminPerformanceAlert,
+    AdminPerformanceFormationRow,
+    AdminPerformanceKpi,
+    AdminPerformanceOverview,
+    AdminPerformanceSeriesPoint,
+    AdminPerformanceSessionRow,
+    AdminPerformanceTeacherRow,
     AdminUserItem,
     AdminUserUpdate,
     DashboardType,
@@ -358,6 +371,7 @@ def serialize_catalog_item(db: Session, record: FormationRecord) -> FormationCat
         session_state=presentation.state,  # type: ignore[arg-type]
         session_label=presentation.session_label,
         card_session_label=presentation.card_session_label,
+        campus_label=presentation.campus_label,
         purchase_message=presentation.purchase_message,
         can_purchase=presentation.can_purchase,
         session_start_date=presentation.start_date,
@@ -659,6 +673,503 @@ def get_admin_overview(db: Session) -> AdminDashboardOverview:
         total_confirmed_revenue_amount=int(total_confirmed_revenue_amount),
         total_confirmed_revenue_label=format_fcfa(int(total_confirmed_revenue_amount)) or "0 FCFA",
         missed_course_days_count=missed_course_days_count,
+    )
+
+
+MONTH_LABELS = ["Jan", "Fev", "Mar", "Avr", "Mai", "Juin", "Juil", "Aout", "Sep", "Oct", "Nov", "Dec"]
+ACTIVE_ENROLLMENT_STATUSES = ("active", "completed")
+
+
+def _pct(numerator: float | int | None, denominator: float | int | None) -> float:
+    if not numerator or not denominator:
+        return 0.0
+    return round((float(numerator) / float(denominator)) * 100, 1)
+
+
+def _month_shift(value: datetime, offset: int) -> datetime:
+    month_index = value.month - 1 + offset
+    year = value.year + month_index // 12
+    month = month_index % 12 + 1
+    return datetime(year, month, 1, tzinfo=timezone.utc)
+
+
+def _month_key(value: datetime) -> str:
+    return f"{value.year:04d}-{value.month:02d}"
+
+
+def _performance_month_series(
+    db: Session,
+    *,
+    now: datetime,
+) -> list[AdminPerformanceSeriesPoint]:
+    month_starts = [_month_shift(now, index - 5) for index in range(6)]
+    buckets = {
+        _month_key(start): {
+            "label": MONTH_LABELS[start.month - 1],
+            "revenue": 0,
+            "enrollments": 0,
+            "orders": 0,
+        }
+        for start in month_starts
+    }
+
+    first_month = month_starts[0]
+    payment_rows = db.scalars(
+        select(PaymentRecord).where(
+            PaymentRecord.status == "confirmed",
+            func.coalesce(PaymentRecord.paid_at, PaymentRecord.created_at) >= first_month,
+        )
+    ).all()
+    for payment in payment_rows:
+        paid_at = payment.paid_at or payment.created_at
+        key = _month_key(paid_at)
+        if key in buckets:
+            buckets[key]["revenue"] += int(payment.amount)
+
+    enrollment_rows = db.scalars(
+        select(EnrollmentRecord).where(EnrollmentRecord.created_at >= first_month)
+    ).all()
+    for enrollment in enrollment_rows:
+        key = _month_key(enrollment.created_at)
+        if key in buckets:
+            buckets[key]["enrollments"] += 1
+
+    order_rows = db.scalars(select(OrderRecord).where(OrderRecord.created_at >= first_month)).all()
+    for order in order_rows:
+        key = _month_key(order.created_at)
+        if key in buckets:
+            buckets[key]["orders"] += 1
+
+    return [
+        AdminPerformanceSeriesPoint(
+            key=key,
+            label=str(data["label"]),
+            revenue_amount=int(data["revenue"]),
+            revenue_label=format_fcfa(int(data["revenue"])) or "0 FCFA",
+            enrollments_count=int(data["enrollments"]),
+            orders_count=int(data["orders"]),
+        )
+        for key, data in buckets.items()
+    ]
+
+
+def _active_enrollment_counts_by_session(db: Session) -> dict[int, int]:
+    return {
+        int(session_id): int(count)
+        for session_id, count in db.execute(
+            select(EnrollmentRecord.session_id, func.count(EnrollmentRecord.id))
+            .where(
+                EnrollmentRecord.session_id.isnot(None),
+                EnrollmentRecord.status.in_(ACTIVE_ENROLLMENT_STATUSES),
+            )
+            .group_by(EnrollmentRecord.session_id)
+        ).all()
+        if session_id is not None
+    }
+
+
+def _attendance_rates_by_session(db: Session) -> dict[int, float]:
+    rows = db.execute(
+        select(
+            AttendanceRecord.session_id,
+            func.count(AttendanceRecord.id),
+            func.sum(
+                case(
+                    (AttendanceRecord.status.in_(("present", "late")), 1),
+                    else_=0,
+                )
+            ),
+        ).group_by(AttendanceRecord.session_id)
+    ).all()
+    return {
+        int(session_id): _pct(present_count or 0, total_count or 0)
+        for session_id, total_count, present_count in rows
+    }
+
+
+def _pending_reviews_by_session(db: Session) -> dict[int, int]:
+    return {
+        int(session_id): int(count)
+        for session_id, count in db.execute(
+            select(AssignmentRecord.session_id, func.count(AssignmentSubmissionRecord.id))
+            .join(AssignmentRecord, AssignmentRecord.id == AssignmentSubmissionRecord.assignment_id)
+            .where(AssignmentSubmissionRecord.is_reviewed.is_(False))
+            .group_by(AssignmentRecord.session_id)
+        ).all()
+    }
+
+
+def _quiz_score_by_session(db: Session) -> dict[int, float]:
+    return {
+        int(session_id): round(float(score), 1)
+        for session_id, score in db.execute(
+            select(QuizRecord.session_id, func.avg(QuizAttemptRecord.score_pct))
+            .join(QuizRecord, QuizRecord.id == QuizAttemptRecord.quiz_id)
+            .group_by(QuizRecord.session_id)
+        ).all()
+        if score is not None
+    }
+
+
+def _lesson_counts_by_session(db: Session) -> dict[int, int]:
+    return {
+        int(session_id): int(count)
+        for session_id, count in db.execute(
+            select(CourseRecord.session_id, func.count(LessonRecord.id))
+            .join(ChapterRecord, ChapterRecord.course_id == CourseRecord.id)
+            .join(LessonRecord, LessonRecord.chapter_id == ChapterRecord.id)
+            .group_by(CourseRecord.session_id)
+        ).all()
+    }
+
+
+def _average_progress_pct(db: Session, lesson_counts_by_session: dict[int, int]) -> float:
+    enrollments = db.scalars(
+        select(EnrollmentRecord).where(
+            EnrollmentRecord.session_id.isnot(None),
+            EnrollmentRecord.status.in_(ACTIVE_ENROLLMENT_STATUSES),
+        )
+    ).all()
+    if not enrollments:
+        return 0.0
+
+    enrollment_ids = [enrollment.id for enrollment in enrollments]
+    possible_lessons = sum(
+        lesson_counts_by_session.get(int(enrollment.session_id or 0), 0)
+        for enrollment in enrollments
+    )
+    if possible_lessons <= 0:
+        return 0.0
+
+    completed_lessons = int(
+        db.scalar(
+            select(func.count(LessonProgressRecord.id)).where(
+                LessonProgressRecord.enrollment_id.in_(enrollment_ids)
+            )
+        )
+        or 0
+    )
+    return _pct(completed_lessons, possible_lessons)
+
+
+def _performance_top_formations(
+    db: Session,
+    sessions: list[tuple[FormationSessionRecord, FormationRecord]],
+    enrollment_counts_by_session: dict[int, int],
+) -> list[AdminPerformanceFormationRow]:
+    enrollment_counts = {
+        int(formation_id): int(count)
+        for formation_id, count in db.execute(
+            select(EnrollmentRecord.formation_id, func.count(EnrollmentRecord.id))
+            .where(EnrollmentRecord.status.in_(ACTIVE_ENROLLMENT_STATUSES))
+            .group_by(EnrollmentRecord.formation_id)
+        ).all()
+    }
+    revenue_by_formation = {
+        int(formation_id): int(amount)
+        for formation_id, amount in db.execute(
+            select(OrderRecord.formation_id, func.coalesce(func.sum(PaymentRecord.amount), 0))
+            .join(OrderRecord, OrderRecord.reference == PaymentRecord.order_reference)
+            .where(
+                PaymentRecord.status == "confirmed",
+                OrderRecord.formation_id.isnot(None),
+            )
+            .group_by(OrderRecord.formation_id)
+        ).all()
+        if formation_id is not None
+    }
+    sessions_by_formation: dict[int, list[FormationSessionRecord]] = {}
+    for session, formation in sessions:
+        sessions_by_formation.setdefault(formation.id, []).append(session)
+
+    formations = db.scalars(select(FormationRecord).order_by(FormationRecord.title.asc())).all()
+    rows: list[AdminPerformanceFormationRow] = []
+    for formation in formations:
+        formation_sessions = sessions_by_formation.get(formation.id, [])
+        fill_rates = [
+            _pct(enrollment_counts_by_session.get(session.id, 0), session.seat_capacity)
+            for session in formation_sessions
+            if session.seat_capacity > 0
+        ]
+        avg_fill = round(sum(fill_rates) / len(fill_rates), 1) if fill_rates else 0.0
+        rows.append(
+            AdminPerformanceFormationRow(
+                formation_id=formation.id,
+                title=formation.title,
+                format_type=formation.format_type,  # type: ignore[arg-type]
+                enrollments_count=enrollment_counts.get(formation.id, 0),
+                revenue_amount=revenue_by_formation.get(formation.id, 0),
+                revenue_label=format_fcfa(revenue_by_formation.get(formation.id, 0)) or "0 FCFA",
+                sessions_count=len(formation_sessions),
+                avg_fill_rate_pct=avg_fill,
+            )
+        )
+
+    return sorted(
+        rows,
+        key=lambda item: (item.revenue_amount, item.enrollments_count),
+        reverse=True,
+    )[:6]
+
+
+def _performance_session_rows(
+    sessions: list[tuple[FormationSessionRecord, FormationRecord]],
+    enrollment_counts_by_session: dict[int, int],
+    attendance_rates_by_session: dict[int, float],
+    pending_reviews_by_session: dict[int, int],
+) -> list[AdminPerformanceSessionRow]:
+    rows: list[AdminPerformanceSessionRow] = []
+    for session, formation in sessions:
+        enrolled_count = enrollment_counts_by_session.get(session.id, 0)
+        fill_rate = _pct(enrolled_count, session.seat_capacity)
+        attendance_rate = attendance_rates_by_session.get(session.id)
+        pending_reviews = pending_reviews_by_session.get(session.id, 0)
+        alert_level: str = "good"
+        if pending_reviews > 0:
+            alert_level = "danger"
+        elif session.seat_capacity > 0 and fill_rate < 30 and session.status in ("planned", "open"):
+            alert_level = "warning"
+        elif attendance_rate is not None and attendance_rate < 70:
+            alert_level = "warning"
+
+        rows.append(
+            AdminPerformanceSessionRow(
+                session_id=session.id,
+                formation_title=formation.title,
+                session_label=session.label,
+                teacher_name=session.teacher_name,
+                status=session.status,  # type: ignore[arg-type]
+                enrolled_count=enrolled_count,
+                seat_capacity=session.seat_capacity,
+                fill_rate_pct=fill_rate,
+                attendance_rate_pct=attendance_rate,
+                pending_reviews_count=pending_reviews,
+                alert_level=alert_level,  # type: ignore[arg-type]
+            )
+        )
+
+    severity = {"danger": 0, "warning": 1, "good": 2, "neutral": 3}
+    return sorted(rows, key=lambda item: (severity[item.alert_level], item.fill_rate_pct))[:8]
+
+
+def _performance_teacher_rows(
+    sessions: list[tuple[FormationSessionRecord, FormationRecord]],
+    enrollment_counts_by_session: dict[int, int],
+    attendance_rates_by_session: dict[int, float],
+    pending_reviews_by_session: dict[int, int],
+    quiz_score_by_session: dict[int, float],
+) -> list[AdminPerformanceTeacherRow]:
+    session_ids_by_teacher: dict[str, list[int]] = {}
+    for session, _formation in sessions:
+        teacher_name = (session.teacher_name or "").strip()
+        if not teacher_name:
+            continue
+        session_ids_by_teacher.setdefault(teacher_name, []).append(session.id)
+
+    rows: list[AdminPerformanceTeacherRow] = []
+    for teacher_name, session_ids in session_ids_by_teacher.items():
+        attendance_values = [
+            attendance_rates_by_session[session_id]
+            for session_id in session_ids
+            if session_id in attendance_rates_by_session
+        ]
+        quiz_values = [
+            quiz_score_by_session[session_id]
+            for session_id in session_ids
+            if session_id in quiz_score_by_session
+        ]
+        rows.append(
+            AdminPerformanceTeacherRow(
+                teacher_name=teacher_name,
+                sessions_count=len(session_ids),
+                students_count=sum(enrollment_counts_by_session.get(session_id, 0) for session_id in session_ids),
+                attendance_rate_pct=round(sum(attendance_values) / len(attendance_values), 1)
+                if attendance_values
+                else None,
+                pending_reviews_count=sum(pending_reviews_by_session.get(session_id, 0) for session_id in session_ids),
+                quiz_average_score_pct=round(sum(quiz_values) / len(quiz_values), 1)
+                if quiz_values
+                else None,
+            )
+        )
+
+    return sorted(
+        rows,
+        key=lambda item: (item.pending_reviews_count, item.students_count),
+        reverse=True,
+    )[:8]
+
+
+def get_admin_performance(db: Session) -> AdminPerformanceOverview:
+    refresh_payment_states(db)
+    db.commit()
+
+    now = utc_now()
+    tracked_payment_rows = db.scalars(
+        select(PaymentRecord).where(PaymentRecord.status.in_(("confirmed", "pending", "late")))
+    ).all()
+    confirmed_amount = sum(payment.amount for payment in tracked_payment_rows if payment.status == "confirmed")
+    pending_amount = sum(payment.amount for payment in tracked_payment_rows if payment.status == "pending")
+    late_amount = sum(payment.amount for payment in tracked_payment_rows if payment.status == "late")
+    tracked_amount = confirmed_amount + pending_amount + late_amount
+    payment_rate = _pct(confirmed_amount, tracked_amount)
+
+    total_enrollments = int(
+        db.scalar(
+            select(func.count(EnrollmentRecord.id)).where(
+                EnrollmentRecord.status.in_(ACTIVE_ENROLLMENT_STATUSES)
+            )
+        )
+        or 0
+    )
+    recent_enrollments = int(
+        db.scalar(
+            select(func.count(EnrollmentRecord.id)).where(
+                EnrollmentRecord.created_at >= now - timedelta(days=30)
+            )
+        )
+        or 0
+    )
+    active_students = int(
+        db.scalar(
+            select(func.count(func.distinct(EnrollmentRecord.user_id))).where(
+                EnrollmentRecord.status.in_(ACTIVE_ENROLLMENT_STATUSES)
+            )
+        )
+        or 0
+    )
+
+    sessions = db.execute(
+        select(FormationSessionRecord, FormationRecord)
+        .join(FormationRecord, FormationRecord.id == FormationSessionRecord.formation_id)
+        .order_by(FormationSessionRecord.start_date.asc(), FormationSessionRecord.id.asc())
+    ).all()
+    enrollment_counts_by_session = _active_enrollment_counts_by_session(db)
+    attendance_rates_by_session = _attendance_rates_by_session(db)
+    pending_reviews_by_session = _pending_reviews_by_session(db)
+    quiz_score_by_session = _quiz_score_by_session(db)
+    lesson_counts_by_session = _lesson_counts_by_session(db)
+
+    fill_rates = [
+        _pct(enrollment_counts_by_session.get(session.id, 0), session.seat_capacity)
+        for session, _formation in sessions
+        if session.seat_capacity > 0
+    ]
+    avg_fill_rate = round(sum(fill_rates) / len(fill_rates), 1) if fill_rates else 0.0
+    attendance_values = list(attendance_rates_by_session.values())
+    avg_attendance_rate = round(sum(attendance_values) / len(attendance_values), 1) if attendance_values else 0.0
+    average_progress = _average_progress_pct(db, lesson_counts_by_session)
+    pending_reviews_count = sum(pending_reviews_by_session.values())
+
+    kpis = [
+        AdminPerformanceKpi(
+            label="CA confirme",
+            value=format_fcfa(confirmed_amount) or "0 FCFA",
+            detail=f"{payment_rate}% des montants suivis sont encaisses",
+            tone="good" if payment_rate >= 70 else "warning",
+        ),
+        AdminPerformanceKpi(
+            label="Paiements en retard",
+            value=format_fcfa(late_amount) or "0 FCFA",
+            detail=f"{sum(1 for payment in tracked_payment_rows if payment.status == 'late')} echeance(s) a relancer",
+            tone="danger" if late_amount > 0 else "good",
+        ),
+        AdminPerformanceKpi(
+            label="Inscriptions actives",
+            value=str(total_enrollments),
+            detail=f"{active_students} etudiant(s), {recent_enrollments} nouvelle(s) inscription(s) sur 30 jours",
+            tone="good" if total_enrollments > 0 else "warning",
+        ),
+        AdminPerformanceKpi(
+            label="Progression moyenne",
+            value=f"{average_progress}%",
+            detail=f"{avg_fill_rate}% de remplissage moyen, {pending_reviews_count} correction(s) en attente",
+            tone="good" if pending_reviews_count == 0 else "warning",
+        ),
+    ]
+
+    alerts: list[AdminPerformanceAlert] = []
+    if late_amount > 0:
+        alerts.append(
+            AdminPerformanceAlert(
+                code="late_payments",
+                title="Paiements en retard",
+                detail=f"{format_fcfa(late_amount) or '0 FCFA'} restent a relancer.",
+                tone="danger",
+                action_label="Paiements",
+                action_path="/admin/paiements",
+            )
+        )
+    if pending_reviews_count > 0:
+        alerts.append(
+            AdminPerformanceAlert(
+                code="pending_reviews",
+                title="Corrections en attente",
+                detail=f"{pending_reviews_count} rendu(s) attendent une correction.",
+                tone="warning",
+                action_label="Enseignants",
+                action_path="/admin/enseignants",
+            )
+        )
+    low_fill_sessions = [
+        session for session, _formation in sessions
+        if session.seat_capacity > 0
+        and _pct(enrollment_counts_by_session.get(session.id, 0), session.seat_capacity) < 30
+        and session.status in ("planned", "open")
+    ]
+    if low_fill_sessions:
+        alerts.append(
+            AdminPerformanceAlert(
+                code="low_fill_sessions",
+                title="Sessions faibles",
+                detail=f"{len(low_fill_sessions)} session(s) sont sous 30% de remplissage.",
+                tone="warning",
+                action_label="Sessions",
+                action_path="/admin/sessions",
+            )
+        )
+    if avg_attendance_rate and avg_attendance_rate < 70:
+        alerts.append(
+            AdminPerformanceAlert(
+                code="attendance_risk",
+                title="Presence faible",
+                detail=f"La presence moyenne est a {avg_attendance_rate}%.",
+                tone="warning",
+                action_label="Etudiants",
+                action_path="/admin/etudiants",
+            )
+        )
+    if not alerts:
+        alerts.append(
+            AdminPerformanceAlert(
+                code="healthy",
+                title="Aucune alerte critique",
+                detail="Les indicateurs suivis ne signalent pas de blocage majeur.",
+                tone="good",
+                action_label="Vue globale",
+                action_path="/admin",
+            )
+        )
+
+    return AdminPerformanceOverview(
+        generated_at=now,
+        kpis=kpis,
+        monthly_series=_performance_month_series(db, now=now),
+        top_formations=_performance_top_formations(db, sessions, enrollment_counts_by_session),
+        sessions=_performance_session_rows(
+            sessions,
+            enrollment_counts_by_session,
+            attendance_rates_by_session,
+            pending_reviews_by_session,
+        ),
+        teachers=_performance_teacher_rows(
+            sessions,
+            enrollment_counts_by_session,
+            attendance_rates_by_session,
+            pending_reviews_by_session,
+            quiz_score_by_session,
+        ),
+        alerts=alerts,
     )
 
 

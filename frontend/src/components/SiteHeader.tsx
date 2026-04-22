@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   FaBars,
-  FaBell,
   FaBolt,
   FaChevronDown,
   FaChevronRight,
@@ -14,7 +13,6 @@ import {
   LayoutDashboard,
   ShoppingCart,
   Heart,
-  Bell,
   Settings,
   HelpCircle,
   LogOut,
@@ -23,9 +21,12 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import { useCart } from "../cart/CartContext";
 import { useFavorites } from "../favorites/FavoritesContext";
+import { canUseCommerce } from "../lib/commerceAccess";
+import { getCommerceRoleRestrictedMessage } from "../lib/userMessages";
 import { useToast } from "../toast/ToastContext";
 import { scrollToPageSection } from "../utils/scroll";
 import AvatarUpload from "./AvatarUpload";
+import NotifBell from "./NotifBell";
 
 const HOME_SECTION_ORDER = [
   "hero",
@@ -68,11 +69,12 @@ export default function SiteHeader() {
   const { user, logout, refreshUser } = useAuth();
   const { cart } = useCart();
   const { favorites } = useFavorites();
-  const { success } = useToast();
+  const { success, info } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const cartCount = cart.items.length;
   const favoritesCount = favorites.total_count;
+  const canAccessCommerce = !user || canUseCommerce(user);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -220,11 +222,6 @@ export default function SiteHeader() {
           className={isMenuOpen ? "nav-links active" : "nav-links"}
         >
           <div className="nav-links__panel">
-            <div className="nav-links__intro">
-              <p className="nav-links__eyebrow">Navigation</p>
-              <span>Choisis une rubrique</span>
-            </div>
-
             <ul>
               {navItems.map((item, index) => (
                 <li key={item.label}>
@@ -290,19 +287,35 @@ export default function SiteHeader() {
         </nav>
 
         <div className="header-actions">
-          <Link
-            aria-label="Voir le panier"
-            className="btn-link cart-btn"
-            to="/panier"
-            onClick={closeMenu}
-          >
-            <span className="icon">
-              <FaShoppingCart />
-            </span>
-            {user && cartCount > 0 ? (
-              <span className="cart-btn__count">{cartCount}</span>
-            ) : null}
-          </Link>
+          {canAccessCommerce ? (
+            <Link
+              aria-label="Voir le panier"
+              className="btn-link cart-btn"
+              to="/panier"
+              onClick={closeMenu}
+            >
+              <span className="icon">
+                <FaShoppingCart />
+              </span>
+              {user && cartCount > 0 ? (
+                <span className="cart-btn__count">{cartCount}</span>
+              ) : null}
+            </Link>
+          ) : (
+            <button
+              aria-label="Achats indisponibles pour ce compte"
+              className="btn-link cart-btn"
+              type="button"
+              onClick={() => {
+                closeMenu();
+                info(getCommerceRoleRestrictedMessage(user));
+              }}
+            >
+              <span className="icon">
+                <FaShoppingCart />
+              </span>
+            </button>
+          )}
 
           {user ? (
             <>
@@ -312,9 +325,7 @@ export default function SiteHeader() {
                   <span className="icon-action-btn__count">{favoritesCount}</span>
                 ) : null}
               </Link>
-              <Link aria-label="Voir les notifications" className="icon-action-btn" to="/notifications">
-                <FaBell />
-              </Link>
+              <NotifBell allNotifPath="/notifications" className="icon-action-btn" />
 
               <div className="profile-menu" ref={profileRef}>
                 <button

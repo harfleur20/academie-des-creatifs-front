@@ -1,4 +1,5 @@
 import { ApiRequestError } from "./apiClient";
+import type { AuthUser } from "./authApi";
 
 export type UserActionMessageKey =
   | "auth.login"
@@ -24,6 +25,10 @@ const FALLBACK_MESSAGES: Record<UserActionMessageKey, string> = {
 export const USER_MESSAGES = {
   authRequired: "Connectez-vous pour continuer.",
   cartAdded: "Formation ajoutee au panier.",
+  cartAlreadyInCart: "Cette formation est deja dans votre panier.",
+  adminCommerceRoleRestricted: "Votre compte administrateur ne peut pas effectuer d'achat.",
+  teacherCommerceRoleRestricted: "Votre compte enseignant ne peut pas effectuer d'achat.",
+  commerceRoleRestricted: "Ce compte ne peut pas effectuer d'achat.",
   cartRemoved: "Formation retiree du panier.",
   favoriteAdded: "Formation ajoutee aux favoris.",
   favoriteRemoved: "Formation retiree des favoris.",
@@ -32,6 +37,24 @@ export const USER_MESSAGES = {
   linkCopied: "Lien copie.",
   instagramLinkCopied: "Lien copie pour le partage Instagram.",
 } as const;
+
+export function getCommerceRoleRestrictedMessage(
+  user: Pick<AuthUser, "role"> | null | undefined,
+): string {
+  if (!user) {
+    return USER_MESSAGES.authRequired;
+  }
+
+  if (user.role === "admin") {
+    return USER_MESSAGES.adminCommerceRoleRestricted;
+  }
+
+  if (user.role === "teacher") {
+    return USER_MESSAGES.teacherCommerceRoleRestricted;
+  }
+
+  return USER_MESSAGES.commerceRoleRestricted;
+}
 
 function isShortDisplayableMessage(message: string): boolean {
   return message.trim().length > 0 && message.trim().length <= 240;

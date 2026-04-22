@@ -1180,6 +1180,105 @@
   margin: 0;
 }
 
+/* ── FORMATS ─────────────────────────────────────────── */
+.about-formats {
+  padding: 5rem 2rem;
+  background:
+    radial-gradient(circle at 18% 15%, rgba(28, 132, 128, 0.1), transparent 34%),
+    #f9fafb;
+}
+
+.about-formats__inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.about-formats__head {
+  max-width: 680px;
+  margin-bottom: 2.2rem;
+}
+
+.about-formats__head h2 {
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-weight: 800;
+  color: var(--about-dark);
+  margin: 0 0 0.85rem;
+}
+
+.about-formats__head h2 span {
+  color: var(--about-accent);
+}
+
+.about-formats__head > p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.about-formats__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.2rem;
+}
+
+.about-format-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 230px;
+  padding: 1.45rem;
+  border: 1px solid rgba(31, 35, 82, 0.09);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 16px 34px rgba(20, 24, 70, 0.06);
+}
+
+.about-format-card::after {
+  content: "";
+  position: absolute;
+  right: -38px;
+  bottom: -46px;
+  width: 132px;
+  height: 132px;
+  border-radius: 999px;
+  background: rgba(28, 132, 128, 0.08);
+}
+
+.about-format-card__icon {
+  position: relative;
+  z-index: 1;
+  width: 54px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.1rem;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--couleur-secondaire), var(--couleur-principale));
+  color: #fff;
+  font-size: 1.25rem;
+}
+
+.about-format-card h3,
+.about-format-card p {
+  position: relative;
+  z-index: 1;
+}
+
+.about-format-card h3 {
+  margin: 0 0 0.55rem;
+  color: var(--about-dark);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.about-format-card p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
 /* ── FAQ ─────────────────────────────────────────────── */
 .about-faq {
   padding: 5rem 2rem;
@@ -1377,6 +1476,7 @@
 /* ── Responsive ──────────────────────────────────────── */
 @media (max-width: 1024px) {
   .about-why__grid { grid-template-columns: repeat(2, 1fr); }
+  .about-formats__grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 860px) {
@@ -1386,6 +1486,8 @@
 
 @media (max-width: 600px) {
   .about-why__grid { grid-template-columns: 1fr; }
+  .about-formats { padding: 4rem 1.25rem; }
+  .about-formats__grid { grid-template-columns: 1fr; }
   .about-steps__tabs { gap: 0.4rem; }
   .about-steps__tab { font-size: 0.78rem; padding: 0.45rem 0.85rem; }
 }

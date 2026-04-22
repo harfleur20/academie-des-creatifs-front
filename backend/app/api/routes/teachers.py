@@ -861,6 +861,15 @@ def _serialize_session(db: Session, s: FormationSessionRecord, f: FormationRecor
         format_type=f.format_type,
         session=s,
     )
+    enrolled_count = int(
+        db.scalar(
+            select(func.count(EnrollmentRecord.id)).where(
+                EnrollmentRecord.session_id == s.id,
+                EnrollmentRecord.status.in_(("active", "completed")),
+            )
+        )
+        or 0
+    )
     return TeacherFullSessionItem(
         id=s.id,
         formation_id=f.id,
@@ -872,7 +881,7 @@ def _serialize_session(db: Session, s: FormationSessionRecord, f: FormationRecor
         end_date=s.end_date,
         campus_label=s.campus_label,
         seat_capacity=s.seat_capacity,
-        enrolled_count=s.enrolled_count,
+        enrolled_count=enrolled_count,
         meeting_link=s.meeting_link,
         status=s.status,
         session_state=presentation.state if presentation else "not_applicable",

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Award,
   BookOpen,
   CalendarDays,
   ChevronDown,
@@ -10,6 +9,7 @@ import {
   ClipboardList,
   FileText,
   HelpCircle,
+  Plus,
   Star,
   TrendingUp,
   Users,
@@ -19,6 +19,7 @@ import { FaMapMarkerAlt, FaVideo } from "react-icons/fa";
 import { useAuth } from "../../auth/AuthContext";
 import {
   fetchTeacherOverview,
+  fetchTeacherPerformance,
   fetchMyFormations,
   fetchMyFormationSessions,
   fetchSessionLiveEvents,
@@ -26,8 +27,11 @@ import {
   updateLiveEvent,
   deleteLiveEvent,
   type TeacherOverview,
+  type TeacherPerformanceOverview,
+  type TeacherPerformanceTone,
   type TeacherFormationItem,
   type TeacherFullSession,
+  type TeacherSession,
   type LiveEvent,
   type LiveEventCreatePayload,
 } from "../../lib/teacherApi";
@@ -56,6 +60,32 @@ function formatFormationType(formatType: string) {
   if (formatType === "presentiel") return "Présentiel";
   if (formatType === "ligne") return "En ligne";
   return formatType;
+}
+
+function riskLevelLabel(level: TeacherPerformanceTone) {
+  if (level === "danger") return "Critique";
+  if (level === "warning") return "À suivre";
+  if (level === "good") return "Stable";
+  return "Neutre";
+}
+
+function riskLevelBadgeClass(level: TeacherPerformanceTone) {
+  if (level === "danger") return "tch-relance-badge tch-relance-badge--danger";
+  if (level === "warning") return "tch-relance-badge tch-relance-badge--warning";
+  if (level === "good") return "tch-relance-badge tch-relance-badge--good";
+  return "tch-relance-badge tch-relance-badge--neutral";
+}
+
+function formatPercent(value: number | null) {
+  return value === null ? "—" : `${value}%`;
+}
+
+function dateKey(value: string) {
+  return value.slice(0, 10);
+}
+
+function sessionContainsDate(session: TeacherSession, date: string) {
+  return date >= dateKey(session.start_date) && date <= dateKey(session.end_date);
 }
 
 /* ── KPI card ── */
@@ -114,15 +144,18 @@ export default function TeacherOverviewPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [overview, setOverview] = useState<TeacherOverview | null>(null);
+  const [performance, setPerformance] = useState<TeacherPerformanceOverview | null>(null);
   const [formations, setFormations] = useState<TeacherFormationItem[]>([]);
   const [sessionsByFormation, setSessionsByFormation] = useState<Record<number, TeacherFullSession[]>>({});
   const [expandedFormation, setExpandedFormation] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPerformanceLoading, setIsPerformanceLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [liveEventsBySession, setLiveEventsBySession] = useState<Record<number, LiveEvent[]>>({});
   const [expandedLiveSession, setExpandedLiveSession] = useState<number | null>(null);
   const [selectedCalDate, setSelectedCalDate] = useState<string | null>(null);
+  const [selectedOverviewCalDate, setSelectedOverviewCalDate] = useState<string | null>(null);
   const [eventDraft, setEventDraft] = useState({ title: "", scheduled_at: "", duration_minutes: "90" });
   const [editingEvent, setEditingEvent] = useState<LiveEvent | null>(null);
   const [savingEvent, setSavingEvent] = useState(false);
@@ -136,6 +169,13 @@ export default function TeacherOverviewPage() {
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Erreur de chargement."))
       .finally(() => setIsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetchTeacherPerformance()
+      .then(setPerformance)
+      .catch(() => undefined)
+      .finally(() => setIsPerformanceLoading(false));
   }, []);
 
   const loadSessions = async (formationId: number) => {
@@ -211,9 +251,38 @@ export default function TeacherOverviewPage() {
 
   const firstName = user?.full_name?.split(" ")[0] ?? "Enseignant";
   const openSessions = overview?.open_sessions_count ?? 0;
+  const openSessionsLabel = String(openSessions).padStart(2, "0");
   const totalSessions = overview?.assigned_sessions_count ?? 0;
   const totalStudents = overview?.total_students_count ?? 0;
   const plannedSessions = overview?.planned_sessions_count ?? 0;
+  const dashboardSessions = [...(overview?.sessions ?? [])].sort(
+    (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime(),
+  );
+  const focusSession =
+    dashboardSessions.find((session) => session.status === "open") ??
+    dashboardSessions.find((session) => session.status === "planned") ??
+    dashboardSessions[0] ??
+    null;
+  const calendarEvents = dashboardSessions.flatMap((session) => {
+    const start = dateKey(session.start_date);
+    const end = dateKey(session.end_date);
+    if (start === end) return [{ date: start, label: session.label }];
+    return [
+      { date: start, label: `Début ${session.label}` },
+      { date: end, label: `Fin ${session.label}` },
+    ];
+  });
+  const selectedOverviewSessions = selectedOverviewCalDate
+    ? dashboardSessions.filter((session) => sessionContainsDate(session, selectedOverviewCalDate))
+    : [];
+  const addDaySession = selectedOverviewSessions[0] ?? focusSession;
+  const addDayLink = addDaySession
+    ? `/espace/enseignant/session/${addDaySession.id}?tab=days&add=1`
+    : "/espace/enseignant/sessions";
+  const studentsToFollow = (performance?.students ?? [])
+    .filter((student) => student.risk_level === "danger" || student.risk_level === "warning");
+  const studentsToFollowPreview = studentsToFollow.slice(0, 5);
+  const isPerformanceUnavailable = !isPerformanceLoading && !performance;
 
   /* upcoming sessions across all formations */
   const upcomingSessions: (TeacherFullSession & { formationTitle: string })[] = [];
@@ -242,8 +311,11 @@ export default function TeacherOverviewPage() {
               <p className="stu-hero__sub">
                 Code enseignant&nbsp;: <strong>{overview?.teacher_code ?? "Non attribué"}</strong>
               </p>
+              <p className="stu-hero__sub">
+                Session{openSessions !== 1 ? "s" : ""} ouverte{openSessions !== 1 ? "s" : ""}&nbsp;: <strong>{openSessionsLabel}</strong>
+              </p>
               <p className="stu-hero__desc">
-                {openSessions} session{openSessions !== 1 ? "s" : ""} ouverte{openSessions !== 1 ? "s" : ""}. Gérez vos cours, lives, présences et notes pour chaque session.
+                Gérez vos cours, lives, présences et notes pour chaque session.
               </p>
             </div>
             <TeacherIllustration />
@@ -443,6 +515,67 @@ export default function TeacherOverviewPage() {
             )}
           </div>
 
+          <div className="stu-ov-card">
+            <div className="stu-ov-card__head">
+              <span className="stu-ov-card__title">
+                <Users size={16} />
+                Étudiants à relancer
+              </span>
+              <Link to="/espace/enseignant/performance" className="stu-ov-see-all">
+                Voir tout <ChevronRight size={13} />
+              </Link>
+            </div>
+
+            <div className="tch-relance-list">
+              <div className="tch-relance-list__head">
+                <span>Nom</span>
+                <span>Niveau</span>
+                <span>Progression</span>
+                <span>Présence</span>
+                <span>Note moyenne</span>
+              </div>
+
+              {isPerformanceLoading ? (
+                <div className="tch-relance-empty">
+                  <strong>Chargement des priorités</strong>
+                  <span>Analyse des étudiants en cours.</span>
+                </div>
+              ) : isPerformanceUnavailable ? (
+                <div className="tch-relance-empty">
+                  <strong>Suivi indisponible</strong>
+                  <span>Les indicateurs enseignant ne sont pas accessibles pour le moment.</span>
+                </div>
+              ) : studentsToFollowPreview.length > 0 ? (
+                studentsToFollowPreview.map((student) => (
+                  <Link
+                    key={student.enrollment_id}
+                    to="/espace/enseignant/performance"
+                    className="tch-relance-row"
+                  >
+                    <span className="tch-relance-row__student">
+                      <strong>{student.student_name}</strong>
+                      <small>
+                        {student.session_label}
+                        {student.student_code ? ` · ${student.student_code}` : ""}
+                      </small>
+                    </span>
+                    <span className={riskLevelBadgeClass(student.risk_level)}>
+                      {riskLevelLabel(student.risk_level)}
+                    </span>
+                    <span className="tch-relance-row__metric">{formatPercent(student.progress_pct)}</span>
+                    <span className="tch-relance-row__metric">{formatPercent(student.attendance_rate_pct)}</span>
+                    <span className="tch-relance-row__metric">{formatPercent(student.average_grade_pct)}</span>
+                  </Link>
+                ))
+              ) : (
+                <div className="tch-relance-empty">
+                  <strong>Aucun étudiant critique</strong>
+                  <span>Les cohortes sont à jour pour le moment.</span>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Accès rapide */}
           <div className="stu-ov-card">
             <div className="stu-ov-card__head">
@@ -483,9 +616,9 @@ export default function TeacherOverviewPage() {
                 color="linear-gradient(135deg,#f59e0b,#d97706)"
               />
               <ShortcutCard
-                to="/espace/enseignant/resultats"
-                label="Résultats"
-                icon={<Award size={18} />}
+                to="/espace/enseignant/performance"
+                label="Performance"
+                icon={<TrendingUp size={18} />}
                 color="linear-gradient(135deg,#ec4899,#db2777)"
               />
             </div>
@@ -494,6 +627,26 @@ export default function TeacherOverviewPage() {
 
         {/* ══════ RIGHT COLUMN ══════ */}
         <div className="stu-ov-right">
+
+          <div className="tch-overview-calendar">
+            <div className="tch-overview-calendar__head">
+              <div>
+                <span className="tch-overview-calendar__eyebrow">Planning</span>
+                <strong>Calendrier des sessions</strong>
+              </div>
+              <Link to={addDayLink} className="tch-overview-calendar__add">
+                <Plus size={14} />
+                Ajouter une journée
+              </Link>
+            </div>
+
+            <LiveCalendar
+              events={calendarEvents}
+              selectedDate={selectedOverviewCalDate}
+              initialDate={focusSession?.start_date ?? null}
+              onDayClick={(date) => setSelectedOverviewCalDate(date === selectedOverviewCalDate ? null : date)}
+            />
+          </div>
 
           {/* KPI cards */}
           <div className="stu-kpi-row">

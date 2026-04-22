@@ -2825,162 +2825,193 @@ export default function DashboardPage() {
           title={
             sessionEditorState.mode === "create"
               ? "Nouvelle session"
-              : `Edition session · ${activeSession?.label ?? ""}`
+              : `Édition session · ${activeSession?.label ?? ""}`
           }
-          subtitle="Les sessions ne concernent que les formations live et presentiel."
+          subtitle="Les sessions ne concernent que les formations live et présentiel."
           onClose={closeSessionEditor}
-          size="narrow"
+          size="wide"
         >
           <div className="admin-editor-stack">
-            <section className="admin-editor-card">
-              <div className="admin-editor-card__heading">
+            <section className="admin-editor-card admin-session-editor-card">
+              <div className="admin-editor-card__heading admin-session-editor-card__heading">
                 <div>
-                  <h4>Parametres de session</h4>
-                  <p>Une formation peut avoir plusieurs cohortes avec leurs propres dates.</p>
+                  <h4>Paramètres de session</h4>
+                  <p>Organisez la cohorte, le planning et l'accès live sans tasser les informations.</p>
+                </div>
+                <div className="admin-session-editor-card__hint">
+                  <strong>Vue rapide</strong>
+                  <span>Le lien Jitsi reste facultatif. S'il est vide, il sera généré automatiquement.</span>
                 </div>
               </div>
 
-              <div className="admin-formation-form">
-                <label className="admin-field admin-field--span-2">
-                  <span>Formation</span>
-                  {sessionEditorState.mode === "create" ? (
-                    <select
-                      value={sessionEditorDraft.formationId}
-                      onChange={(event) => syncCreateSessionDraft("formationId", event.target.value)}
-                    >
-                      <option value="">Choisir une formation</option>
-                      {availableSessionCreateFormations.map((formation) => (
-                        <option key={formation.id} value={formation.id}>
-                          {formation.title} · {formatTypeLabel(formation.format_type)}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input type="text" value={activeSession?.formation_title ?? ""} disabled />
-                  )}
-                </label>
+              <div className="admin-session-form">
+                <section className="admin-session-form__section">
+                  <div className="admin-session-form__section-heading">
+                    <strong>Cohorte</strong>
+                    <span>Choisissez la formation, le libellé affiché et l'intervenant responsable.</span>
+                  </div>
 
-                <label className="admin-field admin-field--span-2">
-                  <span>Libelle</span>
-                  <input
-                    type="text"
-                    value={sessionEditorDraft.label}
-                    onChange={(event) =>
-                      sessionEditorState.mode === "create"
-                        ? syncCreateSessionDraft("label", event.target.value)
-                        : syncSessionDraft(activeSession!.id, "label", event.target.value)
-                    }
-                  />
-                </label>
-
-                <label className="admin-field">
-                  <span>Debut</span>
-                  <input
-                    type="date"
-                    value={sessionEditorDraft.startDate}
-                    onChange={(event) =>
-                      sessionEditorState.mode === "create"
-                        ? syncCreateSessionDraft("startDate", event.target.value)
-                        : syncSessionDraft(activeSession!.id, "startDate", event.target.value)
-                    }
-                  />
-                </label>
-
-                <label className="admin-field">
-                  <span>Fin</span>
-                  <input
-                    type="date"
-                    value={sessionEditorDraft.endDate}
-                    onChange={(event) =>
-                      sessionEditorState.mode === "create"
-                        ? syncCreateSessionDraft("endDate", event.target.value)
-                        : syncSessionDraft(activeSession!.id, "endDate", event.target.value)
-                    }
-                  />
-                </label>
-
-                <label className="admin-field">
-                  <span>Campus / lieu</span>
-                  <input
-                    type="text"
-                    value={sessionEditorDraft.campusLabel}
-                    onChange={(event) =>
-                      sessionEditorState.mode === "create"
-                        ? syncCreateSessionDraft("campusLabel", event.target.value)
-                        : syncSessionDraft(activeSession!.id, "campusLabel", event.target.value)
-                    }
-                  />
-                </label>
-
-                <label className="admin-field">
-                  <span>Places</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={sessionEditorDraft.seatCapacity}
-                    onChange={(event) =>
-                      sessionEditorState.mode === "create"
-                        ? syncCreateSessionDraft("seatCapacity", event.target.value)
-                        : syncSessionDraft(activeSession!.id, "seatCapacity", event.target.value)
-                    }
-                  />
-                </label>
-
-                <label className="admin-field">
-                  <span>Intervenant</span>
-                  <select
-                    value={sessionEditorDraft.teacherName}
-                    onChange={(event) =>
-                      sessionEditorState.mode === "create"
-                        ? syncCreateSessionDraft("teacherName", event.target.value)
-                        : syncSessionDraft(activeSession!.id, "teacherName", event.target.value)
-                    }
-                  >
-                    <option value="">Non assigné</option>
-                    {sessionEditorDraft.teacherName &&
-                      !teacherUsers.some((teacher) => teacher.full_name === sessionEditorDraft.teacherName) && (
-                        <option value={sessionEditorDraft.teacherName}>{sessionEditorDraft.teacherName}</option>
+                  <div className="admin-session-form__grid admin-session-form__grid--identity">
+                    <label className="admin-field admin-session-form__field">
+                      <span>Formation</span>
+                      {sessionEditorState.mode === "create" ? (
+                        <select
+                          value={sessionEditorDraft.formationId}
+                          onChange={(event) => syncCreateSessionDraft("formationId", event.target.value)}
+                        >
+                          <option value="">Choisir une formation</option>
+                          {availableSessionCreateFormations.map((formation) => (
+                            <option key={formation.id} value={formation.id}>
+                              {formation.title} · {formatTypeLabel(formation.format_type)}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input type="text" value={activeSession?.formation_title ?? ""} disabled />
                       )}
-                    {teacherUsers.map((teacher) => (
-                      <option key={teacher.id} value={teacher.full_name}>
-                        {teacher.full_name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    </label>
 
-                <label className="admin-field">
-                  <span>Statut</span>
-                  <select
-                    value={sessionEditorDraft.status}
-                    onChange={(event) =>
-                      sessionEditorState.mode === "create"
-                        ? syncCreateSessionDraft("status", event.target.value as SessionStatus)
-                        : syncSessionDraft(activeSession!.id, "status", event.target.value as SessionStatus)
-                    }
-                  >
-                    {sessionStatuses.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    <label className="admin-field admin-session-form__field">
+                      <span>Libellé</span>
+                      <input
+                        type="text"
+                        value={sessionEditorDraft.label}
+                        onChange={(event) =>
+                          sessionEditorState.mode === "create"
+                            ? syncCreateSessionDraft("label", event.target.value)
+                            : syncSessionDraft(activeSession!.id, "label", event.target.value)
+                        }
+                      />
+                    </label>
 
-                <label className="admin-field fe-span-full">
-                  <span>Lien Jitsi (généré automatiquement si vide)</span>
-                  <input
-                    type="url"
-                    placeholder="https://meet.jit.si/..."
-                    value={sessionEditorDraft.meetingLink}
-                    onChange={(event) =>
-                      sessionEditorState.mode === "create"
-                        ? syncCreateSessionDraft("meetingLink", event.target.value)
-                        : syncSessionDraft(activeSession!.id, "meetingLink", event.target.value)
-                    }
-                  />
-                </label>
+                    <label className="admin-field admin-session-form__field">
+                      <span>Intervenant</span>
+                      <select
+                        value={sessionEditorDraft.teacherName}
+                        onChange={(event) =>
+                          sessionEditorState.mode === "create"
+                            ? syncCreateSessionDraft("teacherName", event.target.value)
+                            : syncSessionDraft(activeSession!.id, "teacherName", event.target.value)
+                        }
+                      >
+                        <option value="">Non assigné</option>
+                        {sessionEditorDraft.teacherName &&
+                          !teacherUsers.some((teacher) => teacher.full_name === sessionEditorDraft.teacherName) && (
+                            <option value={sessionEditorDraft.teacherName}>{sessionEditorDraft.teacherName}</option>
+                          )}
+                        {teacherUsers.map((teacher) => (
+                          <option key={teacher.id} value={teacher.full_name}>
+                            {teacher.full_name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="admin-field admin-session-form__field">
+                      <span>Statut</span>
+                      <select
+                        value={sessionEditorDraft.status}
+                        onChange={(event) =>
+                          sessionEditorState.mode === "create"
+                            ? syncCreateSessionDraft("status", event.target.value as SessionStatus)
+                            : syncSessionDraft(activeSession!.id, "status", event.target.value as SessionStatus)
+                        }
+                      >
+                        {sessionStatuses.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                </section>
+
+                <section className="admin-session-form__section">
+                  <div className="admin-session-form__section-heading">
+                    <strong>Planning</strong>
+                    <span>Renseignez la période, le lieu et la capacité de la cohorte.</span>
+                  </div>
+
+                  <div className="admin-session-form__grid admin-session-form__grid--schedule">
+                    <label className="admin-field admin-session-form__field">
+                      <span>Début</span>
+                      <input
+                        type="date"
+                        value={sessionEditorDraft.startDate}
+                        onChange={(event) =>
+                          sessionEditorState.mode === "create"
+                            ? syncCreateSessionDraft("startDate", event.target.value)
+                            : syncSessionDraft(activeSession!.id, "startDate", event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <label className="admin-field admin-session-form__field">
+                      <span>Fin</span>
+                      <input
+                        type="date"
+                        value={sessionEditorDraft.endDate}
+                        onChange={(event) =>
+                          sessionEditorState.mode === "create"
+                            ? syncCreateSessionDraft("endDate", event.target.value)
+                            : syncSessionDraft(activeSession!.id, "endDate", event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <label className="admin-field admin-session-form__field">
+                      <span>Campus / lieu</span>
+                      <input
+                        type="text"
+                        value={sessionEditorDraft.campusLabel}
+                        onChange={(event) =>
+                          sessionEditorState.mode === "create"
+                            ? syncCreateSessionDraft("campusLabel", event.target.value)
+                            : syncSessionDraft(activeSession!.id, "campusLabel", event.target.value)
+                        }
+                      />
+                    </label>
+
+                    <label className="admin-field admin-session-form__field">
+                      <span>Places</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={sessionEditorDraft.seatCapacity}
+                        onChange={(event) =>
+                          sessionEditorState.mode === "create"
+                            ? syncCreateSessionDraft("seatCapacity", event.target.value)
+                            : syncSessionDraft(activeSession!.id, "seatCapacity", event.target.value)
+                        }
+                      />
+                    </label>
+                  </div>
+                </section>
+
+                <section className="admin-session-form__section">
+                  <div className="admin-session-form__section-heading">
+                    <strong>Diffusion live</strong>
+                    <span>Ajoutez un lien Jitsi si vous voulez imposer une salle précise.</span>
+                  </div>
+
+                  <div className="admin-session-form__grid admin-session-form__grid--single">
+                    <label className="admin-field admin-session-form__field admin-session-form__field--full">
+                      <span>Lien Jitsi (généré automatiquement si vide)</span>
+                      <input
+                        type="url"
+                        placeholder="https://meet.jit.si/..."
+                        value={sessionEditorDraft.meetingLink}
+                        onChange={(event) =>
+                          sessionEditorState.mode === "create"
+                            ? syncCreateSessionDraft("meetingLink", event.target.value)
+                            : syncSessionDraft(activeSession!.id, "meetingLink", event.target.value)
+                        }
+                      />
+                    </label>
+                  </div>
+                </section>
               </div>
 
               {sessionEditorFeedback ? (

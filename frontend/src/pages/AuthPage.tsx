@@ -10,6 +10,7 @@ import { isValidPhoneNumber } from "libphonenumber-js";
 
 import { useAuth } from "../auth/AuthContext";
 import { ApiRequestError } from "../lib/authApi";
+import { getPostAuthRedirect } from "../lib/commerceAccess";
 import {
   getUserActionErrorMessage,
   USER_MESSAGES,
@@ -144,7 +145,7 @@ export default function AuthPage({ mode }: AuthPageProps) {
 
   useEffect(() => {
     if (!isLoading && user) {
-      const target = user.role === "guest" ? "/" : redirectTarget;
+      const target = getPostAuthRedirect(user, redirectTarget);
       navigate(target, { replace: true });
     }
   }, [isLoading, navigate, redirectTarget, user]);
@@ -229,24 +230,22 @@ export default function AuthPage({ mode }: AuthPageProps) {
     setIsSubmitting(true);
 
     try {
-      if (isLogin) {
-        await login({
+      const nextUser = isLogin
+        ? await login({
           email: values.email.trim().toLowerCase(),
           password: values.password,
           remember_me: values.policy,
-        });
-        success(USER_MESSAGES.loginSuccess);
-      } else {
-        await register({
+        })
+        : await register({
           full_name: values.name.trim(),
           email: values.email.trim().toLowerCase(),
           phone: values.phone.trim(),
           password: values.password,
         });
-        success(USER_MESSAGES.registerSuccess);
-      }
 
-      navigate(redirectTarget, { replace: true });
+      success(isLogin ? USER_MESSAGES.loginSuccess : USER_MESSAGES.registerSuccess);
+
+      navigate(getPostAuthRedirect(nextUser, redirectTarget), { replace: true });
     } catch (error) {
       if (error instanceof ApiRequestError) {
         const detail = error.detail;

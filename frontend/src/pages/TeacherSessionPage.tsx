@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Award, BookOpen, CalendarDays, Check, ChevronRight, ClipboardList, FileText, HelpCircle, LayoutDashboard, Plus, Save, Users, Video } from "lucide-react";
 
 import {
@@ -30,6 +30,12 @@ import {
 } from "../lib/teacherApi";
 
 type Tab = "overview" | "days" | "content" | "students" | "attendance" | "grades";
+
+const TAB_VALUES: Tab[] = ["overview", "days", "content", "students", "attendance", "grades"];
+
+function resolveTabParam(value: string | null): Tab {
+  return TAB_VALUES.includes(value as Tab) ? (value as Tab) : "overview";
+}
 
 const ATTENDANCE_LABELS: Record<AttendanceStatus, string> = {
   present: "Présent",
@@ -77,9 +83,12 @@ function defaultCourseDayDate() {
 
 export default function TeacherSessionPage() {
   const { sessionId } = useParams();
+  const [searchParams] = useSearchParams();
   const id = Number(sessionId);
+  const tabParam = searchParams.get("tab");
+  const addParam = searchParams.get("add");
 
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>(() => resolveTabParam(tabParam));
   const [students, setStudents] = useState<SessionStudent[]>([]);
   const [courseDays, setCourseDays] = useState<CourseDay[]>([]);
   const [selectedCourseDayId, setSelectedCourseDayId] = useState<number | null>(null);
@@ -100,7 +109,7 @@ export default function TeacherSessionPage() {
   const [maxScore, setMaxScore] = useState(20);
   const [scoreDraft, setScoreDraft] = useState<Record<number, string>>({});
 
-  const [showDayForm, setShowDayForm] = useState(false);
+  const [showDayForm, setShowDayForm] = useState(() => tabParam === "days" && addParam === "1");
   const [weekOffset, setWeekOffset] = useState(0);
   const [dayTitle, setDayTitle] = useState("Journée de cours");
   const [dayAt, setDayAt] = useState(defaultCourseDayDate());
@@ -110,6 +119,11 @@ export default function TeacherSessionPage() {
     () => courseDays.find((day) => day.id === selectedCourseDayId) ?? null,
     [courseDays, selectedCourseDayId],
   );
+
+  useEffect(() => {
+    if (tabParam) setTab(resolveTabParam(tabParam));
+    if (tabParam === "days" && addParam === "1") setShowDayForm(true);
+  }, [tabParam, addParam]);
 
   useEffect(() => {
     if (!id) return;

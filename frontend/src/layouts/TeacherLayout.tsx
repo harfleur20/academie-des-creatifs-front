@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import NotifBell from "../components/NotifBell";
 import {
@@ -13,19 +13,36 @@ import {
   HelpCircle,
   LayoutDashboard,
   LogOut,
+  Search,
   Settings,
+  TrendingUp,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 
 type NavItem = { to: string; label: string; icon: React.ReactNode; end?: boolean };
+type SearchTarget = { to: string; label: string; keywords: string[] };
 
 const navItems: NavItem[] = [
   { to: "/espace/enseignant",           label: "Vue d'ensemble",  icon: <LayoutDashboard size={16} />, end: true },
+  { to: "/espace/enseignant/performance", label: "Performance",   icon: <TrendingUp size={16} /> },
   { to: "/espace/enseignant/sessions",  label: "Mes sessions",    icon: <CalendarDays size={16} /> },
   { to: "/espace/enseignant/cours",     label: "Cours",           icon: <GraduationCap size={16} /> },
   { to: "/espace/enseignant/quizz",     label: "Quizz & Examens", icon: <BookOpen size={16} /> },
   { to: "/espace/enseignant/ressources",label: "Ressources",      icon: <FolderOpen size={16} /> },
   { to: "/espace/enseignant/devoirs",   label: "Devoirs",         icon: <ClipboardList size={16} /> },
+];
+
+const searchTargets: SearchTarget[] = [
+  { to: "/espace/enseignant", label: "Vue d'ensemble", keywords: ["dashboard", "accueil", "tableau de bord"] },
+  { to: "/espace/enseignant/performance", label: "Performance", keywords: ["statistiques", "resultats", "résultats", "suivi"] },
+  { to: "/espace/enseignant/sessions", label: "Mes sessions", keywords: ["session", "cohorte", "planning", "calendrier", "live"] },
+  { to: "/espace/enseignant/cours", label: "Cours", keywords: ["cours", "formation", "chapitre", "lecon", "leçon"] },
+  { to: "/espace/enseignant/quizz", label: "Quizz & Examens", keywords: ["quiz", "quizz", "examen", "examens", "test"] },
+  { to: "/espace/enseignant/ressources", label: "Ressources", keywords: ["ressource", "fichier", "document", "pdf"] },
+  { to: "/espace/enseignant/devoirs", label: "Devoirs", keywords: ["devoir", "assignment", "rendu"] },
+  { to: "/espace/enseignant/profil", label: "Paramètres", keywords: ["profil", "parametre", "paramètres", "compte"] },
+  { to: "/espace/enseignant/aide", label: "Aide & support", keywords: ["aide", "support", "assistance"] },
+  { to: "/espace/enseignant/notifications", label: "Notifications", keywords: ["notification", "notifications", "message"] },
 ];
 
 const AVATAR_PALETTE = [
@@ -41,10 +58,19 @@ function avatarGradient(name: string) {
   return `linear-gradient(135deg, ${AVATAR_PALETTE[i][0]}, ${AVATAR_PALETTE[i][1]})`;
 }
 
+function normalizeSearch(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 export default function TeacherLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const fullName = user?.full_name ?? "Enseignant";
@@ -65,6 +91,21 @@ export default function TeacherLayout() {
     setUserMenuOpen(false);
     await logout();
     navigate("/login");
+  }
+
+  function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const query = normalizeSearch(searchQuery);
+    if (!query) return;
+
+    const match = searchTargets.find((target) => {
+      const words = [target.label, ...target.keywords].map(normalizeSearch);
+      return words.some((word) => word.includes(query) || query.includes(word));
+    });
+
+    if (!match) return;
+    setSearchQuery("");
+    navigate(match.to);
   }
 
   return (
@@ -118,6 +159,16 @@ export default function TeacherLayout() {
           <div className="dsh-topbar__title">
             {navItems.find((n) => location.pathname === n.to || (!n.end && location.pathname.startsWith(n.to)))?.label ?? "Espace Enseignant"}
           </div>
+
+          <form className="dsh-topbar__search" role="search" onSubmit={handleSearchSubmit}>
+            <Search size={14} strokeWidth={2} />
+            <input
+              type="search"
+              placeholder="Rechercher…"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+          </form>
 
           <div className="dsh-topbar__right" ref={userMenuRef}>
             <NotifBell allNotifPath="/espace/enseignant/notifications" />

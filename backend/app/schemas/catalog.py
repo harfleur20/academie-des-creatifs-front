@@ -116,6 +116,7 @@ class FormationCatalogItem(BaseModel):
     session_state: SessionState
     session_label: str | None = None
     card_session_label: str | None = None
+    campus_label: str | None = None
     purchase_message: str | None = None
     can_purchase: bool
     session_start_date: date | None = None
@@ -285,6 +286,78 @@ class AdminDashboardOverview(BaseModel):
     total_confirmed_revenue_amount: int
     total_confirmed_revenue_label: str
     missed_course_days_count: int = 0
+
+
+PerformanceTone = Literal["good", "warning", "danger", "neutral"]
+
+
+class AdminPerformanceKpi(BaseModel):
+    label: str
+    value: str
+    detail: str
+    tone: PerformanceTone = "neutral"
+
+
+class AdminPerformanceSeriesPoint(BaseModel):
+    key: str
+    label: str
+    revenue_amount: int
+    revenue_label: str
+    enrollments_count: int
+    orders_count: int
+
+
+class AdminPerformanceFormationRow(BaseModel):
+    formation_id: int
+    title: str
+    format_type: FormatType
+    enrollments_count: int
+    revenue_amount: int
+    revenue_label: str
+    sessions_count: int
+    avg_fill_rate_pct: float
+
+
+class AdminPerformanceSessionRow(BaseModel):
+    session_id: int
+    formation_title: str
+    session_label: str
+    teacher_name: str | None = None
+    status: SessionStatus
+    enrolled_count: int
+    seat_capacity: int
+    fill_rate_pct: float
+    attendance_rate_pct: float | None = None
+    pending_reviews_count: int
+    alert_level: PerformanceTone = "neutral"
+
+
+class AdminPerformanceTeacherRow(BaseModel):
+    teacher_name: str
+    sessions_count: int
+    students_count: int
+    attendance_rate_pct: float | None = None
+    pending_reviews_count: int
+    quiz_average_score_pct: float | None = None
+
+
+class AdminPerformanceAlert(BaseModel):
+    code: str
+    title: str
+    detail: str
+    tone: PerformanceTone
+    action_label: str
+    action_path: str
+
+
+class AdminPerformanceOverview(BaseModel):
+    generated_at: datetime
+    kpis: list[AdminPerformanceKpi]
+    monthly_series: list[AdminPerformanceSeriesPoint]
+    top_formations: list[AdminPerformanceFormationRow]
+    sessions: list[AdminPerformanceSessionRow]
+    teachers: list[AdminPerformanceTeacherRow]
+    alerts: list[AdminPerformanceAlert]
 
 
 class AdminMissedCourseDay(BaseModel):

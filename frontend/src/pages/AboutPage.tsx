@@ -12,6 +12,7 @@ import {
   FaMinus,
   FaPlus,
   FaUsers,
+  FaVideo,
 } from "react-icons/fa";
 
 const STEPS = [
@@ -165,6 +166,24 @@ const FAQS = [
   },
 ];
 
+const TRAINING_FORMATS = [
+  {
+    icon: FaVideo,
+    title: "Live",
+    desc: "Tu suis les cours en direct avec un formateur, un groupe et des échanges en temps réel.",
+  },
+  {
+    icon: FaLaptop,
+    title: "En ligne",
+    desc: "Tu avances à ton rythme avec les vidéos, les ressources et les exercices disponibles sur ton espace.",
+  },
+  {
+    icon: FaChalkboardTeacher,
+    title: "Présentiel",
+    desc: "Tu apprends sur place avec un accompagnement direct, des ateliers pratiques et un suivi rapproché.",
+  },
+];
+
 /* ── Accordion item avec animation fluide ── */
 function StepAccordionItem({ title, detail }: { title: string; detail: string }) {
   const [open, setOpen] = useState(false);
@@ -309,6 +328,32 @@ export default function AboutPage() {
                 <h3>{title}</h3>
                 <p>{body}</p>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── COMMENT ÇA MARCHE ────────────────────────────── */}
+      <section className="about-formats">
+        <div className="about-formats__inner">
+          <div className="about-formats__head">
+            <p className="about-eyebrow">Comment ça marche ?</p>
+            <h2>
+              3 façons d'apprendre <span>selon ton rythme.</span>
+            </h2>
+            <p>
+              Choisis le format qui correspond à ta disponibilité, ton niveau
+              d'autonomie et ton besoin d'accompagnement.
+            </p>
+          </div>
+
+          <div className="about-formats__grid">
+            {TRAINING_FORMATS.map(({ icon: Icon, title, desc }) => (
+              <article className="about-format-card" key={title}>
+                <div className="about-format-card__icon"><Icon /></div>
+                <h3>{title}</h3>
+                <p>{desc}</p>
+              </article>
             ))}
           </div>
         </div>

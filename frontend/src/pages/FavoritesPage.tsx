@@ -5,7 +5,12 @@ import { FaHeartBroken, FaShoppingCart, FaStar } from "react-icons/fa";
 import { useAuth } from "../auth/AuthContext";
 import { useCart } from "../cart/CartContext";
 import { useFavorites } from "../favorites/FavoritesContext";
-import { getUserActionErrorMessage, USER_MESSAGES } from "../lib/userMessages";
+import { canUseCommerce } from "../lib/commerceAccess";
+import {
+  getCommerceRoleRestrictedMessage,
+  getUserActionErrorMessage,
+  USER_MESSAGES,
+} from "../lib/userMessages";
 import { useToast } from "../toast/ToastContext";
 
 function getFormatLabel(formatType: "live" | "ligne" | "presentiel") {
@@ -41,6 +46,13 @@ export default function FavoritesPage() {
           from: `${location.pathname}${location.search}${location.hash}`,
         },
       });
+      return;
+    }
+
+    if (!canUseCommerce(user)) {
+      const message = getCommerceRoleRestrictedMessage(user);
+      setActionError(message);
+      showErrorToast(message);
       return;
     }
 

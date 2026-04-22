@@ -1,16 +1,36 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Check, ChevronRight, Info } from "lucide-react";
+import { Bell, Check, ChevronRight, Info, Trash2 } from "lucide-react";
 import { fetchNotifications, type NotificationItem } from "../lib/commerceApi";
 
-const STORAGE_KEY = "notif_read_ids";
+const READ_STORAGE_KEY = "notif_read_ids";
+const DISMISSED_STORAGE_KEY = "notif_dismissed_ids";
 
-function getReadIds(): Set<string> {
-  try { return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]")); }
+function getStoredIds(key: string): Set<string> {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) ?? "[]");
+    return Array.isArray(value)
+      ? new Set(value.filter((id): id is string => typeof id === "string"))
+      : new Set();
+  }
   catch { return new Set(); }
 }
+
+function saveStoredIds(key: string, ids: Set<string>) {
+  localStorage.setItem(key, JSON.stringify([...ids]));
+}
+
+function getReadIds(): Set<string> {
+  return getStoredIds(READ_STORAGE_KEY);
+}
 function saveReadIds(ids: Set<string>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
+  saveStoredIds(READ_STORAGE_KEY, ids);
+}
+function getDismissedIds(): Set<string> {
+  return getStoredIds(DISMISSED_STORAGE_KEY);
+}
+function saveDismissedIds(ids: Set<string>) {
+  saveStoredIds(DISMISSED_STORAGE_KEY, ids);
 }
 
 function toneIcon(tone: string) {
@@ -33,10 +53,19 @@ function timeAgo(dateStr: string) {
   return `Il y a ${Math.floor(h / 24)}j`;
 }
 
-function NotifDropdown({ allNotifPath, onClose }: { allNotifPath: string; onClose: () => void }) {
+function NotifDropdown({
+  allNotifPath,
+  onClose,
+  onUnreadCountChange,
+}: {
+  allNotifPath: string;
+  onClose: () => void;
+  onUnreadCountChange: (count: number) => void;
+}) {
   const navigate = useNavigate();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(getReadIds);
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(getDismissedIds);
   const [loading, setLoading] = useState(true);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -52,16 +81,31 @@ function NotifDropdown({ allNotifPath, onClose }: { allNotifPath: string; onClos
     return () => document.removeEventListener("mousedown", handler);
   }, [onClose]);
 
+  const visibleItems = items.filter((n) => !dismissedIds.has(n.id));
+  const unread = visibleItems.filter((n) => !readIds.has(n.id));
+
+  useEffect(() => {
+    if (!loading) onUnreadCountChange(unread.length);
+  }, [loading, onUnreadCountChange, unread.length]);
+
   function markAll() {
-    const next = new Set([...readIds, ...items.map((n) => n.id)]);
+    const next = new Set([...readIds, ...visibleItems.map((n) => n.id)]);
     setReadIds(next); saveReadIds(next);
   }
   function markOne(id: string) {
     const next = new Set(readIds); next.add(id);
     setReadIds(next); saveReadIds(next);
   }
+  function clearNotifications() {
+    if (visibleItems.length === 0) return;
 
-  const unread = items.filter((n) => !readIds.has(n.id));
+    const visibleIds = visibleItems.map((n) => n.id);
+    const nextDismissed = new Set([...dismissedIds, ...visibleIds]);
+    const nextRead = new Set([...readIds, ...visibleIds]);
+    setDismissedIds(nextDismissed); saveDismissedIds(nextDismissed);
+    setReadIds(nextRead); saveReadIds(nextRead);
+    onUnreadCountChange(0);
+  }
 
   return (
     <div className="notif-dropdown" ref={ref}>
@@ -70,19 +114,32 @@ function NotifDropdown({ allNotifPath, onClose }: { allNotifPath: string; onClos
           Notifications
           {unread.length > 0 && <span className="notif-dropdown__count">{unread.length}</span>}
         </span>
-        {unread.length > 0 && (
-          <button type="button" className="notif-dropdown__mark-all" onClick={markAll}>
-            <Check size={12} /> Tout marquer lu
-          </button>
-        )}
+        <div className="notif-dropdown__actions">
+          {unread.length > 0 && (
+            <button type="button" className="notif-dropdown__mark-all" onClick={markAll}>
+              <Check size={12} /> Tout marquer lu
+            </button>
+          )}
+          {!loading && visibleItems.length > 0 && (
+            <button
+              type="button"
+              className="notif-dropdown__clear"
+              onClick={clearNotifications}
+              aria-label="Vider les notifications"
+              title="Vider les notifications"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="notif-dropdown__list">
         {loading && <p className="notif-dropdown__empty">Chargement…</p>}
-        {!loading && items.length === 0 && (
+        {!loading && visibleItems.length === 0 && (
           <p className="notif-dropdown__empty">Aucune notification.</p>
         )}
-        {items.slice(0, 6).map((n) => {
+        {visibleItems.slice(0, 6).map((n) => {
           const isRead = readIds.has(n.id);
           return (
             <div
@@ -109,7 +166,7 @@ function NotifDropdown({ allNotifPath, onClose }: { allNotifPath: string; onClos
                     onClose();
                   }}
                 >
-                  {n.action_label ?? "Consulter"} <ChevronRight size={12} />
+                  {n.action_label ?? "Voir"} <ChevronRight size={12} />
                 </button>
               )}
             </div>
@@ -143,7 +200,8 @@ export default function NotifBell({ allNotifPath, className = "dsh-topbar__icon-
     fetchNotifications()
       .then((items) => {
         const readIds = getReadIds();
-        setUnreadCount(items.filter((n) => !readIds.has(n.id)).length);
+        const dismissedIds = getDismissedIds();
+        setUnreadCount(items.filter((n) => !readIds.has(n.id) && !dismissedIds.has(n.id)).length);
       })
       .catch(() => {});
   }, []);
@@ -168,7 +226,13 @@ export default function NotifBell({ allNotifPath, className = "dsh-topbar__icon-
           <span className="dsh-topbar__notif-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
         )}
       </button>
-      {open && <NotifDropdown allNotifPath={allNotifPath} onClose={handleClose} />}
+      {open && (
+        <NotifDropdown
+          allNotifPath={allNotifPath}
+          onClose={handleClose}
+          onUnreadCountChange={setUnreadCount}
+        />
+      )}
     </div>
   );
 }

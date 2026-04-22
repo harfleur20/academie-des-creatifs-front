@@ -1,5 +1,7 @@
 import json
 import re
+import unicodedata
+from typing import Any
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -21,6 +23,7 @@ class DiagnosticData(BaseModel):
     nationality: str = ""
     city: str = ""
     training_type: str = ""
+    availability: str = ""
     whatsapp: str = ""
     expectations: str = ""
 
@@ -30,15 +33,21 @@ class SuggestionResponse(BaseModel):
     whatsapp_message: str
 
 
-def _format_catalog_context(db: Session) -> tuple[str, list[str]]:
+DIAGNOSTIC_AI_TIMEOUT_SECONDS = 6
+
+
+def _normalize(value: str) -> str:
+    normalized = unicodedata.normalize("NFD", value.lower())
+    return "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+
+
+def _format_catalog_context(db: Session) -> tuple[str, list[Any]]:
     formations = list_catalog_items(db)
     if not formations:
         return "Aucune formation cataloguee pour le moment.", []
 
     lines: list[str] = []
-    titles: list[str] = []
     for formation in formations:
-        titles.append(formation.title)
         format_label = {
             "ligne": "en ligne",
             "live": "live",
@@ -49,7 +58,7 @@ def _format_catalog_context(db: Session) -> tuple[str, list[str]]:
             f'| format: {format_label} | prix: {formation.current_price_label}'
         )
 
-    return "\n".join(lines), titles
+    return "\n".join(lines), formations
 
 
 def _parse_suggestions(raw: str) -> list[dict[str, str]]:
@@ -78,21 +87,52 @@ def _parse_suggestions(raw: str) -> list[dict[str, str]]:
     return suggestions
 
 
-def _fallback_suggestions(data: DiagnosticData, catalog_titles: list[str]) -> list[str]:
-    if not catalog_titles:
+def _fallback_suggestions(data: DiagnosticData, catalog_items: list[Any]) -> list[str]:
+    if not catalog_items:
         return [
             "Design Graphique — Proposition de base selon votre profil.",
             "Marketing Digital — Proposition de base selon votre profil.",
         ]
 
     level_label = "debutant" if data.level == "debutant" else "intermediaire"
-    selected = catalog_titles[:3]
+    profile_text = _normalize(f"{data.domain} {data.expectations}")
+    profile_tokens = {
+        token
+        for token in re.split(r"[^a-z0-9]+", profile_text)
+        if len(token) >= 4
+    }
+    preferred_format = {
+        "online": {"ligne", "online"},
+        "presentiel": {"presentiel"},
+        "both": {"ligne", "online", "presentiel", "live"},
+    }.get(data.training_type, set())
+
+    scored: list[tuple[int, int, Any]] = []
+    for index, item in enumerate(catalog_items):
+        haystack = _normalize(
+            f"{getattr(item, 'title', '')} {getattr(item, 'category', '')} {getattr(item, 'level', '')}"
+        )
+        score = 0
+        for token in profile_tokens:
+            if token in haystack:
+                score += 4
+        if data.level and _normalize(data.level) in haystack:
+            score += 2
+        if getattr(item, "format_type", "") in preferred_format:
+            score += 1
+        scored.append((score, -index, item))
+
+    selected = [
+        item
+        for _score, _index, item in sorted(scored, key=lambda row: (row[0], row[1]), reverse=True)[:3]
+    ]
     return [
         (
-            f"{title} — Proposition adaptee a votre niveau {level_label}, "
-            f"a votre interet pour {data.domain or 'ce domaine'} et a votre objectif de progression."
+            f"{item.title} — Proposition adaptee a votre niveau {level_label}, "
+            f"a votre interet pour {data.domain or 'ce domaine'}, a vos disponibilites "
+            f"et a votre objectif de progression."
         )
-        for title in selected
+        for item in selected
     ]
 
 
@@ -105,8 +145,13 @@ def suggest_formations(data: DiagnosticData, db: Session = Depends(get_db)) -> S
         "presentiel": "en presentiel",
         "both": "en ligne ou en presentiel",
     }.get(data.training_type, data.training_type)
+    availability_label = {
+        "day": "cours du jour",
+        "evening": "cours du soir",
+        "flexible": "flexible",
+    }.get(data.availability, data.availability)
 
-    catalog_context, catalog_titles = _format_catalog_context(db)
+    catalog_context, catalog_items = _format_catalog_context(db)
     system_prompt = (
         "Tu es un conseiller pedagogique de l'Academie des Creatifs. "
         "Tu recommandes exactement 3 formations du catalogue fourni, sans en inventer. "
@@ -120,6 +165,7 @@ def suggest_formations(data: DiagnosticData, db: Session = Depends(get_db)) -> S
 - Nationalite : {data.nationality}
 - Ville : {data.city}
 - Type de formation souhaite : {training_label}
+- Disponibilites : {availability_label}
 - Attentes : {data.expectations}
 
 Voici les formations actuellement disponibles :
@@ -140,7 +186,8 @@ Ne mets rien d'autre que le JSON."""
             raw = run_ai_chat(
                 system_prompt=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
-                max_tokens=700,
+                max_tokens=500,
+                timeout_seconds=DIAGNOSTIC_AI_TIMEOUT_SECONDS,
             )
         except Exception:
             raw = ""
@@ -151,13 +198,18 @@ Ne mets rien d'autre que le JSON."""
         for item in parsed_suggestions
     ]
     if not suggestions_list:
-        suggestions_list = _fallback_suggestions(data, catalog_titles)
+        suggestions_list = _fallback_suggestions(data, catalog_items)
 
     training_type_fr = {
         "online": "En ligne",
         "presentiel": "En presentiel",
         "both": "En ligne ou presentiel",
     }.get(data.training_type, data.training_type)
+    availability_fr = {
+        "day": "Cours du jour",
+        "evening": "Cours du soir",
+        "flexible": "Flexible",
+    }.get(data.availability, data.availability)
 
     wa_lines = [
         "Bonjour ! Je viens de completer le diagnostic de l'Academie des Creatifs.",
@@ -169,6 +221,7 @@ Ne mets rien d'autre que le JSON."""
         f"Pays : {data.nationality}",
         f"Ville : {data.city}",
         f"Preference : {training_type_fr}",
+        f"Disponibilites : {availability_fr}",
         f"Attentes : {data.expectations}",
         "",
         "Formations suggerees :",

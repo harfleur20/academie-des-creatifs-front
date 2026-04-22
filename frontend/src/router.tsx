@@ -39,6 +39,7 @@ const TeacherQuizzesPage = lazy(() => import("./pages/teacher/TeacherQuizzesPage
 const TeacherResourcesPage = lazy(() => import("./pages/teacher/TeacherResourcesPage"));
 const TeacherAssignmentsPage = lazy(() => import("./pages/teacher/TeacherAssignmentsPage"));
 const TeacherCoursesPage = lazy(() => import("./pages/teacher/TeacherCoursesPage"));
+const TeacherPerformancePage = lazy(() => import("./pages/teacher/TeacherPerformancePage"));
 
 const StudentOverviewPage = lazy(() => import("./pages/student/StudentOverviewPage"));
 const StudentFormationsPage = lazy(() => import("./pages/student/StudentFormationsPage"));
@@ -61,6 +62,7 @@ const AdminBlogPage = lazy(() => import("./pages/admin/AdminBlogPage"));
 const AdminCataloguePage = lazy(() => import("./pages/admin/AdminCataloguePage"));
 const AdminEnrollmentsPage = lazy(() => import("./pages/admin/AdminEnrollmentsPage"));
 const AdminOverviewPage = lazy(() => import("./pages/admin/AdminOverviewPage"));
+const AdminPerformancePage = lazy(() => import("./pages/admin/AdminPerformancePage"));
 const AdminSessionsPage = lazy(() => import("./pages/admin/AdminSessionsPage"));
 const AdminStudentsPage = lazy(() => import("./pages/admin/AdminStudentsPage"));
 const AdminTeachersPage = lazy(() => import("./pages/admin/AdminTeachersPage"));
@@ -95,6 +97,7 @@ export const router = createBrowserRouter([
             element: routePage(<DashboardPage />),
             children: [
               { index: true, element: routePage(<AdminOverviewPage />) },
+              { path: "performance", element: routePage(<AdminPerformancePage />) },
               { path: "catalogue", element: routePage(<AdminCataloguePage />) },
               { path: "sessions", element: routePage(<AdminSessionsPage />) },
               { path: "enseignants", element: routePage(<AdminTeachersPage />) },
@@ -107,6 +110,7 @@ export const router = createBrowserRouter([
               { path: "blog", element: routePage(<AdminBlogPage />) },
               { path: "profil", element: routePage(<AdminProfilePage />) },
               { path: "aide", element: routePage(<HelpPage />) },
+              { path: "notifications", element: routePage(<NotificationsPage />) },
               {
                 path: "site",
                 element: routePage(<AdminSitePage />),
@@ -137,6 +141,7 @@ export const router = createBrowserRouter([
         element: <TeacherLayout />,
         children: [
           { index: true, element: routePage(<TeacherOverviewPage />) },
+          { path: "performance", element: routePage(<TeacherPerformancePage />) },
           { path: "sessions", element: routePage(<TeacherSessionsPage />) },
           { path: "session/:sessionId", element: routePage(<TeacherSessionPage />) },
           { path: "cours", element: routePage(<TeacherCoursesPage />) },
@@ -207,12 +212,17 @@ export const router = createBrowserRouter([
       {
         element: <ProtectedRoute />,
         children: [
-          { path: "panier", element: routePage(<CartPage />) },
-          { path: "checkout", element: routePage(<CheckoutPage />) },
           { path: "espace", element: routePage(<AccountRedirectPage />) },
           { path: "favoris", element: routePage(<FavoritesPage />) },
           { path: "notifications", element: routePage(<NotificationsPage />) },
           { path: "parametres", element: routePage(<SettingsPage />) },
+          {
+            element: <ProtectedRoute allowedRoles={["student", "guest"]} />,
+            children: [
+              { path: "panier", element: routePage(<CartPage />) },
+              { path: "checkout", element: routePage(<CheckoutPage />) },
+            ],
+          },
         ],
       },
       { path: "invitation/enseignant/:token", element: routePage(<TeacherInvitationPage />) },

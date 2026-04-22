@@ -42,6 +42,26 @@ function getCategoryLabel(category: NotificationCategory) {
     return "Session";
   }
 
+  if (category === "assignment") {
+    return "Devoir";
+  }
+
+  if (category === "quiz") {
+    return "Quiz";
+  }
+
+  if (category === "live") {
+    return "Live";
+  }
+
+  if (category === "resource") {
+    return "Ressource";
+  }
+
+  if (category === "result") {
+    return "Resultat";
+  }
+
   if (category === "admin") {
     return "Administration";
   }

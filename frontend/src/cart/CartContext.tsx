@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import { useAuth } from "../auth/AuthContext";
+import { canUseCommerce } from "../lib/commerceAccess";
 import {
   addToCart as addToCartRequest,
   checkoutCart as checkoutCartRequest,
@@ -17,6 +18,7 @@ import {
   type CheckoutOptions,
   type CheckoutResult,
 } from "../lib/commerceApi";
+import { getCommerceRoleRestrictedMessage } from "../lib/userMessages";
 
 const emptyCart: CartSnapshot = {
   items: [],
@@ -50,7 +52,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshCart = async () => {
-    if (!user) {
+    if (!user || !canUseCommerce(user)) {
       setCart(emptyCart);
       return emptyCart;
     }
@@ -65,7 +67,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!user) {
+    if (!user || !canUseCommerce(user)) {
       setCart(emptyCart);
       setIsLoading(false);
       return;
@@ -87,6 +89,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       isLoading,
       refreshCart,
       addToCart: async (formationSlug) => {
+        if (!canUseCommerce(user)) {
+          throw new Error(getCommerceRoleRestrictedMessage(user));
+        }
+
         const nextCart = await addToCartRequest(formationSlug);
         setCart(nextCart);
         return nextCart;
@@ -97,6 +103,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return nextCart;
       },
       checkout: async (options?: CheckoutOptions) => {
+        if (!canUseCommerce(user)) {
+          throw new Error(getCommerceRoleRestrictedMessage(user));
+        }
+
         const result = await checkoutCartRequest(options ?? {});
         if (!result.external_redirect_url && !result.payment_links) {
           const nextCart = await fetchCart();
@@ -105,7 +115,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return result;
       },
     }),
-    [cart, isLoading],
+    [cart, isLoading, user],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

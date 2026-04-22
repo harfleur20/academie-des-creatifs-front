@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   LogOut,
   Newspaper,
+  TrendingUp,
   Search,
   Settings,
   ShoppingBag,
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
     icon: <LayoutDashboard size={16} />,
     end: true,
   },
+  { to: "/admin/performance", label: "Performance", icon: <TrendingUp size={16} /> },
   { to: "/admin/catalogue", label: "Catalogue", icon: <BookOpen size={16} /> },
   {
     to: "/admin/sessions",

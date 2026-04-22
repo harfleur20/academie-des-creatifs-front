@@ -49,6 +49,7 @@ export type CatalogFormation = {
   session_state: SessionState;
   session_label: string | null;
   card_session_label: string | null;
+  campus_label: string | null;
   purchase_message: string | null;
   can_purchase: boolean;
   session_start_date: string | null;
@@ -85,6 +86,7 @@ export type EcommerceCourse = {
   canPurchase?: boolean;
   purchaseMessage?: string | null;
   sessionState?: string;
+  campusLabel?: string | null;
 };
 
 export type FormationDetailItem = CatalogFormation & {
@@ -170,6 +172,77 @@ export type AdminOverview = {
   total_confirmed_revenue_amount: number;
   total_confirmed_revenue_label: string;
   missed_course_days_count: number;
+};
+
+export type PerformanceTone = "good" | "warning" | "danger" | "neutral";
+
+export type AdminPerformanceKpi = {
+  label: string;
+  value: string;
+  detail: string;
+  tone: PerformanceTone;
+};
+
+export type AdminPerformanceSeriesPoint = {
+  key: string;
+  label: string;
+  revenue_amount: number;
+  revenue_label: string;
+  enrollments_count: number;
+  orders_count: number;
+};
+
+export type AdminPerformanceFormationRow = {
+  formation_id: number;
+  title: string;
+  format_type: FormationFormat;
+  enrollments_count: number;
+  revenue_amount: number;
+  revenue_label: string;
+  sessions_count: number;
+  avg_fill_rate_pct: number;
+};
+
+export type AdminPerformanceSessionRow = {
+  session_id: number;
+  formation_title: string;
+  session_label: string;
+  teacher_name: string | null;
+  status: SessionStatus;
+  enrolled_count: number;
+  seat_capacity: number;
+  fill_rate_pct: number;
+  attendance_rate_pct: number | null;
+  pending_reviews_count: number;
+  alert_level: PerformanceTone;
+};
+
+export type AdminPerformanceTeacherRow = {
+  teacher_name: string;
+  sessions_count: number;
+  students_count: number;
+  attendance_rate_pct: number | null;
+  pending_reviews_count: number;
+  quiz_average_score_pct: number | null;
+};
+
+export type AdminPerformanceAlert = {
+  code: string;
+  title: string;
+  detail: string;
+  tone: PerformanceTone;
+  action_label: string;
+  action_path: string;
+};
+
+export type AdminPerformanceOverview = {
+  generated_at: string;
+  kpis: AdminPerformanceKpi[];
+  monthly_series: AdminPerformanceSeriesPoint[];
+  top_formations: AdminPerformanceFormationRow[];
+  sessions: AdminPerformanceSessionRow[];
+  teachers: AdminPerformanceTeacherRow[];
+  alerts: AdminPerformanceAlert[];
 };
 
 export type AdminMissedCourseDay = {
@@ -352,6 +425,7 @@ export function mapCatalogFormationToCourse(
     canPurchase: formation.can_purchase,
     purchaseMessage: formation.purchase_message,
     sessionState: formation.session_state,
+    campusLabel: formation.campus_label,
   };
 }
 
@@ -371,6 +445,10 @@ export async function fetchPublicFormation(
 
 export async function fetchAdminOverview(): Promise<AdminOverview> {
   return apiRequest<AdminOverview>("/admin/stats/overview");
+}
+
+export async function fetchAdminPerformance(): Promise<AdminPerformanceOverview> {
+  return apiRequest<AdminPerformanceOverview>("/admin/stats/performance");
 }
 
 export async function fetchAdminFormations(): Promise<AdminFormation[]> {

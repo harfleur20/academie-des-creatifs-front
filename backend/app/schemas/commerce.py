@@ -7,7 +7,18 @@ from pydantic import BaseModel, Field, model_validator
 FormatType = Literal["live", "ligne", "presentiel"]
 DashboardType = Literal["classic", "guided"]
 NotificationTone = Literal["info", "success", "warning"]
-NotificationCategory = Literal["payment", "enrollment", "session", "admin", "system"]
+NotificationCategory = Literal[
+    "payment",
+    "enrollment",
+    "session",
+    "assignment",
+    "quiz",
+    "live",
+    "resource",
+    "result",
+    "admin",
+    "system",
+]
 CheckoutPaymentMode = Literal["full", "installments"]
 
 

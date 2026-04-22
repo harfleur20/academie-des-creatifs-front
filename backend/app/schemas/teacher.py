@@ -425,6 +425,63 @@ class TeacherOverview(BaseModel):
     sessions: list[TeacherSessionItem]
 
 
+TeacherPerformanceTone = Literal["good", "warning", "danger", "neutral"]
+
+
+class TeacherPerformanceKpi(BaseModel):
+    label: str
+    value: str
+    detail: str
+    tone: TeacherPerformanceTone = "neutral"
+
+
+class TeacherPerformanceSessionRow(BaseModel):
+    session_id: int
+    formation_title: str
+    session_label: str
+    status: str
+    enrolled_count: int
+    seat_capacity: int
+    fill_rate_pct: float
+    attendance_rate_pct: float | None = None
+    progress_pct: float
+    pending_reviews_count: int
+    quiz_average_score_pct: float | None = None
+    alert_level: TeacherPerformanceTone = "neutral"
+
+
+class TeacherPerformanceStudentRow(BaseModel):
+    enrollment_id: int
+    student_name: str
+    student_code: str | None = None
+    session_id: int
+    session_label: str
+    formation_title: str
+    progress_pct: float
+    attendance_rate_pct: float | None = None
+    average_grade_pct: float | None = None
+    pending_reviews_count: int = 0
+    last_activity_at: datetime | None = None
+    risk_level: TeacherPerformanceTone = "neutral"
+
+
+class TeacherPerformanceAlert(BaseModel):
+    code: str
+    title: str
+    detail: str
+    tone: TeacherPerformanceTone
+    action_label: str
+    action_path: str
+
+
+class TeacherPerformanceOverview(BaseModel):
+    generated_at: datetime
+    kpis: list[TeacherPerformanceKpi]
+    sessions: list[TeacherPerformanceSessionRow]
+    students: list[TeacherPerformanceStudentRow]
+    alerts: list[TeacherPerformanceAlert]
+
+
 class CourseDayCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     scheduled_at: datetime

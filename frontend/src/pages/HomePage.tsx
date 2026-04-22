@@ -13,6 +13,8 @@ import {
   FaFire,
   FaGraduationCap,
   FaImage,
+  FaLaptop,
+  FaLock,
   FaPlayCircle,
   FaQuoteLeft,
   FaRegHeart,
@@ -21,6 +23,7 @@ import {
   FaStar,
   FaTags,
   FaUserPlus,
+  FaVideo,
   FaWhatsapp,
   FaChevronDown,
   FaPenNib,
@@ -43,11 +46,17 @@ import { useFavorites } from "../favorites/FavoritesContext";
 import {
   type CatalogFormation,
   type CourseBadge,
+  type EcommerceCourse,
   fetchPublicFormations,
   getFormationPath,
   mapCatalogFormationToCourse,
 } from "../lib/catalogApi";
-import { getUserActionErrorMessage, USER_MESSAGES } from "../lib/userMessages";
+import { canUseCommerce } from "../lib/commerceAccess";
+import {
+  getCommerceRoleRestrictedMessage,
+  getUserActionErrorMessage,
+  USER_MESSAGES,
+} from "../lib/userMessages";
 import {
   EMPTY_SITE_CONTENT,
   fetchPublicSiteContent,
@@ -239,6 +248,52 @@ function getHomeCatalogueMessage(
   return "Aucune formation n'est encore mise en avant dans cette section.";
 }
 
+function getHomeSessionBadge(course: EcommerceCourse) {
+  if (!course.sessionLabel) {
+    return "";
+  }
+
+  if (course.sessionState === "unscheduled" || course.sessionState === "ended") {
+    return "";
+  }
+
+  return course.sessionLabel;
+}
+
+function isStartedSession(course: EcommerceCourse) {
+  return (
+    course.sessionState === "started_open" ||
+    course.sessionState === "started_closed"
+  );
+}
+
+function getCourseAccessMeta(course: EcommerceCourse) {
+  if (course.formatType === "presentiel") {
+    return {
+      label: course.campusLabel?.trim() || "Campus à confirmer",
+      eyebrow: "Lieu",
+      icon: <MdPlace className="icon-place" />,
+      tone: "presentiel",
+    };
+  }
+
+  if (course.formatType === "live") {
+    return {
+      label: "Live en ligne",
+      eyebrow: "Classe virtuelle",
+      icon: <FaVideo />,
+      tone: "live",
+    };
+  }
+
+  return {
+    label: "Vidéo en ligne",
+    eyebrow: "Accès",
+    icon: <FaLaptop />,
+    tone: "ligne",
+  };
+}
+
 type HeroAction = {
   label: string;
   to: string;
@@ -397,7 +452,7 @@ export default function HomePage() {
   const { user } = useAuth();
   const { cart, addToCart } = useCart();
   const { toggleFavorite, hasFavorite } = useFavorites();
-  const { success, error } = useToast();
+  const { success, error, info } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -468,6 +523,11 @@ export default function HomePage() {
       return false;
     }
 
+    if (action === "cart" && !canUseCommerce(user)) {
+      error(getCommerceRoleRestrictedMessage(user));
+      return false;
+    }
+
     if (action === "cart") {
       setWorkingCartSlug(slug);
     } else {
@@ -482,8 +542,18 @@ export default function HomePage() {
     canPurchase = true,
     purchaseMessage?: string | null,
   ) => {
+    if (user && !canUseCommerce(user)) {
+      error(getCommerceRoleRestrictedMessage(user));
+      return;
+    }
+
     if (!canPurchase) {
       error(purchaseMessage ?? "Inscriptions closes pour cette formation.");
+      return;
+    }
+
+    if (cart.items.some((item) => item.formation_slug === slug)) {
+      info(USER_MESSAGES.cartAlreadyInCart);
       return;
     }
 
@@ -917,6 +987,9 @@ export default function HomePage() {
                 const hasPromo =
                   Boolean(course.originalPrice) &&
                   course.originalPrice !== course.currentPrice;
+                const sessionBadgeLabel = getHomeSessionBadge(course);
+                const sessionBadgeStarted = isStartedSession(course);
+                const accessMeta = getCourseAccessMeta(course);
 
                 return (
                   <article className="card-bloc new-design" key={course.id}>
@@ -933,10 +1006,16 @@ export default function HomePage() {
                         <FaRegHeart />
                       </button>
 
-                      {course.sessionLabel ? (
-                        <div className="session-badge">
+                      {sessionBadgeLabel ? (
+                        <div
+                          className={`session-badge${
+                            sessionBadgeStarted
+                              ? " session-badge--started"
+                              : ""
+                          }`}
+                        >
                           <FaClock />
-                          <span>{course.sessionLabel}</span>
+                          <span>{sessionBadgeLabel}</span>
                         </div>
                       ) : null}
                     </div>
@@ -959,13 +1038,14 @@ export default function HomePage() {
                       </div>
 
                       <div className="card-meta-row">
-                        <div className="card-platforms">
-                          <span className="platform-label">Plateforme :</span>
-                          <img
-                            src="/Microsoft_Office_Teams.webp"
-                            alt="Microsoft Teams"
-                          />
-                          <img src="/whatsapp.png" alt="WhatsApp" />
+                        <div className={`card-access-card card-access-card--${accessMeta.tone}`}>
+                          <span className="card-access-card__icon">
+                            {accessMeta.icon}
+                          </span>
+                          <span className="card-access-card__copy">
+                            <small>{accessMeta.eyebrow}</small>
+                            <strong>{accessMeta.label}</strong>
+                          </span>
                         </div>
 
                         <div className="badges-column">
@@ -994,28 +1074,37 @@ export default function HomePage() {
                         </div>
 
                         <div className="card-footer-actions">
-                          {course.canPurchase === false ? null : (
-                            <button
-                              aria-label={`Ajouter ${course.title} au panier`}
-                              className="btn-card-icon"
-                              type="button"
-                              disabled={
-                                workingCartSlug === course.slug ||
-                                cart.items.some(
-                                  (item) => item.formation_slug === course.slug,
-                                )
-                              }
-                              onClick={() => {
-                                void handleAddToCart(
-                                  course.slug,
-                                  course.canPurchase,
-                                  course.purchaseMessage,
-                                );
-                              }}
-                            >
+                          <button
+                            aria-label={
+                              course.canPurchase === false
+                                ? `Inscriptions closes pour ${course.title}`
+                                : cart.items.some((item) => item.formation_slug === course.slug)
+                                  ? `${course.title} est deja dans le panier`
+                                  : `Ajouter ${course.title} au panier`
+                            }
+                            className={`btn-card-icon${
+                              course.canPurchase === false
+                                ? " btn-card-icon--closed"
+                                : cart.items.some((item) => item.formation_slug === course.slug)
+                                  ? " btn-card-icon--locked"
+                                  : ""
+                            }`}
+                            type="button"
+                            disabled={workingCartSlug === course.slug}
+                            onClick={() => {
+                              void handleAddToCart(
+                                course.slug,
+                                course.canPurchase,
+                                course.purchaseMessage,
+                              );
+                            }}
+                          >
+                            {course.canPurchase === false ? (
+                              <FaLock />
+                            ) : (
                               <FaShoppingCart />
-                            </button>
-                          )}
+                            )}
+                          </button>
 
                           <Link
                             className="btn-card-action"
@@ -1062,6 +1151,9 @@ export default function HomePage() {
                 const hasPromo =
                   Boolean(course.originalPrice) &&
                   course.originalPrice !== course.currentPrice;
+                const sessionBadgeLabel = getHomeSessionBadge(course);
+                const sessionBadgeStarted = isStartedSession(course);
+                const accessMeta = getCourseAccessMeta(course);
 
                 return (
                   <article className="card-bloc new-design" key={course.id}>
@@ -1078,10 +1170,16 @@ export default function HomePage() {
                         <FaRegHeart />
                       </button>
 
-                      {course.sessionLabel ? (
-                        <div className="session-badge">
+                      {sessionBadgeLabel ? (
+                        <div
+                          className={`session-badge${
+                            sessionBadgeStarted
+                              ? " session-badge--started"
+                              : ""
+                          }`}
+                        >
                           <FaClock />
-                          <span>{course.sessionLabel}</span>
+                          <span>{sessionBadgeLabel}</span>
                         </div>
                       ) : null}
                     </div>
@@ -1104,11 +1202,14 @@ export default function HomePage() {
                       </div>
 
                       <div className="card-meta-row">
-                        <div className="card-platforms">
-                          <span className="platform-label">
-                            <MdPlace className="icon-place" />
+                        <div className={`card-access-card card-access-card--${accessMeta.tone}`}>
+                          <span className="card-access-card__icon">
+                            {accessMeta.icon}
                           </span>
-                          <p>Douala</p>
+                          <span className="card-access-card__copy">
+                            <small>{accessMeta.eyebrow}</small>
+                            <strong>{accessMeta.label}</strong>
+                          </span>
                         </div>
 
                         <div className="badges-column">
@@ -1137,28 +1238,37 @@ export default function HomePage() {
                         </div>
 
                         <div className="card-footer-actions">
-                          {course.canPurchase === false ? null : (
-                            <button
-                              aria-label={`Ajouter ${course.title} au panier`}
-                              className="btn-card-icon"
-                              type="button"
-                              disabled={
-                                workingCartSlug === course.slug ||
-                                cart.items.some(
-                                  (item) => item.formation_slug === course.slug,
-                                )
-                              }
-                              onClick={() => {
-                                void handleAddToCart(
-                                  course.slug,
-                                  course.canPurchase,
-                                  course.purchaseMessage,
-                                );
-                              }}
-                            >
+                          <button
+                            aria-label={
+                              course.canPurchase === false
+                                ? `Inscriptions closes pour ${course.title}`
+                                : cart.items.some((item) => item.formation_slug === course.slug)
+                                  ? `${course.title} est deja dans le panier`
+                                  : `Ajouter ${course.title} au panier`
+                            }
+                            className={`btn-card-icon${
+                              course.canPurchase === false
+                                ? " btn-card-icon--closed"
+                                : cart.items.some((item) => item.formation_slug === course.slug)
+                                  ? " btn-card-icon--locked"
+                                  : ""
+                            }`}
+                            type="button"
+                            disabled={workingCartSlug === course.slug}
+                            onClick={() => {
+                              void handleAddToCart(
+                                course.slug,
+                                course.canPurchase,
+                                course.purchaseMessage,
+                              );
+                            }}
+                          >
+                            {course.canPurchase === false ? (
+                              <FaLock />
+                            ) : (
                               <FaShoppingCart />
-                            </button>
-                          )}
+                            )}
+                          </button>
 
                           <Link
                             className="btn-card-action"

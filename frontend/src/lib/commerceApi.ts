@@ -143,6 +143,11 @@ export type NotificationCategory =
   | "payment"
   | "enrollment"
   | "session"
+  | "assignment"
+  | "quiz"
+  | "live"
+  | "resource"
+  | "result"
   | "admin"
   | "system";
 

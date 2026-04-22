@@ -35,17 +35,9 @@ import {
   type StudentQuizView,
 } from "../../lib/studentApi";
 import BadgeRing, { type BadgeLevel } from "../../components/BadgeRing";
-import { FaCalendarAlt, FaVideo, FaMapMarkerAlt, FaExternalLinkAlt } from "react-icons/fa";
+import { FaCalendarAlt, FaVideo, FaMapMarkerAlt } from "react-icons/fa";
 import LiveCalendar from "../../components/LiveCalendar";
 import { fetchMyLiveEvents, type StudentLiveEvent } from "../../lib/teacherApi";
-
-function buildCalendarUrl(session: StudentSession): string {
-  const fmt = (d: string) => new Date(d).toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
-  const title = encodeURIComponent(`${session.formation_title} — ${session.label}`);
-  const details = encodeURIComponent(session.meeting_link ? `Lien : ${session.meeting_link}` : "");
-  const loc = encodeURIComponent(session.campus_label ?? session.meeting_link ?? "");
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${fmt(session.start_date)}/${fmt(session.end_date)}&details=${details}&location=${loc}`;
-}
 
 function sessionStatusBadge(status: string): { label: string; cls: string } {
   if (status === "open") return { label: "Ouverte", cls: "session-status--open" };
@@ -512,6 +504,12 @@ export default function StudentOverviewPage() {
     : "Aucune note publiée";
   const todayDate = toLocalISODate();
   const shouldShowLiveCalendar = liveEvents.length > 0 || (summary.live_enrollments_count ?? 0) > 0;
+  const programPathForSession = (session: StudentSession) => {
+    const enrollment = summary.guided_enrollments.find((item) =>
+      item.session_id === session.id || item.formation_id === session.formation_id
+    );
+    return enrollment ? `/espace/etudiant/guided/${enrollment.id}?tab=calendar` : "/espace/etudiant/parcours";
+  };
   const dashboardAlerts = buildDashboardAlerts({
     assignments,
     quizzes,
@@ -699,9 +697,9 @@ export default function StudentOverviewPage() {
                             </a>
                           );
                         })()}
-                        <a className="button button--secondary button--sm" href={buildCalendarUrl(session)} target="_blank" rel="noopener noreferrer">
-                          <FaExternalLinkAlt /> Calendrier
-                        </a>
+                        <Link className="button button--secondary button--sm" to={programPathForSession(session)}>
+                          <BookOpen size={14} /> Voir le programme
+                        </Link>
                       </div>
                     </article>
                   );

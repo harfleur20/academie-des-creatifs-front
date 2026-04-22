@@ -38,6 +38,7 @@ class SessionPresentation:
     state: str
     session_label: str | None
     card_session_label: str | None
+    campus_label: str | None
     purchase_message: str | None
     can_purchase: bool
     start_date: date | None
@@ -102,6 +103,7 @@ def build_session_presentation(
             state="not_applicable",
             session_label=None,
             card_session_label=None,
+            campus_label=None,
             purchase_message=None,
             can_purchase=True,
             start_date=None,
@@ -115,6 +117,7 @@ def build_session_presentation(
             state="ended" if had_previous_session else "unscheduled",
             session_label="Pas encore de nouvelle session",
             card_session_label=None,
+            campus_label=None,
             purchase_message="Inscriptions closes",
             can_purchase=False,
             start_date=None,
@@ -132,6 +135,7 @@ def build_session_presentation(
             state="upcoming",
             session_label=next_label,
             card_session_label=next_label,
+            campus_label=session.campus_label,
             purchase_message=None,
             can_purchase=True,
             start_date=session.start_date,
@@ -146,6 +150,7 @@ def build_session_presentation(
             state="started_open" if can_purchase else "started_closed",
             session_label="Cette formation a debute",
             card_session_label=None,
+            campus_label=session.campus_label,
             purchase_message=None if can_purchase else "Inscriptions closes",
             can_purchase=can_purchase,
             start_date=session.start_date,
@@ -158,6 +163,7 @@ def build_session_presentation(
         state="ended",
         session_label="Pas encore de nouvelle session",
         card_session_label=None,
+        campus_label=session.campus_label,
         purchase_message="Inscriptions closes",
         can_purchase=False,
         start_date=session.start_date,

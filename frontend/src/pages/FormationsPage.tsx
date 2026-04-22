@@ -10,6 +10,7 @@ import {
   FaCrown,
   FaFire,
   FaLaptop,
+  FaLock,
   FaMapMarkerAlt,
   FaRegHeart,
   FaRegStar,
@@ -28,7 +29,9 @@ import {
   type CourseBadge,
   type CatalogFormation,
 } from "../lib/catalogApi";
+import { canUseCommerce } from "../lib/commerceAccess";
 import {
+  getCommerceRoleRestrictedMessage,
   getUserActionErrorMessage,
   USER_MESSAGES,
 } from "../lib/userMessages";
@@ -119,11 +122,11 @@ function getFormatTag(formation: CatalogFormation): Exclude<CatalogFormat, "all"
 
 function getFormatLabel(format: Exclude<CatalogFormat, "all">) {
   if (format === "presentiel") {
-    return "Presentiel";
+    return "Présentiel";
   }
 
   if (format === "ligne") {
-    return "Ligne";
+    return "En ligne";
   }
 
   return "Live";
@@ -141,11 +144,23 @@ function getFormatIcon(format: Exclude<CatalogFormat, "all">) {
   return <FaVideo />;
 }
 
+function getFormatAccessLabel(formation: CatalogFormation) {
+  if (formation.format_type === "presentiel") {
+    return formation.campus_label?.trim() || "Campus à confirmer";
+  }
+
+  if (formation.format_type === "live") {
+    return "Live en ligne";
+  }
+
+  return "Vidéo en ligne";
+}
+
 export default function FormationsPage() {
   const { user } = useAuth();
   const { cart, addToCart } = useCart();
   const { toggleFavorite, hasFavorite } = useFavorites();
-  const { success, error } = useToast();
+  const { success, error, info } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const [courses, setCourses] = useState<CatalogFormation[]>([]);
@@ -290,6 +305,11 @@ export default function FormationsPage() {
       return false;
     }
 
+    if (action === "cart" && !canUseCommerce(user)) {
+      error(getCommerceRoleRestrictedMessage(user));
+      return false;
+    }
+
     if (action === "cart") {
       setWorkingCartSlug(slug);
     } else {
@@ -300,8 +320,18 @@ export default function FormationsPage() {
   };
 
   const handleAddToCart = async (course: CatalogFormation) => {
+    if (user && !canUseCommerce(user)) {
+      error(getCommerceRoleRestrictedMessage(user));
+      return;
+    }
+
     if (!course.can_purchase) {
       error(course.purchase_message ?? "Inscriptions closes pour cette formation.");
+      return;
+    }
+
+    if (cart.items.some((item) => item.formation_slug === course.slug)) {
+      info(USER_MESSAGES.cartAlreadyInCart);
       return;
     }
 
@@ -533,6 +563,9 @@ export default function FormationsPage() {
             ) : filteredCourses.length > 0 ? (
               filteredCourses.map((course) => {
                 const formatTag = getFormatTag(course);
+                const isCourseInCart = cart.items.some(
+                  (item) => item.formation_slug === course.slug,
+                );
                 const hasPromo =
                   Boolean(course.original_price_label) &&
                   course.original_price_label !== course.current_price_label;
@@ -572,6 +605,10 @@ export default function FormationsPage() {
                           <FaChalkboardTeacher />
                           {course.level}
                         </span>
+                        <span className="catalogue-product-card__meta-access">
+                          {getFormatIcon(formatTag)}
+                          {getFormatAccessLabel(course)}
+                        </span>
                         {course.card_session_label ? (
                           <span>
                             <FaClock />
@@ -600,27 +637,30 @@ export default function FormationsPage() {
                         <div className="catalogue-product-card__actions">
                           {course.can_purchase ? (
                             <button
-                              aria-label={`Ajouter ${course.title} au panier`}
-                              className="catalogue-product-card__cart"
-                              type="button"
-                              disabled={
-                                workingCartSlug === course.slug ||
-                                cart.items.some((item) => item.formation_slug === course.slug)
+                              aria-label={
+                                isCourseInCart
+                                  ? `${course.title} est deja dans le panier`
+                                  : `Ajouter ${course.title} au panier`
                               }
+                              className={`catalogue-product-card__cart${
+                                isCourseInCart ? " catalogue-product-card__cart--locked" : ""
+                              }`}
+                              type="button"
+                              disabled={workingCartSlug === course.slug}
                               onClick={() => { void handleAddToCart(course); }}
                             >
                               <FaShoppingCart />
                             </button>
                           ) : (
                             <button
-                              aria-label="Inscriptions closes"
+                              aria-label={`Inscriptions closes pour ${course.title}`}
                               className="catalogue-product-card__cart catalogue-product-card__cart--closed"
                               type="button"
                               onClick={() => {
                                 error(course.purchase_message ?? "Inscriptions closes pour cette formation.");
                               }}
                             >
-                              <span className="catalogue-product-card__closed-label">Inscription close</span>
+                              <FaLock />
                             </button>
                           )}
                           <Link className="catalogue-product-card__cta" to={getFormationPath(course.slug)}>

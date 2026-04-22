@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   FaAward,
   FaBookOpen,
@@ -40,6 +40,11 @@ import AiChatWidget from "../components/AiChatWidget";
 import AssignedTeacherCard from "../components/AssignedTeacherCard";
 
 type HubTab = "overview" | "program" | "calendar" | "assignments" | "quizzes" | "resources" | "results";
+
+function isHubTab(value: string | null): value is HubTab {
+  return value === "overview" || value === "program" || value === "calendar" ||
+    value === "assignments" || value === "quizzes" || value === "resources" || value === "results";
+}
 
 const ASSIGNMENT_STATUS_LABELS: Record<AssignmentStudentStatus, string> = {
   pending: "À rendre",
@@ -127,10 +132,12 @@ function averageGrade(results: StudentEnrollmentResults | null) {
 export default function StudentGuidedWorkspacePage() {
   const { enrollmentId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hubLoading, setHubLoading] = useState(false);
-  const [tab, setTab] = useState<HubTab>("overview");
+  const [tab, setTab] = useState<HubTab>(() => isHubTab(requestedTab) ? requestedTab : "overview");
   const [courses, setCourses] = useState<StudentCourse[]>([]);
   const [courseDays, setCourseDays] = useState<StudentCourseDay[]>([]);
   const [assignments, setAssignments] = useState<StudentAssignment[]>([]);
@@ -145,6 +152,10 @@ export default function StudentGuidedWorkspacePage() {
       .catch(() => {})
       .finally(() => setIsLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (isHubTab(requestedTab)) setTab(requestedTab);
+  }, [requestedTab]);
 
   const enrollment = useMemo(() => {
     const id = Number.parseInt(enrollmentId ?? "", 10);
