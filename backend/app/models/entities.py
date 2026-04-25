@@ -79,6 +79,7 @@ class FormationRecord(TimestampMixin, Base):
     session_label: Mapped[str] = mapped_column(String(255), nullable=False)
     current_price_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     original_price_amount: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    promo_ends_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     price_currency: Mapped[str] = mapped_column(String(12), nullable=False, default="XAF")
     allow_installments: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_featured_home: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -105,6 +106,63 @@ class UserRecord(TimestampMixin, Base):
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     avatar_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    first_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    welcome_message_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    dismissed_notification_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+
+
+class MessageThreadRecord(TimestampMixin, Base):
+    __tablename__ = "message_threads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    thread_type: Mapped[str] = mapped_column(String(32), nullable=False, default="direct")
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class MessageThreadParticipantRecord(TimestampMixin, Base):
+    __tablename__ = "message_thread_participants"
+    __table_args__ = (
+        UniqueConstraint("thread_id", "user_id", name="uq_message_thread_participant"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    thread_id: Mapped[int] = mapped_column(
+        ForeignKey("message_threads.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    role_snapshot: Mapped[str] = mapped_column(String(32), nullable=False)
+    last_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class MessageRecord(TimestampMixin, Base):
+    __tablename__ = "messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    thread_id: Mapped[int] = mapped_column(
+        ForeignKey("message_threads.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    sender_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    sender_type: Mapped[str] = mapped_column(String(16), nullable=False, default="user")
+    body: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class TeacherProfileRecord(TimestampMixin, Base):
@@ -144,6 +202,17 @@ class TeacherInvitationRecord(TimestampMixin, Base):
     experience_years: Mapped[int | None] = mapped_column(Integer, nullable=True)
     portfolio_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AdminInvitationRecord(TimestampMixin, Base):
+    __tablename__ = "admin_invitations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(180), index=True, nullable=False)
+    full_name: Mapped[str] = mapped_column(String(180), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

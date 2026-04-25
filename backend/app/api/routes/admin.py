@@ -1,11 +1,19 @@
+import secrets
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from pydantic import BaseModel, EmailStr
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import require_roles
+from app.core.security import hash_password
 from app.db.session import get_db
+from app.models.entities import AdminInvitationRecord, UserRecord
+from app.services.auth import create_user_access_token, serialize_auth_user
+from app.services.email import send_admin_invitation_email
 from app.schemas.catalog import (
     AdminCourseDayStatusUpdate,
     AdminEnrollmentItem,
@@ -57,6 +65,157 @@ router = APIRouter(
 
 UPLOAD_ROOT = Path(__file__).resolve().parents[3] / "uploads" / "admin-media"
 UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+
+# ── Public router for invitation acceptance (no auth required) ──────────────
+public_router = APIRouter(tags=["admin-invitations"])
+
+ADMIN_INVITE_EXPIRY_DAYS = 7
+
+
+# ── Schemas ─────────────────────────────────────────────────────────────────
+class AdminInviteCreate(BaseModel):
+    email: EmailStr
+    full_name: str
+
+
+class AdminInviteView(BaseModel):
+    id: int
+    email: str
+    full_name: str
+    token: str
+    status: str
+    expires_at: datetime
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AdminInviteAccept(BaseModel):
+    password: str
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+def _serialize_admin_invite(inv: AdminInvitationRecord) -> AdminInviteView:
+    return AdminInviteView(
+        id=inv.id,
+        email=inv.email,
+        full_name=inv.full_name,
+        token=inv.token,
+        status="expired" if (inv.status == "pending" and inv.expires_at < datetime.now(timezone.utc)) else inv.status,
+        expires_at=inv.expires_at,
+        created_at=inv.created_at,
+    )
+
+
+# ── Admin-protected routes ────────────────────────────────────────────────────
+@router.post("/invitations", response_model=AdminInviteView, status_code=201)
+def create_admin_invitation(
+    payload: AdminInviteCreate,
+    db: Session = Depends(get_db),
+) -> AdminInviteView:
+    if db.scalar(select(UserRecord).where(UserRecord.email == payload.email)):
+        raise HTTPException(status_code=400, detail="Un compte existe déjà avec cet email.")
+    pending = db.scalar(
+        select(AdminInvitationRecord).where(
+            AdminInvitationRecord.email == payload.email,
+            AdminInvitationRecord.status == "pending",
+        )
+    )
+    if pending and pending.expires_at > datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Une invitation est déjà en attente pour cet email.")
+
+    token = secrets.token_urlsafe(32)
+    inv = AdminInvitationRecord(
+        token=token,
+        email=payload.email,
+        full_name=payload.full_name,
+        status="pending",
+        expires_at=datetime.now(timezone.utc) + timedelta(days=ADMIN_INVITE_EXPIRY_DAYS),
+    )
+    db.add(inv)
+    db.commit()
+    db.refresh(inv)
+    try:
+        send_admin_invitation_email(payload.email, payload.full_name, token)
+    except Exception:
+        pass
+    return _serialize_admin_invite(inv)
+
+
+@router.get("/invitations", response_model=list[AdminInviteView])
+def list_admin_invitations(db: Session = Depends(get_db)) -> list[AdminInviteView]:
+    invs = db.scalars(
+        select(AdminInvitationRecord).order_by(AdminInvitationRecord.created_at.desc())
+    ).all()
+    return [_serialize_admin_invite(i) for i in invs]
+
+
+@router.post("/invitations/{invitation_id}/revoke", response_model=AdminInviteView)
+def revoke_admin_invitation(
+    invitation_id: int,
+    db: Session = Depends(get_db),
+) -> AdminInviteView:
+    inv = db.get(AdminInvitationRecord, invitation_id)
+    if inv is None:
+        raise HTTPException(status_code=404, detail="Invitation introuvable.")
+    if inv.status == "accepted":
+        raise HTTPException(status_code=400, detail="Cette invitation a déjà été acceptée.")
+    inv.status = "cancelled"
+    db.commit()
+    db.refresh(inv)
+    return _serialize_admin_invite(inv)
+
+
+# ── Public routes (no auth) ───────────────────────────────────────────────────
+@public_router.get("/invitations/admin/{token}", response_model=AdminInviteView)
+def get_admin_invitation(token: str, db: Session = Depends(get_db)) -> AdminInviteView:
+    inv = db.scalar(select(AdminInvitationRecord).where(AdminInvitationRecord.token == token))
+    if inv is None:
+        raise HTTPException(status_code=404, detail="Invitation introuvable.")
+    return _serialize_admin_invite(inv)
+
+
+@public_router.post("/invitations/admin/{token}/accept")
+def accept_admin_invitation(
+    token: str,
+    payload: AdminInviteAccept,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> dict:
+    inv = db.scalar(select(AdminInvitationRecord).where(AdminInvitationRecord.token == token))
+    if inv is None:
+        raise HTTPException(status_code=404, detail="Invitation introuvable.")
+    if inv.status != "pending":
+        raise HTTPException(status_code=400, detail="Cette invitation n'est plus valide.")
+    if inv.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Cette invitation a expiré.")
+    if db.scalar(select(UserRecord).where(UserRecord.email == inv.email)):
+        raise HTTPException(status_code=400, detail="Un compte existe déjà avec cet email.")
+
+    user = UserRecord(
+        email=inv.email,
+        full_name=inv.full_name,
+        password_hash=hash_password(payload.password),
+        role="admin",
+        status="active",
+    )
+    db.add(user)
+    inv.status = "accepted"
+    db.commit()
+    db.refresh(user)
+
+    access_token = create_user_access_token(user)
+    from app.core.config import settings
+    response.set_cookie(
+        key=settings.session_cookie_name,
+        value=access_token,
+        httponly=True,
+        samesite=settings.session_cookie_samesite,
+        secure=settings.session_cookie_secure,
+        max_age=60 * 60 * 24 * 30,
+        path="/",
+    )
+    return {"user": serialize_auth_user(user)}
 ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif"}
 ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".webm", ".ogg", ".mov"}
 IMAGE_CONTENT_TYPES = {

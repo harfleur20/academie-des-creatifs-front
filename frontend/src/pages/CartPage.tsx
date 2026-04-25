@@ -55,36 +55,41 @@ export default function CartPage() {
 
   if (isLoading || isResolvingIntent) {
     return (
-      <div className="page page--narrow">
-        <section className="auth-card auth-card--centered">
-          <p className="eyebrow">Panier</p>
-          <h1>{requestedSlug ? "Préparation de votre panier…" : "Chargement de votre panier…"}</h1>
-        </section>
+      <div className="page-surface--commerce">
+        <div className="page page--narrow">
+          <section className="auth-card auth-card--centered">
+            <p className="eyebrow">Panier</p>
+            <h1>{requestedSlug ? "Préparation de votre panier…" : "Chargement de votre panier…"}</h1>
+          </section>
+        </div>
       </div>
     );
   }
 
   if (cart.items.length === 0) {
     return (
-      <div className="formation-detail-page">
-        <section className="formation-detail-empty">
-          <p className="formation-detail-empty__eyebrow">Panier</p>
-          <h1>Votre panier est encore vide.</h1>
-          <p>
-            Ajoutez une formation depuis le catalogue pour préparer votre
-            inscription et retrouver vos choix ici.
-          </p>
-          <Link className="button button--primary" to="/formations">
-            Voir les formations
-          </Link>
-        </section>
+      <div className="page-surface--commerce">
+        <div className="formation-detail-page">
+          <section className="formation-detail-empty">
+            <p className="formation-detail-empty__eyebrow">Panier</p>
+            <h1>Votre panier est encore vide.</h1>
+            <p>
+              Ajoutez une formation depuis le catalogue pour préparer votre
+              inscription et retrouver vos choix ici.
+            </p>
+            <Link className="button button--primary" to="/formations">
+              Voir les formations
+            </Link>
+          </section>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="page commerce-page">
-      <section className="section-heading section-heading--spaced">
+    <div className="page-surface--commerce">
+      <div className="page commerce-page">
+        <section className="section-heading section-heading--spaced">
         <p className="eyebrow">Panier</p>
         <h1>Finalisez votre sélection avant paiement</h1>
         <p className="page-intro">
@@ -93,45 +98,45 @@ export default function CartPage() {
         </p>
       </section>
 
-      {intentError && (
-        <p className="dashboard-notice dashboard-notice--error">{intentError}</p>
-      )}
+        {intentError && (
+          <p className="dashboard-notice dashboard-notice--error">{intentError}</p>
+        )}
 
-      {closedItems.length > 0 && (
-        <div className="cart-closed-banner">
-          <FaExclamationTriangle className="cart-closed-banner__icon" />
-          <div className="cart-closed-banner__body">
-            <strong>
-              {closedItems.length === 1
-                ? "1 formation ne peut plus être achetée"
-                : `${closedItems.length} formations ne peuvent plus être achetées`}
-            </strong>
-            <p>
-              {closedItems.map((item) => item.title).join(", ")} —{" "}
-              {closedItems[0].purchase_message ?? "Inscriptions closes."}
-            </p>
+        {closedItems.length > 0 && (
+          <div className="cart-closed-banner">
+            <FaExclamationTriangle className="cart-closed-banner__icon" />
+            <div className="cart-closed-banner__body">
+              <strong>
+                {closedItems.length === 1
+                  ? "1 formation ne peut plus être achetée"
+                  : `${closedItems.length} formations ne peuvent plus être achetées`}
+              </strong>
+              <p>
+                {closedItems.map((item) => item.title).join(", ")} —{" "}
+                {closedItems[0].purchase_message ?? "Inscriptions closes."}
+              </p>
+            </div>
+            <div className="cart-closed-banner__actions">
+              {closedItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="cart-closed-banner__remove"
+                  onClick={() => {
+                    void removeFromCart(item.formation_slug)
+                      .then(() => success(`"${item.title}" retiré du panier.`))
+                      .catch((e) => showErrorToast(getUserActionErrorMessage(e, "cart.remove")));
+                  }}
+                >
+                  Retirer « {item.title.length > 30 ? `${item.title.slice(0, 28)}…` : item.title} »
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="cart-closed-banner__actions">
-            {closedItems.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className="cart-closed-banner__remove"
-                onClick={() => {
-                  void removeFromCart(item.formation_slug)
-                    .then(() => success(`"${item.title}" retiré du panier.`))
-                    .catch((e) => showErrorToast(getUserActionErrorMessage(e, "cart.remove")));
-                }}
-              >
-                Retirer « {item.title.length > 30 ? `${item.title.slice(0, 28)}…` : item.title} »
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+        )}
 
-      <div className="cart-layout">
-        <div className="cart-items">
+        <div className="cart-layout">
+          <div className="cart-items">
           {cart.items.map((item) => (
             <article className={`cart-item-card${!item.can_purchase ? " cart-item-card--closed" : ""}`} key={item.id}>
               <div className="cart-item-card__thumbnail">
@@ -187,10 +192,10 @@ export default function CartPage() {
               </div>
             </article>
           ))}
-        </div>
+          </div>
 
-        <aside className="cart-summary">
-          <div className="cart-summary__card">
+          <aside className="cart-summary">
+            <div className="cart-summary__card">
             <h2>Récapitulatif</h2>
 
             <div className="cart-summary__breakdown">
@@ -240,8 +245,9 @@ export default function CartPage() {
                 <span>Support client réactif</span>
               </div>
             </div>
-          </div>
-        </aside>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   );

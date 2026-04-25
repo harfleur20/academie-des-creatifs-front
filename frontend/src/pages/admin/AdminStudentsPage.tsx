@@ -266,9 +266,6 @@ function StudentDetailModal({
                 </div>
               </div>
 
-              {userFeedback && (
-                <div className={`adm-feedback adm-feedback--${userFeedback.type}`}>{userFeedback.message}</div>
-              )}
             </section>
 
             <section className="adm-card adm-student-detail-card">
@@ -404,9 +401,6 @@ function StudentDetailModal({
                               Aucune autre session n’est disponible pour cette formation.
                             </span>
                           ) : null}
-                          {feedback && (
-                            <span className={`adm-feedback adm-feedback--${feedback.type}`}>{feedback.message}</span>
-                          )}
                         </div>
                       </article>
                     );
@@ -762,7 +756,6 @@ export default function AdminStudentsPage() {
                 {paginated.length ? (
                   paginated.map((user) => {
                     const draft = userDrafts[user.id];
-                    const feedback = userFeedbackById[user.id];
                     const isSaving = savingUserId === user.id;
                     const studentEnrollments = enrollments.filter((enrollment) => enrollment.user_id === user.id);
                     const activeEnrollments = studentEnrollments.filter(
@@ -848,11 +841,6 @@ export default function AdminStudentsPage() {
                             <span className={toneBadge(draft?.status ?? user.status)}>
                               {statusLabel(draft?.status ?? user.status)}
                             </span>
-                            {feedback && (
-                              <span className={`adm-feedback adm-feedback--${feedback.type}`}>
-                                {feedback.message}
-                              </span>
-                            )}
                           </div>
                         </td>
                       </tr>

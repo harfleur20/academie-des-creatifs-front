@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useToast } from "../../toast/ToastContext";
 import { CheckCircle, Plus, Trash2, Users, X, BarChart2, Calendar, BookOpen, Timer, Wand2 } from "lucide-react";
 import {
   fetchTeacherOverview,
@@ -36,7 +37,7 @@ export default function TeacherQuizzesPage() {
   const [showForm, setShowForm]             = useState(false);
   const [creationMode, setCreationMode]     = useState<QuizCreationMode>("manual");
   const [saving, setSaving]                 = useState(false);
-  const [error, setError]                   = useState("");
+  const { success, error: toastError } = useToast();
   const [aiTopic, setAiTopic]               = useState("");
   const [aiLevel, setAiLevel]               = useState("");
   const [aiObjectives, setAiObjectives]     = useState("");
@@ -55,7 +56,7 @@ export default function TeacherQuizzesPage() {
         setSessions(o.sessions);
         if (o.sessions.length > 0) setSelectedSessionId(o.sessions[0].id);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
+      .catch((e) => toastError(e instanceof Error ? e.message : "Erreur de chargement."))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -112,17 +113,15 @@ export default function TeacherQuizzesPage() {
     setAiObjectives("");
     setAiQuestionsCount(5);
     setAiOptionsPerQuestion(4);
-    setError("");
   }
 
   async function handleGenerateQuizDraft() {
     if (!selectedSessionId) return;
     if (!aiTopic.trim()) {
-      setError("Indiquez le sujet du quiz à générer.");
+      toastError("Indiquez le sujet du quiz à générer.");
       return;
     }
     setAiGenerating(true);
-    setError("");
     try {
       const draft = await generateQuizDraft({
         session_id: selectedSessionId,
@@ -141,18 +140,18 @@ export default function TeacherQuizzesPage() {
         correct_index: Math.min(question.correct_index, Math.max(question.options.length - 1, 0)),
       })));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Impossible de générer le quiz.");
+      toastError(e instanceof Error ? e.message : "Impossible de générer le quiz.");
     } finally {
       setAiGenerating(false);
     }
   }
 
   async function handleCreate() {
-    if (!selectedSessionId || !title.trim()) { setError("Titre requis."); return; }
+    if (!selectedSessionId || !title.trim()) { toastError("Titre requis."); return; }
     if (questions.some((q) => !q.text.trim() || q.options.some((o) => !o.trim()))) {
-      setError("Toutes les questions et options doivent être remplies."); return;
+      toastError("Toutes les questions et options doivent être remplies."); return;
     }
-    setSaving(true); setError("");
+    setSaving(true);
     try {
       const quiz = await createQuiz(selectedSessionId, {
         title: title.trim(),
@@ -164,8 +163,9 @@ export default function TeacherQuizzesPage() {
       setQuizzes((p) => [...p, quiz]);
       setShowForm(false);
       resetForm();
+      success("Quiz créé.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur de création.");
+      toastError(e instanceof Error ? e.message : "Erreur lors de la création du quiz.");
     } finally {
       setSaving(false);
     }
@@ -220,8 +220,6 @@ export default function TeacherQuizzesPage() {
           </button>
         </div>
       )}
-
-      {error && <p className="dsh-error">{error}</p>}
 
       {/* ── Create form ── */}
       {showForm && (

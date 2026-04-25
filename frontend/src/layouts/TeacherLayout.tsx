@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import MessagingBell from "../components/MessagingBell";
 import NotifBell from "../components/NotifBell";
 import {
   ArrowLeft,
@@ -13,6 +14,7 @@ import {
   HelpCircle,
   LayoutDashboard,
   LogOut,
+  MessageCircle,
   Search,
   Settings,
   TrendingUp,
@@ -30,6 +32,7 @@ const navItems: NavItem[] = [
   { to: "/espace/enseignant/quizz",     label: "Quizz & Examens", icon: <BookOpen size={16} /> },
   { to: "/espace/enseignant/ressources",label: "Ressources",      icon: <FolderOpen size={16} /> },
   { to: "/espace/enseignant/devoirs",   label: "Devoirs",         icon: <ClipboardList size={16} /> },
+  { to: "/espace/enseignant/messages",  label: "Messages",        icon: <MessageCircle size={16} /> },
 ];
 
 const searchTargets: SearchTarget[] = [
@@ -40,6 +43,7 @@ const searchTargets: SearchTarget[] = [
   { to: "/espace/enseignant/quizz", label: "Quizz & Examens", keywords: ["quiz", "quizz", "examen", "examens", "test"] },
   { to: "/espace/enseignant/ressources", label: "Ressources", keywords: ["ressource", "fichier", "document", "pdf"] },
   { to: "/espace/enseignant/devoirs", label: "Devoirs", keywords: ["devoir", "assignment", "rendu"] },
+  { to: "/espace/enseignant/messages", label: "Messages", keywords: ["message", "messagerie", "conversation"] },
   { to: "/espace/enseignant/profil", label: "Paramètres", keywords: ["profil", "parametre", "paramètres", "compte"] },
   { to: "/espace/enseignant/aide", label: "Aide & support", keywords: ["aide", "support", "assistance"] },
   { to: "/espace/enseignant/notifications", label: "Notifications", keywords: ["notification", "notifications", "message"] },
@@ -171,6 +175,7 @@ export default function TeacherLayout() {
           </form>
 
           <div className="dsh-topbar__right" ref={userMenuRef}>
+            <MessagingBell to="/espace/enseignant/messages" />
             <NotifBell allNotifPath="/espace/enseignant/notifications" />
             <button
               type="button"

@@ -19,6 +19,7 @@ from app.services.auth import (
     serialize_auth_user,
 )
 from app.services.email import send_password_reset_email, send_welcome_email
+from app.services.messaging import ensure_welcome_message
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -92,6 +93,7 @@ def login(
 
     access_token, expires_at = create_user_access_token(user, remember_me=payload.remember_me)
     set_auth_cookie(response, access_token, remember_me=payload.remember_me)
+    ensure_welcome_message(db, user)
     return AuthResponse(
         message="Connexion reussie.",
         user=serialize_auth_user(user),
@@ -110,7 +112,11 @@ def logout(
 
 
 @router.get("/me", response_model=AuthResponse)
-def read_me(current_user: UserRecord = Depends(get_current_user)) -> AuthResponse:
+def read_me(
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> AuthResponse:
+    ensure_welcome_message(db, current_user)
     access_token, expires_at = create_user_access_token(current_user, remember_me=False)
     return AuthResponse(
         message="Session active.",

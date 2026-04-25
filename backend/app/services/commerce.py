@@ -2002,44 +2002,50 @@ def list_user_notifications(db: Session, user: UserRecord) -> list[NotificationV
             )
         ) or 0
 
-        notifications.extend(
-            [
+        if pending_orders > 0:
+            notifications.append(
                 NotificationView(
-                    id="admin-pending-orders",
+                    id=f"admin-pending-orders-{pending_orders}",
                     title="Commandes en attente",
                     message=f"{pending_orders} commande(s) necessitent encore une validation ou un paiement.",
-                    tone="warning" if pending_orders > 0 else "info",
+                    tone="warning",
                     category="admin",
                     created_at=utc_now(),
                     action_label="Commandes",
                     action_path="/admin/commandes",
-                ),
+                )
+            )
+        if pending_payments > 0:
+            notifications.append(
                 NotificationView(
-                    id="admin-pending-payments",
+                    id=f"admin-pending-payments-{pending_payments}",
                     title="Paiements a surveiller",
-                    message=(
-                        f"{pending_payments} paiement(s) en attente necessitent un suivi."
-                    ),
-                    tone="warning" if pending_payments > 0 else "info",
+                    message=f"{pending_payments} paiement(s) en attente necessitent un suivi.",
+                    tone="warning",
                     category="admin",
                     created_at=utc_now(),
                     action_label="Paiements",
                     action_path="/admin/paiements",
+                )
+            )
+        revenue_bucket = int(confirmed_revenue) // 10000
+        notifications.append(
+            NotificationView(
+                id=f"admin-confirmed-revenue-{revenue_bucket}",
+                title="Encaissements confirmes",
+                message=(
+                    f"Le total confirme a ce jour atteint "
+                    f"{format_fcfa(int(confirmed_revenue)) or f'{confirmed_revenue} FCFA'}."
                 ),
-                NotificationView(
-                    id="admin-confirmed-revenue",
-                    title="Encaissements confirmes",
-                    message=(
-                        f"Le total confirme a ce jour atteint "
-                        f"{format_fcfa(int(confirmed_revenue)) or f'{confirmed_revenue} FCFA'}."
-                    ),
-                    tone="success",
-                    category="admin",
-                    created_at=utc_now(),
-                    action_label="Performance",
-                    action_path="/admin/performance",
-                ),
-            ]
+                tone="success",
+                category="admin",
+                created_at=utc_now(),
+                action_label="Performance",
+                action_path="/admin/performance",
+            )
         )
+
+    dismissed_ids = set(user.dismissed_notification_ids or [])
+    notifications = [n for n in notifications if n.id not in dismissed_ids]
 
     return sorted(notifications, key=lambda item: item.created_at, reverse=True)

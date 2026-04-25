@@ -3,12 +3,13 @@ import { Link } from "react-router-dom";
 import {
   FaCalendarAlt,
   FaChalkboardTeacher,
+  FaChartLine,
   FaChevronLeft,
   FaChevronRight,
   FaEllipsisH,
-  FaEnvelopeOpen,
   FaExclamationTriangle,
   FaGraduationCap,
+  FaMoneyBillWave,
   FaPlus,
   FaUsers,
   FaVideo,
@@ -32,7 +33,7 @@ function MiniCalendar() {
   const year = target.getFullYear();
   const month = target.getMonth();
   const monthLabel = new Intl.DateTimeFormat("fr-FR", { month: "long" }).format(target);
-  const firstDow = (new Date(year, month, 1).getDay() + 6) % 7; // Mon-first
+  const firstDow = (new Date(year, month, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = offset === 0 ? now.getDate() : -1;
   const cells: (number | null)[] = [];
@@ -95,7 +96,7 @@ function EarningsChart({ orders }: { orders: Parameters<typeof buildMonthlyReven
     <div className="ov2-earn">
       <div className="ov2-earn__head">
         <div>
-          <span className="ov2-section-label">Revenus</span>
+          <span className="ov2-section-label">Revenus mensuels</span>
         </div>
         <div className="ov2-earn__legend">
           <span className="ov2-dot" style={{ background: "#4f46e5" }} /> <span>Recettes</span>
@@ -138,41 +139,70 @@ function EarningsChart({ orders }: { orders: Parameters<typeof buildMonthlyReven
   );
 }
 
-/* ── Illustration SVG ────────────────────────────── */
-function HeroIllustration() {
+/* ── 6-Month Trend ───────────────────────────────── */
+function SixMonthTrend({
+  orders,
+  enrollments,
+}: {
+  orders: Parameters<typeof buildMonthlyRevenueSeries>[0];
+  enrollments: Array<{ created_at: string }>;
+}) {
+  const series = buildMonthlyRevenueSeries(orders);
+  const now = new Date();
+  const currentKey = `${now.getFullYear()}-${now.getMonth()}`;
+
+  const enrollCounts = new Map<string, number>();
+  const orderCounts = new Map<string, number>();
+  series.forEach(s => { enrollCounts.set(s.key, 0); orderCounts.set(s.key, 0); });
+
+  enrollments.forEach(e => {
+    const d = new Date(e.created_at);
+    if (Number.isNaN(d.getTime())) return;
+    const k = `${d.getFullYear()}-${d.getMonth()}`;
+    if (enrollCounts.has(k)) enrollCounts.set(k, (enrollCounts.get(k) ?? 0) + 1);
+  });
+
+  orders.forEach(o => {
+    const d = new Date(o.created_at);
+    if (Number.isNaN(d.getTime())) return;
+    const k = `${d.getFullYear()}-${d.getMonth()}`;
+    if (orderCounts.has(k)) orderCounts.set(k, (orderCounts.get(k) ?? 0) + 1);
+  });
+
   return (
-    <svg width="160" height="160" viewBox="0 0 160 160" aria-hidden="true" className="ov2-hero__illus">
-      {/* Outer rings */}
-      <circle cx="80" cy="80" r="70" fill="rgba(255,255,255,0.06)" />
-      <circle cx="80" cy="80" r="52" fill="rgba(255,255,255,0.08)" />
-      {/* Person */}
-      <circle cx="80" cy="52" r="20" fill="rgba(255,255,255,0.92)" /> {/* head */}
-      <rect x="58" y="74" width="44" height="52" rx="10" fill="rgba(255,255,255,0.85)" /> {/* body */}
-      {/* Face details */}
-      <circle cx="73" cy="50" r="2.5" fill="#4f46e5" />
-      <circle cx="87" cy="50" r="2.5" fill="#4f46e5" />
-      <path d="M73,59 Q80,65 87,59" fill="none" stroke="#4f46e5" strokeWidth="2" strokeLinecap="round" />
-      {/* Graduation cap */}
-      <polygon points="80,28 100,37 80,46 60,37" fill="rgba(255,255,255,0.9)" />
-      <rect x="67" y="33" width="26" height="5" rx="2" fill="rgba(255,255,255,0.7)" />
-      <line x1="100" y1="37" x2="102" y2="48" stroke="rgba(255,255,255,0.8)" strokeWidth="2.5" />
-      <circle cx="102" cy="50" r="3.5" fill="rgba(255,255,255,0.9)" />
-      {/* Book in hands */}
-      <rect x="62" y="88" width="36" height="25" rx="4" fill="rgba(99,102,241,0.4)" />
-      <line x1="62" y1="100" x2="98" y2="100" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" />
-      <line x1="72" y1="88" x2="72" y2="113" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" />
-      {/* Stars / sparkles */}
-      <path d="M30,40 L32,47 L39,49 L32,51 L30,58 L28,51 L21,49 L28,47 Z"
-        fill="rgba(255,255,255,0.5)" />
-      <path d="M130,70 L131.5,74.5 L136,76 L131.5,77.5 L130,82 L128.5,77.5 L124,76 L128.5,74.5 Z"
-        fill="rgba(255,255,255,0.4)" />
-      <circle cx="125" cy="40" r="4" fill="rgba(255,255,255,0.3)" />
-      <circle cx="25" cy="90" r="5" fill="rgba(255,255,255,0.2)" />
-    </svg>
+    <div className="ov2-trend">
+      <div className="ov2-trend__hd">
+        <div>
+          <p className="ov2-trend__title">Tendance sur 6 mois</p>
+          <p className="ov2-trend__sub">Revenus confirmés, commandes et inscriptions.</p>
+        </div>
+        <FaChartLine className="ov2-trend__ico" />
+      </div>
+      <hr className="ov2-trend__sep" />
+      <div className="ov2-trend__cols">
+        {series.map(m => {
+          const current = m.key === currentKey;
+          const label = m.label.charAt(0).toUpperCase() + m.label.slice(1);
+          const rev = m.value > 0 ? `${m.value.toLocaleString("fr-FR")} FCFA` : "0 FCFA";
+          return (
+            <div key={m.key} className={`ov2-trend__col${current ? " ov2-trend__col--cur" : ""}`}>
+              <div className="ov2-trend__bar">
+                <span className="ov2-trend__pill" />
+              </div>
+              <strong className="ov2-trend__mo">{label}</strong>
+              <span className="ov2-trend__rev">{rev}</span>
+              <span className="ov2-trend__cnt">
+                {enrollCounts.get(m.key) ?? 0} insc. · {orderCounts.get(m.key) ?? 0} cmd.
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
-/* ── Order status color ──────────────────────────── */
+/* ── Order status badge ──────────────────────────── */
 function orderBadge(status: string) {
   if (status === "paid") return "adm-badge adm-badge--green";
   if (status === "pending") return "adm-badge adm-badge--yellow";
@@ -180,9 +210,8 @@ function orderBadge(status: string) {
   return "adm-badge adm-badge--red";
 }
 
-/* ── COLORS ──────────────────────────────────────── */
-const DONUT_C1 = "#4f46e5"; // indigo
-const DONUT_C2 = "#06b6d4"; // cyan
+const DONUT_C1 = "#4f46e5";
+const DONUT_C2 = "#06b6d4";
 
 /* ════════════════════════════════════════════════════
    MAIN PAGE
@@ -194,6 +223,7 @@ export default function AdminOverviewPage() {
     loading,
     loadingError,
     orders,
+    enrollments,
     sessions,
     users,
     openCreateFormationEditor,
@@ -228,7 +258,6 @@ export default function AdminOverviewPage() {
     .filter(s => s.session_state === "upcoming" || s.session_state === "started_open")
     .slice(0, 4);
 
-  /* Notice board items from sessions */
   const noticeItems = [
     ...upcomingSessions.map((s, i) => ({
       id: s.id,
@@ -238,13 +267,8 @@ export default function AdminOverviewPage() {
       extra: `${s.enrolled_count}/${s.seat_capacity} inscrits`,
     })),
   ];
-
   if (!noticeItems.length) {
-    noticeItems.push({
-      id: -1, color: "#a0aec0",
-      title: "Aucune session à venir",
-      sub: "Créez une nouvelle session", extra: "",
-    });
+    noticeItems.push({ id: -1, color: "#a0aec0", title: "Aucune session à venir", sub: "Créez une nouvelle session", extra: "" });
   }
 
   return (
@@ -253,83 +277,211 @@ export default function AdminOverviewPage() {
       {loadingError && <div className="adm-state-card adm-state-card--error"><p>{loadingError}</p></div>}
 
       {!loading && !loadingError && (
-        <div className="ov2-grid">
+        <>
+          {/* ══ MAIN GRID ══ */}
+          <div className="ov2-grid">
 
-          {/* ══════ LEFT COLUMN ══════ */}
-          <div className="ov2-left">
+            {/* ─── LEFT column ─── */}
+            <div className="ov2-left">
 
-            {/* Welcome hero */}
-            <div className="ov2-hero">
-              <div className="ov2-hero__text">
-                <p className="ov2-hero__eyebrow">Gestion académique</p>
-                <h2 className="ov2-hero__title">
-                  Bienvenue, {firstName}&nbsp;&amp;<br />
-                  l'équipe Académie des Créatifs&nbsp;!
-                </h2>
-                <p className="ov2-hero__desc">
-                  Pilotez les formations, inscriptions et finances.<br />
-                  Tout est en temps réel avec votre base de données.
-                </p>
-                <div className="ov2-hero__btns">
-                  <button className="ov2-btn-white" type="button" onClick={openCreateFormationEditor}>
-                    <FaPlus /> Nouvelle formation
-                  </button>
-                  <button className="ov2-btn-ghost" type="button" onClick={() => openCreateSessionEditor()}>
-                    <FaVideo /> Nouvelle session
-                  </button>
+              {/* Hero — colonne gauche, pas full-width */}
+              <div className="ov2-hero">
+                <div className="ov2-hero__text">
+                  <p className="ov2-hero__eyebrow">Gestion académique</p>
+                  <h2 className="ov2-hero__title">
+                    Bienvenue, {firstName}&nbsp;&amp;<br />
+                    l'équipe Académie des Créatifs&nbsp;!
+                  </h2>
+                  <p className="ov2-hero__desc">
+                    Pilotez les formations, inscriptions et finances.<br />
+                    Tout est en temps réel avec votre base de données.
+                  </p>
+                  <div className="ov2-hero__btns">
+                    <button className="ov2-btn-white" type="button" onClick={openCreateFormationEditor}>
+                      <FaPlus /> Nouvelle formation
+                    </button>
+                    <button className="ov2-btn-ghost" type="button" onClick={() => openCreateSessionEditor()}>
+                      <FaVideo /> Nouvelle session
+                    </button>
+                  </div>
+                </div>
+                <img
+                  src="/img-bg-8.png"
+                  alt=""
+                  aria-hidden
+                  className="ov2-hero__illus"
+                  draggable={false}
+                />
+              </div>
+
+              {/* 3 KPIs juste sous le hero */}
+              <div className="ov2-kpi-strip ov2-kpi-strip--3">
+                <div className="ov2-kpi-block ov2-kpi-block--yellow">
+                  <div className="ov2-kpi-block__top">
+                    <span>Étudiants</span>
+                    <button type="button" className="ov2-more ov2-more--dark"><FaEllipsisH /></button>
+                  </div>
+                  <strong>{users.filter(u => u.role === "student").length}</strong>
+                  <span className="ov2-kpi-block__bg-icon"><FaGraduationCap /></span>
+                </div>
+                <div className="ov2-kpi-block ov2-kpi-block--purple">
+                  <div className="ov2-kpi-block__top">
+                    <span>Enseignants</span>
+                    <button type="button" className="ov2-more ov2-more--dark"><FaEllipsisH /></button>
+                  </div>
+                  <strong>{users.filter(u => u.role === "teacher").length}</strong>
+                  <span className="ov2-kpi-block__bg-icon"><FaChalkboardTeacher /></span>
+                </div>
+                <div className="ov2-kpi-block ov2-kpi-block--green">
+                  <div className="ov2-kpi-block__top">
+                    <span>Formations</span>
+                    <button type="button" className="ov2-more ov2-more--dark"><FaEllipsisH /></button>
+                  </div>
+                  <strong>{overview?.formations_count ?? "—"}</strong>
+                  <span className="ov2-kpi-block__bg-icon"><FaUsers /></span>
                 </div>
               </div>
-              <HeroIllustration />
+
+              {/* Alerte cours manqués */}
+              {missedDays.length > 0 && (
+                <div className="ov2-card ov2-missed-alert">
+                  <div className="ov2-card__head">
+                    <span className="ov2-section-label" style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#b45309" }}>
+                      <FaExclamationTriangle style={{ color: "#f59e0b" }} />
+                      Cours manqués sans présence ({missedDays.length})
+                    </span>
+                  </div>
+                  <div className="ov2-missed-list">
+                    {missedDays.map(d => (
+                      <div key={d.id} className="ov2-missed-item">
+                        <div className="ov2-missed-item__info">
+                          <strong>{d.formation_title}</strong>
+                          <span>{d.session_label} · {d.teacher_name}</span>
+                          <span className="ov2-missed-item__date">
+                            {new Date(d.scheduled_at).toLocaleString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            {" "}· {d.duration_minutes} min
+                          </span>
+                        </div>
+                        <div className="ov2-missed-item__actions">
+                          <button type="button" className="adm-btn adm-btn--sm adm-btn--green" disabled={patchingId === d.id} onClick={() => handleOverride(d.id, "done")}>
+                            Marquer fait
+                          </button>
+                          <button type="button" className="adm-btn adm-btn--sm adm-btn--red" disabled={patchingId === d.id} onClick={() => handleOverride(d.id, "cancelled")}>
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Earnings chart */}
+              <div className="ov2-card">
+                <EarningsChart orders={orders} />
+              </div>
+
+              {/* 6-month trend */}
+              <div className="ov2-card">
+                <SixMonthTrend orders={orders} enrollments={enrollments} />
+              </div>
+
+              {/* Dernières commandes */}
+              <div className="ov2-card ov2-messages">
+                <div className="ov2-card__head">
+                  <span className="ov2-section-label">Dernières commandes</span>
+                  <Link className="ov2-see-all" to="/admin/commandes">Voir tout →</Link>
+                </div>
+                <div className="ov2-msg-list">
+                  {latestOrders.map(order => (
+                    <div key={order.id} className="ov2-msg-item">
+                      <div className="ov2-msg-avatar">
+                        {order.customer_name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="ov2-msg-body">
+                        <strong>{order.customer_name}</strong>
+                        <span>{order.formation_title}</span>
+                      </div>
+                      <span className={orderBadge(order.status)} style={{ fontSize: "0.68rem" }}>
+                        {statusLabel(order.status)}
+                      </span>
+                    </div>
+                  ))}
+                  {!latestOrders.length && (
+                    <p className="adm-empty" style={{ padding: "0.75rem 1.25rem" }}>Aucune commande.</p>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Missed course days alert */}
-            {missedDays.length > 0 && (
-              <div className="ov2-card ov2-missed-alert">
-                <div className="ov2-card__head">
-                  <span className="ov2-section-label" style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#b45309" }}>
-                    <FaExclamationTriangle style={{ color: "#f59e0b" }} />
-                    Cours manqués sans présence ({missedDays.length})
-                  </span>
+            {/* ─── RIGHT column ─── */}
+            <div className="ov2-right">
+
+              {/* Revenus confirmés */}
+              <div className="ov2-kpi-block ov2-kpi-block--blue">
+                <div className="ov2-kpi-block__top">
+                  <span>Revenus confirmés</span>
+                  <button type="button" className="ov2-more ov2-more--dark"><FaEllipsisH /></button>
                 </div>
-                <div className="ov2-missed-list">
-                  {missedDays.map(d => (
-                    <div key={d.id} className="ov2-missed-item">
-                      <div className="ov2-missed-item__info">
-                        <strong>{d.formation_title}</strong>
-                        <span>{d.session_label} · {d.teacher_name}</span>
-                        <span className="ov2-missed-item__date">
-                          {new Date(d.scheduled_at).toLocaleString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                          {" "}· {d.duration_minutes} min
-                        </span>
-                      </div>
-                      <div className="ov2-missed-item__actions">
-                        <button
-                          type="button"
-                          className="adm-btn adm-btn--sm adm-btn--green"
-                          disabled={patchingId === d.id}
-                          onClick={() => handleOverride(d.id, "done")}
-                        >
-                          Marquer fait
-                        </button>
-                        <button
-                          type="button"
-                          className="adm-btn adm-btn--sm adm-btn--red"
-                          disabled={patchingId === d.id}
-                          onClick={() => handleOverride(d.id, "cancelled")}
-                        >
-                          Annuler
-                        </button>
+                <strong>{overview?.total_confirmed_revenue_label ?? "0 FCFA"}</strong>
+                <span className="ov2-kpi-block__bg-icon"><FaMoneyBillWave /></span>
+              </div>
+
+              {/* Calendar */}
+              <div className="ov2-card"><MiniCalendar /></div>
+
+              {/* Sessions à venir */}
+              <div className="ov2-card ov2-notice-card">
+                <div className="ov2-card__head">
+                  <span className="ov2-section-label">Sessions à venir</span>
+                  <button type="button" className="ov2-add-btn" onClick={() => openCreateSessionEditor()}>
+                    <FaPlus /> Ajouter
+                  </button>
+                </div>
+                <div className="ov2-notice-list">
+                  {noticeItems.map(item => (
+                    <div key={item.id} className="ov2-notice-item">
+                      <span className="ov2-notice-item__bar" style={{ background: item.color }} />
+                      <div className="ov2-notice-item__content">
+                        <strong>{item.title}</strong>
+                        <span>{item.sub}</span>
+                        {item.extra && <small>{item.extra}</small>}
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-            )}
 
-            {/* Donut + Notice board */}
-            <div className="ov2-mid">
+              {/* Statut des paiements */}
+              <div className="ov2-card ov2-fee">
+                <div className="ov2-card__head">
+                  <span className="ov2-section-label">Statut des paiements</span>
+                </div>
+                <div className="ov2-fee-list">
+                  <div className="ov2-fee-item">
+                    <span className="ov2-fee-dot" style={{ background: "#22c55e" }} />
+                    <span>Confirmés</span>
+                    <strong>{overview?.confirmed_payments_count ?? 0}</strong>
+                  </div>
+                  <div className="ov2-fee-item">
+                    <span className="ov2-fee-dot" style={{ background: "#f59e0b" }} />
+                    <span>En attente</span>
+                    <strong>{overview?.pending_payments_count ?? 0}</strong>
+                  </div>
+                  <div className="ov2-fee-item">
+                    <span className="ov2-fee-dot" style={{ background: "#ef4444" }} />
+                    <span>En retard</span>
+                    <strong>{overview?.late_payments_count ?? 0}</strong>
+                  </div>
+                  <div className="ov2-fee-item">
+                    <span className="ov2-fee-dot" style={{ background: "#3b82f6" }} />
+                    <span>Commandes payées</span>
+                    <strong>{overview?.paid_orders_count ?? 0}</strong>
+                  </div>
+                </div>
+              </div>
 
-              {/* Donut */}
+              {/* Donut commandes */}
               <div className="ov2-card ov2-donut-card">
                 <div className="ov2-card__head">
                   <span className="ov2-section-label">Commandes</span>
@@ -366,153 +518,9 @@ export default function AdminOverviewPage() {
                 </div>
               </div>
 
-              {/* Notice board */}
-              <div className="ov2-card ov2-notice-card">
-                <div className="ov2-card__head">
-                  <span className="ov2-section-label">Tableau d'activité</span>
-                  <button
-                    type="button"
-                    className="ov2-add-btn"
-                    onClick={() => openCreateSessionEditor()}
-                  >
-                    <FaPlus /> Ajouter
-                  </button>
-                </div>
-                <div className="ov2-notice-list">
-                  {noticeItems.map(item => (
-                    <div key={item.id} className="ov2-notice-item">
-                      <span className="ov2-notice-item__bar" style={{ background: item.color }} />
-                      <div className="ov2-notice-item__content">
-                        <strong>{item.title}</strong>
-                        <span>{item.sub}</span>
-                        {item.extra && <small>{item.extra}</small>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Earnings chart */}
-            <div className="ov2-card">
-              <EarningsChart orders={orders} />
             </div>
           </div>
-
-          {/* ══════ RIGHT COLUMN ══════ */}
-          <div className="ov2-right">
-
-            {/* KPI cards — style from mockup */}
-            <div className="ov2-kpis">
-              <div className="ov2-kpi-block ov2-kpi-block--yellow">
-                <div className="ov2-kpi-block__top">
-                  <span>Étudiants</span>
-                  <button type="button" className="ov2-more ov2-more--dark"><FaEllipsisH /></button>
-                </div>
-                <strong>{users.filter(u => u.role === "student").length}</strong>
-                <span className="ov2-kpi-block__bg-icon"><FaGraduationCap /></span>
-              </div>
-              <div className="ov2-kpi-block ov2-kpi-block--purple">
-                <div className="ov2-kpi-block__top">
-                  <span>Enseignants</span>
-                  <button type="button" className="ov2-more ov2-more--dark"><FaEllipsisH /></button>
-                </div>
-                <strong>{users.filter(u => u.role === "teacher").length}</strong>
-                <span className="ov2-kpi-block__bg-icon"><FaChalkboardTeacher /></span>
-              </div>
-              <div className="ov2-kpi-block ov2-kpi-block--green">
-                <div className="ov2-kpi-block__top">
-                  <span>Formations</span>
-                  <button type="button" className="ov2-more ov2-more--dark"><FaEllipsisH /></button>
-                </div>
-                <strong>{overview?.formations_count ?? "—"}</strong>
-                <span className="ov2-kpi-block__bg-icon"><FaUsers /></span>
-              </div>
-            </div>
-
-            {/* Calendar */}
-            <div className="ov2-card"><MiniCalendar /></div>
-
-            {/* Financial Overview */}
-            <div className="ov2-card ov2-financial">
-              <div className="ov2-card__head">
-                <span className="ov2-section-label">Vue financière</span>
-                <div className="ov2-toggle">
-                  <button type="button" className="is-active">Mois</button>
-                  <button type="button">Annuel</button>
-                </div>
-              </div>
-              <div className="ov2-fin-rows">
-                <div className="ov2-fin-row ov2-fin-row--income">
-                  <span>Revenus confirmés</span>
-                  <strong>{overview?.total_confirmed_revenue_label ?? "0 FCFA"}</strong>
-                </div>
-                <div className="ov2-fin-row ov2-fin-row--expense">
-                  <span>Commandes en attente</span>
-                  <strong>{overview?.pending_orders_count ?? 0}</strong>
-                </div>
-              </div>
-            </div>
-
-            {/* Fee Status */}
-            <div className="ov2-card ov2-fee">
-              <div className="ov2-card__head">
-                <span className="ov2-section-label">Statut des paiements</span>
-              </div>
-              <div className="ov2-fee-list">
-                <div className="ov2-fee-item">
-                  <span className="ov2-fee-dot" style={{ background: "#22c55e" }} />
-                  <span>Confirmés</span>
-                  <strong>{overview?.confirmed_payments_count ?? 0}</strong>
-                </div>
-                <div className="ov2-fee-item">
-                  <span className="ov2-fee-dot" style={{ background: "#f59e0b" }} />
-                  <span>En attente</span>
-                  <strong>{overview?.pending_payments_count ?? 0}</strong>
-                </div>
-                <div className="ov2-fee-item">
-                  <span className="ov2-fee-dot" style={{ background: "#ef4444" }} />
-                  <span>En retard</span>
-                  <strong>{overview?.late_payments_count ?? 0}</strong>
-                </div>
-                <div className="ov2-fee-item">
-                  <span className="ov2-fee-dot" style={{ background: "#3b82f6" }} />
-                  <span>Commandes payées</span>
-                  <strong>{overview?.paid_orders_count ?? 0}</strong>
-                </div>
-              </div>
-            </div>
-
-            {/* Messages (latest orders) */}
-            <div className="ov2-card ov2-messages">
-              <div className="ov2-card__head">
-                <span className="ov2-section-label">Dernières commandes</span>
-                <Link className="ov2-see-all" to="/admin/commandes">
-                  <FaEnvelopeOpen />
-                </Link>
-              </div>
-              <div className="ov2-msg-list">
-                {latestOrders.map(order => (
-                  <div key={order.id} className="ov2-msg-item">
-                    <div className="ov2-msg-avatar">
-                      {order.customer_name.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="ov2-msg-body">
-                      <strong>{order.customer_name}</strong>
-                      <span>{order.formation_title}</span>
-                    </div>
-                    <span className={orderBadge(order.status)} style={{ fontSize: "0.68rem" }}>
-                      {statusLabel(order.status)}
-                    </span>
-                  </div>
-                ))}
-                {!latestOrders.length && (
-                  <p className="adm-empty" style={{ padding: "0.75rem 1.25rem" }}>Aucune commande.</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        </>
       )}
     </div>
   );

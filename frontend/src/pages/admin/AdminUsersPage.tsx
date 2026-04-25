@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { useToast } from "../../toast/ToastContext";
 import {
   FaEdit,
   FaGraduationCap,
   FaIdBadge,
   FaSearch,
   FaShieldAlt,
+  FaUserPlus,
   FaUserTie,
 } from "react-icons/fa";
 import {
   GraduationCap,
-  ShieldCheck,
   UserCog,
   UserMinus,
   Users,
@@ -24,6 +25,12 @@ import {
   includesSearchValue,
   statusLabel,
 } from "../../admin/adminDashboardUtils";
+import {
+  type AdminInvitation,
+  createAdminInvitation,
+  fetchAdminInvitations,
+  revokeAdminInvitation,
+} from "../../lib/catalogApi";
 
 const PAGE_SIZE = 10;
 
@@ -62,6 +69,153 @@ function avatarColor(id: number) {
   return AVATAR_COLORS[id % AVATAR_COLORS.length];
 }
 
+function inviteStatusBadge(status: string) {
+  if (status === "pending")   return "adm-badge adm-badge--blue";
+  if (status === "accepted")  return "adm-badge adm-badge--green";
+  if (status === "expired")   return "adm-badge adm-badge--gray";
+  return "adm-badge adm-badge--red";
+}
+
+function inviteStatusLabel(status: string) {
+  if (status === "pending")   return "En attente";
+  if (status === "accepted")  return "Acceptée";
+  if (status === "expired")   return "Expirée";
+  return "Révoquée";
+}
+
+function InvitationPanel() {
+  const { success, error: toastError } = useToast();
+  const [invitations, setInvitations] = useState<AdminInvitation[]>([]);
+  const [loadingInvites, setLoadingInvites] = useState(true);
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [revoking, setRevoking] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetchAdminInvitations()
+      .then(setInvitations)
+      .finally(() => setLoadingInvites(false));
+  }, []);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setCreating(true);
+    try {
+      const inv = await createAdminInvitation({ email, full_name: fullName });
+      setInvitations((prev) => [inv, ...prev]);
+      setEmail("");
+      setFullName("");
+      success("Invitation envoyée.");
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : "Erreur lors de la création.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleRevoke(id: number) {
+    setRevoking(id);
+    try {
+      const updated = await revokeAdminInvitation(id);
+      setInvitations((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+      success("Invitation révoquée.");
+    } catch {
+      toastError("Erreur lors de la révocation.");
+    } finally {
+      setRevoking(null);
+    }
+  }
+
+  return (
+    <div className="adm-invite-panel">
+      <div className="adm-invite-panel__header">
+        <h3 className="adm-invite-panel__title">
+          <FaUserPlus /> Inviter un administrateur
+        </h3>
+        <p className="adm-invite-panel__desc">
+          Un lien d'invitation sécurisé sera envoyé par email. Il expire après 7 jours.
+        </p>
+      </div>
+
+      <form className="adm-invite-panel__form" onSubmit={handleCreate}>
+        <input
+          className="adm-input"
+          type="text"
+          placeholder="Nom complet"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          required
+        />
+        <input
+          className="adm-input"
+          type="email"
+          placeholder="Adresse email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <button
+          type="submit"
+          className="adm-btn adm-btn--primary"
+          disabled={creating}
+        >
+          {creating ? "Envoi…" : "Envoyer l'invitation"}
+        </button>
+      </form>
+
+      <div className="adm-invite-panel__list">
+        <h4 className="adm-invite-panel__list-title">Invitations envoyées</h4>
+        {loadingInvites ? (
+          <p className="adm-invite-panel__empty">Chargement…</p>
+        ) : invitations.length === 0 ? (
+          <p className="adm-invite-panel__empty">Aucune invitation envoyée.</p>
+        ) : (
+          <table className="adm-table">
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Email</th>
+                <th>Statut</th>
+                <th>Expire le</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invitations.map((inv) => (
+                <tr key={inv.id}>
+                  <td><strong style={{ fontSize: "0.875rem" }}>{inv.full_name}</strong></td>
+                  <td className="adm-td-muted">{inv.email}</td>
+                  <td>
+                    <span className={inviteStatusBadge(inv.status)}>
+                      {inviteStatusLabel(inv.status)}
+                    </span>
+                  </td>
+                  <td className="adm-td-muted">
+                    {new Date(inv.expires_at).toLocaleDateString("fr-FR")}
+                  </td>
+                  <td>
+                    {inv.status === "pending" && (
+                      <button
+                        type="button"
+                        className="adm-btn adm-btn--sm adm-btn--danger"
+                        disabled={revoking === inv.id}
+                        onClick={() => handleRevoke(inv.id)}
+                      >
+                        {revoking === inv.id ? "…" : "Révoquer"}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminUsersPage() {
   const location = useLocation();
   const rolesMode = location.pathname.startsWith("/admin/roles");
@@ -75,7 +229,6 @@ export default function AdminUsersPage() {
     syncUserDraft,
     savingUserId,
     handleSaveUser,
-    userFeedbackById,
   } = useAdminDashboard();
 
   const [tab, setTab] = useState<Tab>(rolesMode ? "roles" : "students");
@@ -333,7 +486,6 @@ export default function AdminUsersPage() {
                   {paginated.length ? (
                     paginated.map((user) => {
                       const draft = userDrafts[user.id];
-                      const feedback = userFeedbackById[user.id];
                       const isSaving = savingUserId === user.id;
                       return (
                         <tr key={user.id}>
@@ -379,11 +531,6 @@ export default function AdminUsersPage() {
                               >
                                 {isSaving ? "…" : <><FaEdit /> Enregistrer</>}
                               </button>
-                              {feedback && (
-                                <span className={`adm-feedback adm-feedback--${feedback.type}`}>
-                                  {feedback.message}
-                                </span>
-                              )}
                             </div>
                           </td>
                         </tr>
@@ -402,6 +549,8 @@ export default function AdminUsersPage() {
           )}
 
           {/* ── ROLES TAB ── */}
+          {tab === "roles" && <InvitationPanel />}
+
           {tab === "roles" && (
             <div className="adm-table-wrap">
               <table className="adm-table">
@@ -419,7 +568,6 @@ export default function AdminUsersPage() {
                   {paginated.length ? (
                     paginated.map((user) => {
                       const draft = userDrafts[user.id];
-                      const feedback = userFeedbackById[user.id];
                       const isSaving = savingUserId === user.id;
                       return (
                         <tr key={user.id}>
@@ -482,11 +630,6 @@ export default function AdminUsersPage() {
                               >
                                 {isSaving ? "…" : "Enregistrer"}
                               </button>
-                              {feedback && (
-                                <span className={`adm-feedback adm-feedback--${feedback.type}`}>
-                                  {feedback.message}
-                                </span>
-                              )}
                             </div>
                           </td>
                         </tr>

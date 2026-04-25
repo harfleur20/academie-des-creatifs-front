@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useToast } from "../toast/ToastContext";
 import { Award, BookOpen, CalendarDays, Check, ChevronRight, ClipboardList, FileText, HelpCircle, LayoutDashboard, Plus, Save, Users, Video } from "lucide-react";
 
 import {
@@ -100,8 +101,7 @@ export default function TeacherSessionPage() {
   const [sessionResources, setSessionResources] = useState<ResourceView[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
+  const { success, error: toastError } = useToast();
 
   const [attDraft, setAttDraft] = useState<Record<number, AttendanceStatus>>({});
   const [noteDraft, setNoteDraft] = useState<Record<number, string>>({});
@@ -149,7 +149,7 @@ export default function TeacherSessionPage() {
         const todayDay = dayRows.find((day) => day.scheduled_at.slice(0, 10) === today);
         setSelectedCourseDayId(todayDay?.id ?? dayRows[0]?.id ?? null);
       })
-      .catch(() => setError("Erreur de chargement."))
+      .catch(() => toastError("Erreur de chargement."))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -170,7 +170,7 @@ export default function TeacherSessionPage() {
         setAttDraft(draft);
         setNoteDraft(notes);
       })
-      .catch(() => setError("Erreur de chargement des présences."));
+      .catch(() => toastError("Erreur de chargement des présences."));
   }, [selectedCourseDayId]);
 
   useEffect(() => {
@@ -195,11 +195,6 @@ export default function TeacherSessionPage() {
     });
   }, [grades]);
 
-  const flash = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
-
   const refreshCourseDays = useCallback(async () => {
     if (!id) return;
     const rows = await fetchSessionCourseDays(id);
@@ -209,11 +204,10 @@ export default function TeacherSessionPage() {
 
   const handleCreateCourseDay = useCallback(async () => {
     if (!dayTitle.trim() || !dayAt) {
-      setError("Titre et date de cours requis.");
+      toastError("Titre et date de cours requis.");
       return;
     }
     setSaving(true);
-    setError("");
     try {
       const day = await createCourseDay(id, {
         title: dayTitle.trim(),
@@ -227,21 +221,20 @@ export default function TeacherSessionPage() {
       setDayTitle("Journée de cours");
       setDayAt(defaultCourseDayDate());
       setDayDuration(90);
-      flash();
+      success("Journée créée.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de la création de la journée.");
+      toastError(err instanceof Error ? err.message : "Erreur lors de la création de la journée.");
     } finally {
       setSaving(false);
     }
-  }, [dayAt, dayDuration, dayTitle, id]);
+  }, [dayAt, dayDuration, dayTitle, id, success, toastError]);
 
   const handleSaveAttendance = useCallback(async () => {
     if (!selectedCourseDayId) {
-      setError("Créez ou sélectionnez une journée de cours avant de saisir les présences.");
+      toastError("Créez ou sélectionnez une journée de cours avant de saisir les présences.");
       return;
     }
     setSaving(true);
-    setError("");
     const entries: AttendanceEntry[] = students.map((student) => ({
       enrollment_id: student.enrollment_id,
       course_day_id: selectedCourseDayId,
@@ -252,21 +245,20 @@ export default function TeacherSessionPage() {
       const rows = await saveCourseDayAttendance(selectedCourseDayId, entries);
       setAttendance(rows);
       await refreshCourseDays();
-      flash();
+      success("Présences enregistrées.");
     } catch {
-      setError("Erreur lors de la sauvegarde des présences.");
+      toastError("Erreur lors de la sauvegarde des présences.");
     } finally {
       setSaving(false);
     }
-  }, [attDraft, noteDraft, refreshCourseDays, selectedCourseDayId, students]);
+  }, [attDraft, noteDraft, refreshCourseDays, selectedCourseDayId, students, success, toastError]);
 
   const handleSaveGrades = useCallback(async () => {
     if (!gradeLabel.trim()) {
-      setError("Veuillez saisir un intitulé d'évaluation.");
+      toastError("Veuillez saisir un intitulé d'évaluation.");
       return;
     }
     setSaving(true);
-    setError("");
     const entries: GradeEntry[] = students
       .filter((student) => scoreDraft[student.enrollment_id] !== undefined && scoreDraft[student.enrollment_id] !== "")
       .map((student) => ({
@@ -280,13 +272,13 @@ export default function TeacherSessionPage() {
       const rows = await saveSessionGrades(id, entries);
       setGrades(rows);
       await refreshCourseDays();
-      flash();
+      success("Notes enregistrées.");
     } catch {
-      setError("Erreur lors de la sauvegarde des notes.");
+      toastError("Erreur lors de la sauvegarde des notes.");
     } finally {
       setSaving(false);
     }
-  }, [gradeLabel, id, maxScore, refreshCourseDays, scoreDraft, selectedCourseDayId, students]);
+  }, [gradeLabel, id, maxScore, refreshCourseDays, scoreDraft, selectedCourseDayId, students, success, toastError]);
 
   if (loading) return <div className="dsh-page-loading">Chargement de la session...</div>;
 
@@ -379,8 +371,6 @@ export default function TeacherSessionPage() {
           </button>
         ))}
       </div>
-
-      {error && <p className="dsh-error">{error}</p>}
 
       {tab === "overview" && (
         <div className="tch-overview-grid">
@@ -918,7 +908,6 @@ export default function TeacherSessionPage() {
           )}
 
           <div className="dsh-section-footer">
-            {saved && <span className="dsh-feedback-ok">Présences enregistrées</span>}
             <button
               type="button"
               className="dsh-btn dsh-btn--primary"
@@ -1031,7 +1020,6 @@ export default function TeacherSessionPage() {
           )}
 
           <div className="dsh-section-footer">
-            {saved && <span className="dsh-feedback-ok">Notes enregistrées</span>}
             <button
               type="button"
               className="dsh-btn dsh-btn--primary"

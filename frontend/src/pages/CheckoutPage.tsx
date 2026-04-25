@@ -194,11 +194,13 @@ export default function CheckoutPage() {
 
   if (isLoading || isResolvingIntent) {
     return (
-      <div className="page page--narrow">
-        <section className="auth-card auth-card--centered">
-          <p className="eyebrow">Paiement</p>
-          <h1>{requestedSlug ? "Préparation du paiement…" : "Chargement…"}</h1>
-        </section>
+      <div className="page-surface--commerce">
+        <div className="page page--narrow">
+          <section className="auth-card auth-card--centered">
+            <p className="eyebrow">Paiement</p>
+            <h1>{requestedSlug ? "Préparation du paiement…" : "Chargement…"}</h1>
+          </section>
+        </div>
       </div>
     );
   }
@@ -208,8 +210,9 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="page commerce-page">
-      <section className="section-heading section-heading--spaced">
+    <div className="page-surface--commerce">
+      <div className="page commerce-page">
+        <section className="section-heading section-heading--spaced">
         <p className="eyebrow">Paiement sécurisé</p>
         <h1>Finalisez votre inscription</h1>
         <p className="page-intro">
@@ -219,8 +222,8 @@ export default function CheckoutPage() {
         </p>
       </section>
 
-      <section className="ckout-masthead">
-        <aside className="ckout-masthead__panel">
+        <section className="ckout-masthead">
+          <aside className="ckout-masthead__panel">
           <div className="ckout-masthead__steps" aria-label="Étapes de paiement">
             {(paymentProvider === "stripe" ? CHECKOUT_STEPS_STRIPE : CHECKOUT_STEPS_TARA).map((step) => {
               const StepIcon = step.icon;
@@ -236,11 +239,11 @@ export default function CheckoutPage() {
               );
             })}
           </div>
-        </aside>
-      </section>
+          </aside>
+        </section>
 
-      <div className="cart-layout ckout-layout">
-        <div className="cart-items">
+        <div className="cart-layout ckout-layout">
+          <div className="cart-items">
           <div className="ckout-section-head">
             <div>
               <p className="ckout-section-head__eyebrow">Commande</p>
@@ -346,10 +349,10 @@ export default function CheckoutPage() {
               </div>
             </div>
           </div>
-        </div>
+          </div>
 
-        <aside className="cart-summary">
-          <div className="cart-summary__card ckout-panel">
+          <aside className="cart-summary">
+            <div className="cart-summary__card ckout-panel">
             <div className="ckout-panel__header">
               <div>
                 <p className="ckout-panel__eyebrow">Récapitulatif</p>
@@ -500,8 +503,9 @@ export default function CheckoutPage() {
                   : <><FaExternalLinkAlt className="feature-badge__icon" /><span>Redirection sécurisée vers Tara Money</span></>}
               </div>
             </div>
-          </div>
-        </aside>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   );

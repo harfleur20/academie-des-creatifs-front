@@ -13,11 +13,13 @@ import {
   HelpCircle,
   LayoutDashboard,
   LogOut,
+  MessageCircle,
   Search,
   Settings,
   Users,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
+import MessagingBell from "../components/MessagingBell";
 import NotifBell from "../components/NotifBell";
 
 
@@ -46,6 +48,7 @@ const navGroups: NavGroup[] = [
       { to: "/espace/etudiant/ressources",  label: "Ressources",          icon: <FolderOpen size={15} /> },
       { to: "/espace/etudiant/devoirs",     label: "Devoirs",             icon: <ClipboardList size={15} /> },
       { to: "/espace/etudiant/resultats",   label: "Mes résultats",       icon: <Award size={15} /> },
+      { to: "/espace/etudiant/messages",    label: "Messages",            icon: <MessageCircle size={15} /> },
     ],
   },
   {
@@ -223,6 +226,7 @@ export default function StudentLayout() {
             </Link>
 
             {/* Notifications */}
+            <MessagingBell to="/espace/etudiant/messages" />
             <NotifBell allNotifPath="/espace/etudiant/notifications" />
             <button
               type="button"

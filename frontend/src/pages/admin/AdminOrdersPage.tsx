@@ -22,7 +22,7 @@ function orderStatusClass(status: string) {
 }
 
 export default function AdminOrdersPage() {
-  const { loading, loadingError, orders, payments, orderDrafts, orderStatuses, syncOrderDraft, savingOrderId, handleSaveOrder, orderFeedbackById } =
+  const { loading, loadingError, orders, payments, orderDrafts, orderStatuses, syncOrderDraft, savingOrderId, handleSaveOrder } =
     useAdminDashboard();
 
   const [search, setSearch] = useState("");
@@ -113,7 +113,6 @@ export default function AdminOrdersPage() {
               <tbody>
                 {paginated.length ? paginated.map((order) => {
                   const draft = orderDrafts[order.id];
-                  const feedback = orderFeedbackById[order.id];
                   const isSaving = savingOrderId === order.id;
                   return (
                     <tr key={order.id}>
@@ -144,7 +143,6 @@ export default function AdminOrdersPage() {
                           >
                             {isSaving ? "…" : "OK"}
                           </button>
-                          {feedback && <span className={`adm-feedback adm-feedback--${feedback.type}`}>{feedback.message}</span>}
                         </div>
                       </td>
                     </tr>

@@ -6,6 +6,7 @@ import "react-phone-number-input/style.css";
 
 import { CountryCombobox } from "../../components/CountryCombobox";
 import { useAdminDashboard } from "../../admin/adminDashboardContext";
+import { useToast } from "../../toast/ToastContext";
 import {
   AdminTablePager,
   getPageItems,
@@ -161,15 +162,14 @@ function TeacherPedagogyAuditView({
   const [sessionAlertFilter, setSessionAlertFilter] = useState("all");
   const [contentFilter, setContentFilter] = useState("all");
   const [contentActionKey, setContentActionKey] = useState<string | null>(null);
-  const [contentActionFeedback, setContentActionFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [assignmentDueDrafts, setAssignmentDueDrafts] = useState<Record<number, string>>({});
+  const { success, error: toastError } = useToast();
 
   useEffect(() => {
     setSelectedSessionId(null);
     setSessionStatusFilter("all");
     setSessionAlertFilter("all");
     setContentFilter("all");
-    setContentActionFeedback(null);
   }, [detail.teacher.id]);
 
   const filteredPedagogy = useMemo(
@@ -247,7 +247,6 @@ function TeacherPedagogyAuditView({
       setCourseDayError("");
       setIsCourseDayLoading(false);
       setIsLoadingMoreCourseDays(false);
-      setContentActionFeedback(null);
       return;
     }
 
@@ -310,13 +309,12 @@ function TeacherPedagogyAuditView({
 
   async function handleQuizStatusUpdate(quizId: number, status: "draft" | "active" | "closed") {
     setContentActionKey(`quiz-${quizId}-${status}`);
-    setContentActionFeedback(null);
     try {
       const nextDetail = await updateAdminTeacherQuizStatus(detail.teacher.id, quizId, { status });
       onDetailChange(nextDetail);
-      setContentActionFeedback({ type: "success", message: "Statut du quiz mis à jour." });
+      success("Statut du quiz mis à jour.");
     } catch {
-      setContentActionFeedback({ type: "error", message: "Impossible de mettre à jour ce quiz." });
+      toastError("Impossible de mettre à jour ce quiz.");
     } finally {
       setContentActionKey(null);
     }
@@ -324,18 +322,14 @@ function TeacherPedagogyAuditView({
 
   async function handleResourcePublicationToggle(resourceId: number, publish: boolean) {
     setContentActionKey(`resource-${resourceId}`);
-    setContentActionFeedback(null);
     try {
       const nextDetail = await updateAdminTeacherResourcePublication(detail.teacher.id, resourceId, {
         published_at: publish ? new Date().toISOString() : null,
       });
       onDetailChange(nextDetail);
-      setContentActionFeedback({
-        type: "success",
-        message: publish ? "Ressource publiée." : "Ressource retirée de la publication.",
-      });
+      success(publish ? "Ressource publiée." : "Ressource retirée de la publication.");
     } catch {
-      setContentActionFeedback({ type: "error", message: "Impossible de mettre à jour cette ressource." });
+      toastError("Impossible de mettre à jour cette ressource.");
     } finally {
       setContentActionKey(null);
     }
@@ -344,19 +338,18 @@ function TeacherPedagogyAuditView({
   async function handleAssignmentDueDateUpdate(assignmentId: number) {
     const nextDueDate = assignmentDueDrafts[assignmentId];
     if (!nextDueDate) {
-      setContentActionFeedback({ type: "error", message: "Choisissez une échéance valide pour ce devoir." });
+      toastError("Choisissez une échéance valide pour ce devoir.");
       return;
     }
     setContentActionKey(`assignment-${assignmentId}`);
-    setContentActionFeedback(null);
     try {
       const nextDetail = await updateAdminTeacherAssignmentDueDate(detail.teacher.id, assignmentId, {
         due_date: localDateTimeToIso(nextDueDate),
       });
       onDetailChange(nextDetail);
-      setContentActionFeedback({ type: "success", message: "Échéance du devoir mise à jour." });
+      success("Échéance du devoir mise à jour.");
     } catch {
-      setContentActionFeedback({ type: "error", message: "Impossible de mettre à jour ce devoir." });
+      toastError("Impossible de mettre à jour ce devoir.");
     } finally {
       setContentActionKey(null);
     }
@@ -734,12 +727,6 @@ function TeacherPedagogyAuditView({
                     </label>
                   </div>
 
-                  {contentActionFeedback && (
-                    <div className={`adm-feedback adm-feedback--${contentActionFeedback.type}`}>
-                      {contentActionFeedback.message}
-                    </div>
-                  )}
-
                   {filteredSelectedContents.length ? (
                     <div className="adm-pedagogy-detail-list">
                       {filteredSelectedContents.map((content) => {
@@ -852,13 +839,13 @@ function TeacherPedagogyAuditView({
 
 export default function AdminTeachersPage() {
   const { loadingError, formations, sessions } = useAdminDashboard();
+  const { success, error: toastError } = useToast();
   const [teachers, setTeachers] = useState<AdminTeacherItem[]>([]);
   const [invitations, setInvitations] = useState<TeacherInviteView[]>([]);
   const [tab, setTab] = useState<TeacherTab>("teachers");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [inviteDraft, setInviteDraft] = useState({ ...EMPTY_INVITE_DRAFT });
   const [isInviting, setIsInviting] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -880,7 +867,7 @@ export default function AdminTeachersPage() {
   const [isPedagogyLoading, setIsPedagogyLoading] = useState(false);
   const [pedagogyError, setPedagogyError] = useState("");
 
-  async function refreshTeachers(clearFeedback = true) {
+  async function refreshTeachers() {
     setIsLoading(true);
     try {
       const [teacherRows, invitationRows] = await Promise.all([
@@ -889,11 +876,8 @@ export default function AdminTeachersPage() {
       ]);
       setTeachers(teacherRows);
       setInvitations(invitationRows);
-      if (clearFeedback) {
-        setFeedback(null);
-      }
     } catch {
-      setFeedback({ type: "error", message: "Impossible de charger la gestion des enseignants." });
+      toastError("Impossible de charger la gestion des enseignants.");
     } finally {
       setIsLoading(false);
     }
@@ -1056,7 +1040,6 @@ export default function AdminTeachersPage() {
   async function handleInvite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsInviting(true);
-    setFeedback(null);
     setModalError("");
     try {
       if (invitePhoneInvalid) {
@@ -1086,14 +1069,11 @@ export default function AdminTeachersPage() {
       setInviteDraft({ ...EMPTY_INVITE_DRAFT });
       setCreatedInvitation(invitation);
       setTab("invitations");
-      setFeedback({
-        type: "success",
-        message: "Enseignant préparé. Le lien d’invitation est prêt à copier.",
-      });
-      await refreshTeachers(false);
+      success("Enseignant préparé. Le lien d’invitation est prêt à copier.");
+      await refreshTeachers();
     } catch {
       setModalError("Impossible de créer cet enseignant. Vérifie l’email et les champs saisis.");
-      setFeedback({ type: "error", message: "Impossible de créer cette invitation enseignant." });
+      toastError("Impossible de créer cette invitation enseignant.");
     } finally {
       setIsInviting(false);
     }
@@ -1103,14 +1083,13 @@ export default function AdminTeachersPage() {
     event.preventDefault();
     if (!assignmentDraft.teacherId || !assignmentDraft.formationSlug) return;
     setIsAssigning(true);
-    setFeedback(null);
     try {
       await assignTeacherToFormation(assignmentDraft.formationSlug, Number(assignmentDraft.teacherId));
       setAssignmentDraft({ teacherId: "", formationSlug: "" });
-      setFeedback({ type: "success", message: "Enseignant assigné à la formation." });
-      await refreshTeachers(false);
+      success("Enseignant assigné à la formation.");
+      await refreshTeachers();
     } catch {
-      setFeedback({ type: "error", message: "Impossible d’assigner cet enseignant à cette formation." });
+      toastError("Impossible d’assigner cet enseignant à cette formation.");
     } finally {
       setIsAssigning(false);
     }
@@ -1147,7 +1126,7 @@ export default function AdminTeachersPage() {
       syncTeacherEditDraft(detail);
       setTeachers((rows) => rows.map((row) => (row.id === detail.teacher.id ? detail.teacher : row)));
       syncPedagogyDetailIfSelected(detail);
-      setFeedback({ type: "success", message: "Fiche enseignant mise à jour." });
+      success("Fiche enseignant mise à jour.");
     } catch {
       setTeacherDetailError("Impossible d’enregistrer cette fiche. Vérifie l’email et les champs saisis.");
     } finally {
@@ -1168,10 +1147,7 @@ export default function AdminTeachersPage() {
       syncTeacherEditDraft(detail);
       setTeachers((rows) => rows.map((row) => (row.id === detail.teacher.id ? detail.teacher : row)));
       syncPedagogyDetailIfSelected(detail);
-      setFeedback({
-        type: "success",
-        message: nextStatus === "suspended" ? "Enseignant suspendu." : "Enseignant réactivé.",
-      });
+      success(nextStatus === "suspended" ? "Enseignant suspendu." : "Enseignant réactivé.");
     } catch {
       setTeacherDetailError("Impossible de modifier le statut de cet enseignant.");
     } finally {
@@ -1192,7 +1168,7 @@ export default function AdminTeachersPage() {
       setTeachers((rows) => rows.map((row) => (row.id === detail.teacher.id ? detail.teacher : row)));
       syncPedagogyDetailIfSelected(detail);
       setDetailAssignmentSlug("");
-      setFeedback({ type: "success", message: "Formation ajoutée à cet enseignant." });
+      success("Formation ajoutée à cet enseignant.");
     } catch {
       setTeacherDetailError("Impossible d’ajouter cette formation à l’enseignant.");
     } finally {
@@ -1212,7 +1188,7 @@ export default function AdminTeachersPage() {
       syncTeacherEditDraft(detail);
       setTeachers((rows) => rows.map((row) => (row.id === detail.teacher.id ? detail.teacher : row)));
       syncPedagogyDetailIfSelected(detail);
-      setFeedback({ type: "success", message: "Formation retirée de l’enseignant." });
+      success("Formation retirée de l’enseignant.");
     } catch {
       setTeacherDetailError("Impossible de retirer cette formation.");
     } finally {
@@ -1224,23 +1200,22 @@ export default function AdminTeachersPage() {
     const link = invitationLink(token);
     try {
       await navigator.clipboard.writeText(link);
-      setFeedback({ type: "success", message: "Lien d’invitation copié." });
+      success("Lien d’invitation copié.");
     } catch {
-      setFeedback({ type: "error", message: link });
+      toastError(link);
     }
   }
 
   async function handleRevokeInvitation(invitation: TeacherInviteView) {
     if (!window.confirm(`Révoquer l’invitation de ${invitation.full_name} ?`)) return;
     setRevokingId(invitation.id);
-    setFeedback(null);
     try {
       const updated = await revokeTeacherInvitation(invitation.id);
       setInvitations((rows) => rows.map((row) => (row.id === updated.id ? updated : row)));
       setCreatedInvitation((current) => (current?.id === updated.id ? updated : current));
-      setFeedback({ type: "success", message: "Invitation révoquée. Le lien ne peut plus être utilisé." });
+      success("Invitation révoquée. Le lien ne peut plus être utilisé.");
     } catch {
-      setFeedback({ type: "error", message: "Impossible de révoquer cette invitation." });
+      toastError("Impossible de révoquer cette invitation.");
     } finally {
       setRevokingId(null);
     }
@@ -1292,9 +1267,9 @@ export default function AdminTeachersPage() {
         </div>
       </div>
 
-      {(loadingError || feedback) && (
-        <div className={`adm-state-card${feedback?.type === "error" || loadingError ? " adm-state-card--error" : ""}`}>
-          <p>{loadingError || feedback?.message}</p>
+      {loadingError && (
+        <div className="adm-state-card adm-state-card--error">
+          <p>{loadingError}</p>
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime, timedelta, timezone
 
 from pydantic import ValidationError
@@ -81,6 +82,20 @@ DEFAULT_CERTIFICATE_COPY = (
     "Une attestation de fin de parcours peut etre delivree apres validation des exigences "
     "de la formation et completion des etapes obligatoires du programme."
 )
+MODULE_TITLE_PREFIX_RE = re.compile(r"^\s*module\s*\d+\s*[-:–—]\s*", re.IGNORECASE)
+
+
+def _strip_module_title_prefix(value: str) -> str:
+    return MODULE_TITLE_PREFIX_RE.sub("", value.strip())
+
+
+def _dump_module_items(modules: list[FormationModuleItem]) -> list[dict[str, object]]:
+    return [
+        module.model_copy(
+            update={"title": _strip_module_title_prefix(module.title)}
+        ).model_dump()
+        for module in modules
+    ]
 
 
 def format_fcfa(amount: int | None) -> str | None:
@@ -226,7 +241,7 @@ def _default_projects(record: FormationRecord) -> list[FormationProjectItem]:
 def _default_modules(record: FormationRecord) -> list[FormationModuleItem]:
     return [
         FormationModuleItem(
-            title="Module 1 - Prise en main du parcours",
+            title="Prise en main du parcours",
             summary="Comprendre la structure du programme, les attendus et le rythme conseille.",
             lessons=[
                 "Presentation du programme et des objectifs",
@@ -236,7 +251,7 @@ def _default_modules(record: FormationRecord) -> list[FormationModuleItem]:
             ],
         ),
         FormationModuleItem(
-            title="Module 2 - Mise en pratique guidee",
+            title="Mise en pratique guidee",
             summary="Passer des notions aux exercices et consolider l'execution.",
             lessons=[
                 "Exercices d'application progressifs",
@@ -246,7 +261,7 @@ def _default_modules(record: FormationRecord) -> list[FormationModuleItem]:
             ],
         ),
         FormationModuleItem(
-            title="Module 3 - Validation et finalisation",
+            title="Validation et finalisation",
             summary="Finaliser les productions et preparer la validation du parcours.",
             lessons=[
                 "Finalisation du travail principal",
@@ -294,7 +309,11 @@ def _validated_modules(record: FormationRecord) -> list[FormationModuleItem]:
     if not raw_items:
         return _default_modules(record)
     try:
-        return [FormationModuleItem.model_validate(item) for item in raw_items]
+        modules = [FormationModuleItem.model_validate(item) for item in raw_items]
+        return [
+            module.model_copy(update={"title": _strip_module_title_prefix(module.title)})
+            for module in modules
+        ]
     except (TypeError, ValueError, ValidationError):
         return _default_modules(record)
 
@@ -381,6 +400,7 @@ def serialize_catalog_item(db: Session, record: FormationRecord) -> FormationCat
         current_price_label=format_fcfa(current_price) or "",
         original_price_amount=original_price,
         original_price_label=format_fcfa(original_price),
+        promo_ends_at=record.promo_ends_at,
         price_currency=record.price_currency,
         allow_installments=should_allow_installments(format_type, current_price),
         is_featured_home=record.is_featured_home,
@@ -445,6 +465,8 @@ def create_catalog_entry(
         and payload.original_price_amount < payload.current_price_amount
     ):
         raise ValueError("Le prix barre ne peut pas etre inferieur au prix actuel.")
+    if payload.promo_ends_at is not None and payload.original_price_amount is None:
+        raise ValueError("La date limite promo necessite un prix barre.")
 
     record = FormationRecord(
         slug=payload.slug,
@@ -462,13 +484,14 @@ def create_catalog_entry(
         audience_text=payload.audience_text or "",
         certificate_copy="",
         certificate_image="",
-        module_items=[item.model_dump() for item in (payload.modules or [])],
+        module_items=_dump_module_items(list(payload.modules or [])),
         faq_items=[item.model_dump() for item in (payload.faqs or [])],
         format_type=payload.format_type,
         dashboard_type=get_dashboard_type_for_format(payload.format_type),
         session_label="",
         current_price_amount=payload.current_price_amount,
         original_price_amount=payload.original_price_amount,
+        promo_ends_at=payload.promo_ends_at,
         price_currency="XAF",
         allow_installments=should_allow_installments(
             payload.format_type, payload.current_price_amount
@@ -531,7 +554,7 @@ def update_catalog_entry(
         record.audience_text = payload.audience_text
 
     if "modules" in payload.model_fields_set and payload.modules is not None:
-        record.module_items = [item.model_dump() for item in payload.modules]
+        record.module_items = _dump_module_items(payload.modules)
 
     if "faqs" in payload.model_fields_set and payload.faqs is not None:
         record.faq_items = [item.model_dump() for item in payload.faqs]
@@ -554,6 +577,9 @@ def update_catalog_entry(
     if "original_price_amount" in payload.model_fields_set:
         record.original_price_amount = payload.original_price_amount
 
+    if "promo_ends_at" in payload.model_fields_set:
+        record.promo_ends_at = payload.promo_ends_at
+
     if "is_featured_home" in payload.model_fields_set and payload.is_featured_home is not None:
         record.is_featured_home = payload.is_featured_home
 
@@ -568,6 +594,8 @@ def update_catalog_entry(
         and record.original_price_amount < record.current_price_amount
     ):
         raise ValueError("Le prix barre ne peut pas etre inferieur au prix actuel.")
+    if record.promo_ends_at is not None and record.original_price_amount is None:
+        raise ValueError("La date limite promo necessite un prix barre.")
 
     apply_formation_business_rules(record)
 

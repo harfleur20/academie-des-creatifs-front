@@ -295,8 +295,9 @@ export default function AuthPage({ mode }: AuthPageProps) {
         : "";
 
   return (
-    <section className="page auth-experience">
-      <div className="auth-split auth-split--editorial">
+    <div className="page-surface--certificate">
+      <section className="page auth-experience">
+        <div className="auth-split auth-split--editorial">
         <div
           className="auth-visual auth-visual--editorial"
           style={{
@@ -513,6 +514,7 @@ export default function AuthPage({ mode }: AuthPageProps) {
           </div>
         </div>
       </div>
-    </section>
+      </section>
+    </div>
   );
 }

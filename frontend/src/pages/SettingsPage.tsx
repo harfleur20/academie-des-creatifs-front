@@ -18,9 +18,9 @@ import {
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { changePassword, updateProfile, uploadAvatar } from "../lib/authApi";
+import { useToast } from "../toast/ToastContext";
 
 type Tab = "profil" | "securite" | "notifications" | "confidentialite";
-type Feedback = { type: "success" | "error"; message: string };
 
 const AVATAR_PALETTE = [
   ["#6366f1", "#4f46e5"],
@@ -33,16 +33,6 @@ const AVATAR_PALETTE = [
 function avatarGradient(name: string) {
   const i = (name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % AVATAR_PALETTE.length;
   return `linear-gradient(135deg, ${AVATAR_PALETTE[i][0]}, ${AVATAR_PALETTE[i][1]})`;
-}
-
-function FeedbackBanner({ fb, onClose }: { fb: Feedback; onClose: () => void }) {
-  return (
-    <div className={`stg-feedback stg-feedback--${fb.type}`}>
-      {fb.type === "success" ? <Check size={14} /> : <Shield size={14} />}
-      <span>{fb.message}</span>
-      <button type="button" onClick={onClose}>×</button>
-    </div>
-  );
 }
 
 function SectionCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
@@ -60,6 +50,7 @@ function SectionCard({ title, icon, children }: { title: string; icon: React.Rea
 /* ══ Profil Tab ══════════════════════════════════════════════════════════════ */
 function ProfilTab() {
   const { user, refreshUser } = useAuth();
+  const { success, error: toastError } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const fullName = user?.full_name ?? "";
   const initials = fullName.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
@@ -68,7 +59,6 @@ function ProfilTab() {
   const [name, setName] = useState(fullName);
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [loading, setLoading] = useState(false);
-  const [fb, setFb] = useState<Feedback | null>(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar_url ?? null);
 
@@ -82,13 +72,12 @@ function ProfilTab() {
     e.preventDefault();
     if (!name.trim()) return;
     setLoading(true);
-    setFb(null);
     try {
       await updateProfile({ full_name: name.trim(), phone: phone.trim() || null });
       await refreshUser();
-      setFb({ type: "success", message: "Profil mis à jour avec succès." });
+      success("Profil mis à jour.");
     } catch {
-      setFb({ type: "error", message: "Erreur lors de la mise à jour." });
+      toastError("Erreur lors de la mise à jour.");
     } finally {
       setLoading(false);
     }
@@ -105,6 +94,7 @@ function ProfilTab() {
       await refreshUser();
     } catch {
       setAvatarPreview(user?.avatar_url ?? null);
+      toastError("Erreur lors de l'upload de l'avatar.");
     } finally {
       setAvatarLoading(false);
     }
@@ -133,7 +123,6 @@ function ProfilTab() {
       </SectionCard>
 
       <SectionCard title="Informations personnelles" icon={<User size={18} />}>
-        {fb && <FeedbackBanner fb={fb} onClose={() => setFb(null)} />}
         <form className="stg-form" onSubmit={handleSubmit}>
           <div className="stg-form__row">
             <label className="stg-label">
@@ -200,13 +189,13 @@ function ProfilTab() {
 
 /* ══ Sécurité Tab ═══════════════════════════════════════════════════════════ */
 function SecuriteTab() {
+  const { success, error: toastError } = useToast();
   const [current, setCurrent] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [fb, setFb] = useState<Feedback | null>(null);
 
   const strength = newPw.length === 0 ? 0 : newPw.length < 6 ? 1 : newPw.length < 10 ? 2 : /[A-Z]/.test(newPw) && /[0-9]/.test(newPw) ? 4 : 3;
   const strengthLabel = ["", "Faible", "Moyen", "Bon", "Fort"][strength];
@@ -214,16 +203,15 @@ function SecuriteTab() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setFb(null);
-    if (newPw.length < 8) return setFb({ type: "error", message: "Au moins 8 caractères requis." });
-    if (newPw !== confirm) return setFb({ type: "error", message: "Les mots de passe ne correspondent pas." });
+    if (newPw.length < 8) { toastError("Au moins 8 caractères requis."); return; }
+    if (newPw !== confirm) { toastError("Les mots de passe ne correspondent pas."); return; }
     setLoading(true);
     try {
       await changePassword(current, newPw);
-      setFb({ type: "success", message: "Mot de passe modifié avec succès." });
+      success("Mot de passe modifié.");
       setCurrent(""); setNewPw(""); setConfirm("");
     } catch {
-      setFb({ type: "error", message: "Mot de passe actuel incorrect." });
+      toastError("Mot de passe actuel incorrect.");
     } finally {
       setLoading(false);
     }
@@ -232,7 +220,6 @@ function SecuriteTab() {
   return (
     <>
       <SectionCard title="Changer le mot de passe" icon={<KeyRound size={18} />}>
-        {fb && <FeedbackBanner fb={fb} onClose={() => setFb(null)} />}
         <form className="stg-form" onSubmit={handleSubmit}>
           <label className="stg-label">
             <span>Mot de passe actuel</span>
@@ -337,6 +324,7 @@ type NotifPrefs = {
 };
 
 function NotificationsTab() {
+  const { success } = useToast();
   const [prefs, setPrefs] = useState<NotifPrefs>({
     email_new_course: true,
     email_session_reminder: true,
@@ -345,16 +333,13 @@ function NotificationsTab() {
     push_messages: false,
     push_live: true,
   });
-  const [saved, setSaved] = useState(false);
 
   function toggle(key: keyof NotifPrefs) {
     setPrefs(p => ({ ...p, [key]: !p[key] }));
-    setSaved(false);
   }
 
   function handleSave() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    success("Préférences enregistrées.");
   }
 
   return (
@@ -411,7 +396,7 @@ function NotificationsTab() {
 
       <div className="stg-form__footer" style={{ marginTop: 0 }}>
         <button type="button" className="stg-btn stg-btn--primary" onClick={handleSave}>
-          {saved ? <><Check size={14} /> Enregistré</> : "Enregistrer les préférences"}
+          Enregistrer les préférences
         </button>
       </div>
     </>

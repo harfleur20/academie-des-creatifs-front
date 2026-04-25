@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, GraduationCap, MapPin, Users } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CalendarDays, GraduationCap, MapPin, MessageCircle, Users } from "lucide-react";
 
 import {
   fetchMyClasses,
@@ -87,6 +88,16 @@ function ClassmateCard({ classmate }: { classmate: StudentClassmate }) {
           <strong>{classmate.badge_label}</strong>
         </div>
       </div>
+
+      {!classmate.is_current_user && (
+        <Link
+          className="student-classmate-card__contact"
+          to={`/espace/etudiant/messages?recipient=${classmate.user_id}`}
+        >
+          <MessageCircle size={14} />
+          Contacter
+        </Link>
+      )}
     </article>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Award,
@@ -24,6 +24,11 @@ import {
   type StudentSession,
 } from "../../lib/commerceApi";
 import { getUserActionErrorMessage } from "../../lib/userMessages";
+import {
+  getNotificationDismissedIds,
+  getNotificationStateScope,
+  subscribeToNotificationState,
+} from "../../lib/notificationState";
 import {
   fetchEnrollmentResults,
   fetchMyAssignments,
@@ -323,6 +328,7 @@ function buildDashboardAlerts(params: {
    ════════════════════════════════════════ */
 export default function StudentOverviewPage() {
   const { user } = useAuth();
+  const notificationScope = getNotificationStateScope(user);
   const location = useLocation();
   const navigate = useNavigate();
   const [summary, setSummary] = useState<StudentDashboardSummary | null>(null);
@@ -333,6 +339,9 @@ export default function StudentOverviewPage() {
   const [quizzes, setQuizzes] = useState<StudentQuizView[]>([]);
   const [enrollmentResults, setEnrollmentResults] = useState<StudentEnrollmentResults[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState<Set<string>>(() =>
+    getNotificationDismissedIds(notificationScope),
+  );
   const [selectedCalDate, setSelectedCalDate] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [, setTick] = useState(0);
@@ -342,6 +351,18 @@ export default function StudentOverviewPage() {
     location.state && typeof location.state === "object" && "checkoutMessage" in location.state
       ? String(location.state.checkoutMessage)
       : "";
+
+  useEffect(() => {
+    setDismissedNotificationIds(getNotificationDismissedIds(notificationScope));
+  }, [notificationScope]);
+
+  useEffect(
+    () =>
+      subscribeToNotificationState(notificationScope, () => {
+        setDismissedNotificationIds(getNotificationDismissedIds(notificationScope));
+      }),
+    [notificationScope],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -439,6 +460,11 @@ export default function StudentOverviewPage() {
     return () => window.clearInterval(id);
   }, []);
 
+  const visibleNotifications = useMemo(
+    () => notifications.filter((notification) => !dismissedNotificationIds.has(notification.id)),
+    [dismissedNotificationIds, notifications],
+  );
+
   if (isLoading) return <div className="dsh-page-loading">Chargement…</div>;
   if (!summary) return null;
 
@@ -514,7 +540,7 @@ export default function StudentOverviewPage() {
     assignments,
     quizzes,
     liveEvents,
-    notifications,
+    notifications: visibleNotifications,
     now: Date.now(),
   });
 

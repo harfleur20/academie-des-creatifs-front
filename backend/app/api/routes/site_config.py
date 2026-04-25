@@ -17,6 +17,9 @@ PUBLIC_JSON_KEYS = {
     "testimonials",
     "badge_levels",
     "trainers",
+    "hero_slides",
+    "hero_counters",
+    "programmes",
 }
 
 ALLOWED_KEYS = {

@@ -14,6 +14,10 @@ import {
 import AiChatWidget from "../components/AiChatWidget";
 import AssignedTeacherCard from "../components/AssignedTeacherCard";
 
+function stripModuleTitlePrefix(value: string | undefined) {
+  return (value ?? "").trim().replace(/^module\s*\d+\s*[-:–—]\s*/i, "");
+}
+
 export default function StudentClassicWorkspacePage() {
   const { enrollmentId } = useParams();
   const navigate = useNavigate();
@@ -186,7 +190,7 @@ export default function StudentClassicWorkspacePage() {
                     <div className="wsp-accordion__header-left">
                       <span className="wsp-module-num">Module {mi + 1}</span>
                       <div>
-                        <strong className="wsp-module-title">{mod.title}</strong>
+                        <strong className="wsp-module-title">{stripModuleTitlePrefix(mod.title)}</strong>
                         {mod.duration && (
                           <span className="wsp-module-duration">{mod.duration}</span>
                         )}
@@ -241,7 +245,7 @@ export default function StudentClassicWorkspacePage() {
       <AiChatWidget
         formationTitle={enrollment.formation_title}
         enrollmentId={enrollment.id}
-        moduleTitle={modules[activeModuleIndex]?.title}
+        moduleTitle={stripModuleTitlePrefix(modules[activeModuleIndex]?.title)}
         panelSubtitle={enrollment.session_label || "Modules et progression"}
         introTitle="Je peux vous aider a vous repérer dans votre formation."
         introText="Demandez ou vous en etes, quel module reprendre ou comment valider votre parcours."

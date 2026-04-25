@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MDEditor from "@uiw/react-md-editor/nohighlight";
-import { FaEdit, FaPlus, FaSave, FaTimes, FaTrash } from "react-icons/fa";
+import { FaEdit, FaImage, FaPlus, FaSave, FaTimes, FaTrash } from "react-icons/fa";
 import {
   fetchBlogPosts,
   createBlogPost,
@@ -9,6 +9,8 @@ import {
   type BlogPost,
   type BlogPostPayload,
 } from "../../lib/blogApi";
+import { uploadAdminAsset } from "../../lib/catalogApi";
+import { useToast } from "../../toast/ToastContext";
 
 type Draft = {
   slug: string;
@@ -23,11 +25,15 @@ type Draft = {
   published_at: string;
 };
 
+function todayFr(): string {
+  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" }).format(new Date());
+}
+
 function emptyDraft(): Draft {
   return {
     slug: "", title: "", excerpt: "", content: "",
     cover_image: "", author: "Francis Kenne", category: "",
-    is_featured: false, is_popular: false, published_at: "",
+    is_featured: false, is_popular: false, published_at: todayFr(),
   };
 }
 
@@ -40,27 +46,30 @@ function slugify(str: string) {
 }
 
 export default function AdminBlogPage() {
+  const { success, error: toastError } = useToast();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [slugLocked, setSlugLocked] = useState(true);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchBlogPosts()
       .then(setPosts)
-      .catch(() => setError("Impossible de charger les articles."))
+      .catch(() => setLoadError("Impossible de charger les articles."))
       .finally(() => setLoading(false));
   }, []);
 
   function openCreate() {
     setEditingId(null);
     setDraft(emptyDraft());
-    setFeedback(null);
+    setSlugLocked(true);
     setEditorOpen(true);
   }
 
@@ -73,7 +82,7 @@ export default function AdminBlogPage() {
       is_featured: post.is_featured, is_popular: post.is_popular,
       published_at: post.published_at,
     });
-    setFeedback(null);
+    setSlugLocked(true);
     setEditorOpen(true);
   }
 
@@ -82,24 +91,36 @@ export default function AdminBlogPage() {
   }
 
   async function handleSave() {
-    if (!draft.title.trim()) { setFeedback({ type: "error", msg: "Le titre est requis." }); return; }
-    if (!draft.slug.trim()) { setFeedback({ type: "error", msg: "Le slug est requis." }); return; }
+    if (!draft.title.trim()) { toastError("Le titre est requis."); return; }
+    if (!draft.slug.trim()) { toastError("Le slug est requis."); return; }
     setSaving(true);
-    setFeedback(null);
     try {
       if (editingId !== null) {
         const updated = await updateBlogPost(editingId, draft);
         setPosts((p) => p.map((x) => (x.id === editingId ? updated : x)));
+        success("Article mis à jour.");
       } else {
         const created = await createBlogPost(draft as BlogPostPayload);
         setPosts((p) => [created, ...p]);
+        success("Article créé.");
       }
-      setFeedback({ type: "success", msg: editingId ? "Article mis à jour." : "Article créé." });
-      setTimeout(() => setEditorOpen(false), 800);
+      setEditorOpen(false);
     } catch (e: unknown) {
-      setFeedback({ type: "error", msg: (e as Error).message });
+      toastError((e as Error).message || "Erreur lors de l'enregistrement.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleCoverUpload(file: File) {
+    setUploadingCover(true);
+    try {
+      const asset = await uploadAdminAsset(file);
+      set("cover_image", asset.public_url);
+    } catch {
+      toastError("Échec de l'upload de l'image.");
+    } finally {
+      setUploadingCover(false);
     }
   }
 
@@ -109,8 +130,9 @@ export default function AdminBlogPage() {
     try {
       await deleteBlogPost(id);
       setPosts((p) => p.filter((x) => x.id !== id));
+      success("Article supprimé.");
     } catch {
-      alert("Erreur lors de la suppression.");
+      toastError("Erreur lors de la suppression.");
     } finally {
       setDeletingId(null);
     }
@@ -132,9 +154,9 @@ export default function AdminBlogPage() {
       </div>
 
       {loading && <div className="adm-state-card"><p>Chargement…</p></div>}
-      {error && <div className="adm-state-card adm-state-card--error"><p>{error}</p></div>}
+      {loadError && <div className="adm-state-card adm-state-card--error"><p>{loadError}</p></div>}
 
-      {!loading && !error && (
+      {!loading && !loadError && (
         <div className="adm-card">
           <div className="adm-card__header">
             <h2 className="adm-card__title">{posts.length} article(s)</h2>
@@ -211,156 +233,197 @@ export default function AdminBlogPage() {
         </div>
       )}
 
-      {/* ── Drawer éditeur ── */}
+      {/* ── Éditeur plein écran ── */}
       {editorOpen && (
-        <div className="admin-drawer-backdrop" onClick={() => setEditorOpen(false)}>
-          <div className="admin-drawer" onClick={(e) => e.stopPropagation()}>
+        <div className="admin-drawer" onClick={() => setEditorOpen(false)}>
+          <div className="admin-drawer__backdrop" />
+          <div className="admin-drawer__panel" onClick={(e) => e.stopPropagation()}>
+
+            {/* Header */}
             <div className="admin-drawer__header">
-              <h3>{editingId ? "Modifier l'article" : "Nouvel article"}</h3>
-              <button type="button" className="admin-drawer__close" onClick={() => setEditorOpen(false)}>
-                <FaTimes />
-              </button>
-            </div>
-            <div className="admin-drawer__body">
-              <div className="fe-fields">
-                <label className="admin-field fe-span-full">
-                  <span>Titre</span>
-                  <input
-                    type="text"
-                    value={draft.title}
-                    onChange={(e) => {
-                      set("title", e.target.value);
-                      if (!editingId) set("slug", slugify(e.target.value));
-                    }}
-                    placeholder="Titre de l'article"
-                  />
-                </label>
-
-                <label className="admin-field">
-                  <span>Slug (URL)</span>
-                  <input
-                    type="text"
-                    value={draft.slug}
-                    onChange={(e) => set("slug", e.target.value)}
-                    placeholder="mon-article"
-                  />
-                </label>
-
-                <label className="admin-field">
-                  <span>Auteur</span>
-                  <input
-                    type="text"
-                    value={draft.author}
-                    onChange={(e) => set("author", e.target.value)}
-                  />
-                </label>
-
-                <label className="admin-field">
-                  <span>Catégorie</span>
-                  <select value={draft.category} onChange={(e) => set("category", e.target.value)}>
-                    <option value="">— Choisir —</option>
-                    <option value="Freelance">Freelance</option>
-                    <option value="Design Graphique">Design Graphique</option>
-                    <option value="Découverte">Découverte</option>
-                    <option value="Communauté">Communauté</option>
-                  </select>
-                </label>
-
-                <label className="admin-field">
-                  <span>Date de publication</span>
-                  <input
-                    type="text"
-                    value={draft.published_at}
-                    onChange={(e) => set("published_at", e.target.value)}
-                    placeholder="Ex: 17 avril 2026"
-                  />
-                </label>
-
-                <label className="admin-field">
-                  <span>Image de couverture (URL)</span>
-                  <input
-                    type="text"
-                    value={draft.cover_image}
-                    onChange={(e) => set("cover_image", e.target.value)}
-                    placeholder="/images-blog/mon-image.jpg"
-                  />
-                </label>
-
-                {draft.cover_image && (
-                  <div className="fe-span-full">
-                    <img
-                      src={draft.cover_image}
-                      alt="preview"
-                      style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 8 }}
-                    />
-                  </div>
-                )}
-
-                <label className="admin-field fe-span-full">
-                  <span>Résumé</span>
-                  <textarea
-                    rows={3}
-                    value={draft.excerpt}
-                    onChange={(e) => set("excerpt", e.target.value)}
-                    placeholder="Courte description affichée dans les listes…"
-                  />
-                </label>
-
-                <div className="admin-field fe-span-full">
-                  <span>Contenu complet</span>
-                  <div data-color-mode="light" style={{ marginTop: "0.4rem" }}>
-                    <MDEditor
-                      value={draft.content}
-                      onChange={(val) => set("content", val ?? "")}
-                      height={420}
-                      preview="edit"
-                    />
-                  </div>
-                </div>
-
-                <div className="admin-field fe-span-full" style={{ display: "flex", gap: "1.5rem" }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={draft.is_featured}
-                      onChange={(e) => set("is_featured", e.target.checked)}
-                    />
-                    <span>À la une</span>
-                  </label>
-                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={draft.is_popular}
-                      onChange={(e) => set("is_popular", e.target.checked)}
-                    />
-                    <span>Populaire (affiché sur l'accueil)</span>
-                  </label>
-                </div>
+              <div>
+                <p className="adm-eyebrow" style={{ margin: 0, fontSize: "0.7rem" }}>Blog</p>
+                <h3 style={{ margin: "0.15rem 0 0" }}>
+                  {editingId ? "Modifier l'article" : "Nouvel article"}
+                </h3>
               </div>
-
-              {feedback && (
-                <p className={`admin-feedback admin-feedback--${feedback.type}`} style={{ marginTop: "1rem" }}>
-                  {feedback.msg}
-                </p>
-              )}
-
-              <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
-                <button
-                  type="button"
-                  className="admin-secondary-button"
-                  onClick={() => setEditorOpen(false)}
-                >
+              <div className="blog-ed-header-actions">
+                <button type="button" className="admin-secondary-button" onClick={() => setEditorOpen(false)}>
                   Annuler
                 </button>
-                <button
-                  type="button"
-                  className="admin-primary-button"
-                  disabled={saving}
-                  onClick={() => void handleSave()}
-                >
+                <button type="button" className="adm-btn adm-btn--primary" disabled={saving} onClick={() => void handleSave()}>
                   <FaSave /> {saving ? "Enregistrement…" : "Sauvegarder"}
                 </button>
+                <button type="button" className="blog-ed-close" onClick={() => setEditorOpen(false)} aria-label="Fermer">
+                  <FaTimes />
+                </button>
               </div>
+            </div>
+
+            {/* Split body */}
+            <div className="blog-ed-body">
+
+              {/* ─ Sidebar gauche : métadonnées ─ */}
+              <div className="blog-ed-sidebar">
+
+                <div className="blog-ed-section">
+                  <p className="blog-ed-section__label">Informations</p>
+                  <label className="admin-field">
+                    <span>Titre de l'article</span>
+                    <input
+                      type="text"
+                      value={draft.title}
+                      onChange={(e) => {
+                        set("title", e.target.value);
+                        if (!editingId) set("slug", slugify(e.target.value));
+                      }}
+                      placeholder="Titre de l'article"
+                    />
+                  </label>
+                  <div className="admin-field">
+                    <span>Slug (URL)</span>
+                    <div className="blog-ed-slug-row">
+                      <input
+                        type="text"
+                        value={draft.slug}
+                        readOnly={slugLocked}
+                        onChange={(e) => set("slug", e.target.value)}
+                        placeholder="mon-article"
+                        className={slugLocked ? "blog-ed-slug-locked" : ""}
+                      />
+                      <button
+                        type="button"
+                        className="blog-ed-slug-btn"
+                        onClick={() => setSlugLocked((l) => !l)}
+                        title={slugLocked ? "Modifier le slug" : "Verrouiller le slug"}
+                      >
+                        <FaEdit />
+                        {slugLocked ? "Modifier" : "Verrouiller"}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="blog-ed-row">
+                    <label className="admin-field">
+                      <span>Auteur</span>
+                      <input type="text" value={draft.author} onChange={(e) => set("author", e.target.value)} />
+                    </label>
+                    <div className="admin-field">
+                      <span>Date de publication</span>
+                      <div className="blog-ed-date-row">
+                        <input
+                          type="text"
+                          value={draft.published_at}
+                          onChange={(e) => set("published_at", e.target.value)}
+                          placeholder="24 avril 2026"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <label className="admin-field">
+                    <span>Catégorie</span>
+                    <select value={draft.category} onChange={(e) => set("category", e.target.value)}>
+                      <option value="">— Choisir —</option>
+                      <option value="Freelance">Freelance</option>
+                      <option value="Design Graphique">Design Graphique</option>
+                      <option value="Découverte">Découverte</option>
+                      <option value="Communauté">Communauté</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="blog-ed-section">
+                  <p className="blog-ed-section__label">Image de couverture</p>
+                  <input
+                    ref={coverInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleCoverUpload(file);
+                      e.target.value = "";
+                    }}
+                  />
+                  {draft.cover_image ? (
+                    <div className="blog-ed-cover-wrap">
+                      <img src={draft.cover_image} alt="aperçu" className="blog-ed-cover-preview" />
+                      <div className="blog-ed-cover-actions">
+                        <button
+                          type="button"
+                          className="blog-ed-cover-btn"
+                          disabled={uploadingCover}
+                          onClick={() => coverInputRef.current?.click()}
+                        >
+                          <FaImage /> {uploadingCover ? "Upload…" : "Changer"}
+                        </button>
+                        <button
+                          type="button"
+                          className="blog-ed-cover-btn blog-ed-cover-btn--danger"
+                          onClick={() => set("cover_image", "")}
+                        >
+                          <FaTimes /> Supprimer
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="blog-ed-cover-drop"
+                      disabled={uploadingCover}
+                      onClick={() => coverInputRef.current?.click()}
+                    >
+                      <FaImage className="blog-ed-cover-drop__icon" />
+                      <span>{uploadingCover ? "Upload en cours…" : "Cliquer pour choisir une image"}</span>
+                      <small>JPG, PNG, WEBP — max 8 Mo</small>
+                    </button>
+                  )}
+                </div>
+
+                <div className="blog-ed-section">
+                  <p className="blog-ed-section__label">Résumé</p>
+                  <label className="admin-field">
+                    <textarea
+                      rows={4}
+                      value={draft.excerpt}
+                      onChange={(e) => set("excerpt", e.target.value)}
+                      placeholder="Courte description affichée dans les listes…"
+                    />
+                  </label>
+                </div>
+
+                <div className="blog-ed-section">
+                  <p className="blog-ed-section__label">Mise en avant</p>
+                  <label className="blog-ed-toggle">
+                    <input type="checkbox" checked={draft.is_featured} onChange={(e) => set("is_featured", e.target.checked)} />
+                    <div className="blog-ed-toggle__info">
+                      <span>À la une</span>
+                      <small>Affiché en tête du blog</small>
+                    </div>
+                  </label>
+                  <label className="blog-ed-toggle">
+                    <input type="checkbox" checked={draft.is_popular} onChange={(e) => set("is_popular", e.target.checked)} />
+                    <div className="blog-ed-toggle__info">
+                      <span>Populaire</span>
+                      <small>Affiché sur la page d'accueil</small>
+                    </div>
+                  </label>
+                </div>
+
+              </div>
+
+              {/* ─ Zone droite : éditeur markdown ─ */}
+              <div className="blog-ed-content">
+                <p className="blog-ed-section__label" style={{ marginBottom: "0.75rem" }}>Contenu complet</p>
+                <div data-color-mode="light" className="blog-ed-md-wrap">
+                  <MDEditor
+                    value={draft.content}
+                    onChange={(val) => set("content", val ?? "")}
+                    height="100%"
+                    preview="edit"
+                  />
+                </div>
+              </div>
+
             </div>
           </div>
         </div>

@@ -5,8 +5,9 @@ export default defineConfig({
   plugins: [react()],
   publicDir: "../assets",
   server: {
-    host: "0.0.0.0",
+    host: "127.0.0.1",
     port: 3000,
-    open: "http://localhost:3000/",
+    strictPort: false,
+    open: true,
   },
 });

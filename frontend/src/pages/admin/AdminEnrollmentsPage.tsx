@@ -87,7 +87,6 @@ export default function AdminEnrollmentsPage() {
     syncEnrollmentDraft,
     savingEnrollmentId,
     handleSaveEnrollment,
-    enrollmentFeedbackById,
   } = useAdminDashboard();
 
   const [search, setSearch] = useState("");
@@ -355,7 +354,6 @@ export default function AdminEnrollmentsPage() {
               <tbody>
                 {paginated.length ? paginated.map((enrollment) => {
                   const draft = enrollmentDrafts[enrollment.id];
-                  const feedback = enrollmentFeedbackById[enrollment.id];
                   const isSaving = savingEnrollmentId === enrollment.id;
                   const isSelected = selectedEnrollment?.id === enrollment.id;
 
@@ -453,11 +451,6 @@ export default function AdminEnrollmentsPage() {
                           >
                             {isSaving ? "…" : <FaCheckCircle />}
                           </button>
-                          {feedback ? (
-                            <span className={`adm-feedback adm-feedback--${feedback.type}`}>
-                              {feedback.message}
-                            </span>
-                          ) : null}
                         </div>
                       </td>
                     </tr>

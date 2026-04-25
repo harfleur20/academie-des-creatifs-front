@@ -1,11 +1,13 @@
+import { BadgeCheck } from "lucide-react";
+
 export default function VerifiedBadge({ size = 16 }: { size?: number }) {
   return (
-    <img
-      src="/verification-badge.png"
-      alt="Formateur vérifié"
+    <BadgeCheck
+      aria-label="Certification Académie des Créatifs"
       className="verified-badge"
-      style={{ width: size, height: size, flexShrink: 0 }}
-      title="Formateur vérifié Académie des Créatifs"
+      size={size}
+      strokeWidth={2.4}
+      title="Certification Académie des Créatifs"
     />
   );
 }

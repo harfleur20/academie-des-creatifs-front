@@ -240,6 +240,13 @@ export async function fetchNotifications(): Promise<NotificationItem[]> {
   return apiRequest<NotificationItem[]>("/me/notifications");
 }
 
+export async function dismissNotificationsRemote(ids: string[]): Promise<void> {
+  await apiRequest<void>("/me/notifications/dismiss", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
+}
+
 export type StudentSession = {
   id: number;
   formation_id: number;

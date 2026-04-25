@@ -59,6 +59,7 @@ export type CatalogFormation = {
   current_price_label: string;
   original_price_amount: number | null;
   original_price_label: string | null;
+  promo_ends_at: string | null;
   price_currency: string;
   allow_installments: boolean;
   is_featured_home: boolean;
@@ -115,6 +116,7 @@ export type AdminFormationCreatePayload = {
   format_type: FormationFormat;
   current_price_amount: number;
   original_price_amount?: number | null;
+  promo_ends_at?: string | null;
   is_featured_home?: boolean;
   home_feature_rank?: number;
   rating?: number;
@@ -142,6 +144,7 @@ export type AdminFormationUpdatePayload = {
   reviews?: number;
   current_price_amount?: number;
   original_price_amount?: number | null;
+  promo_ends_at?: string | null;
   is_featured_home?: boolean;
   home_feature_rank?: number;
   badges?: MarketingBadge[];
@@ -718,6 +721,13 @@ export async function updateSiteConfig(payload: SiteConfig): Promise<SiteConfig>
   });
 }
 
+export async function updateSiteContent(patch: Record<string, string>): Promise<void> {
+  await apiRequest("/admin/site-config", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
 export type LessonKey = {
   module_index: number;
   lesson_index: number;
@@ -749,18 +759,31 @@ export async function toggleLessonCompletion(
 export type CertificateView = {
   enrollment_id: number;
   certificate_number: string;
+  verification_token: string | null;
+  verification_path: string | null;
+  verification_url: string | null;
+  share_path: string | null;
+  share_url: string | null;
+  share_image_url: string | null;
   student_name: string;
+  student_code: string | null;
   formation_title: string;
+  formation_duration: string | null;
   format_type: string;
   dashboard_type: string;
   mentor_name: string;
   level: string;
   session_label: string;
   issued_date: string;
+  is_valid: boolean;
 };
 
 export async function fetchCertificate(enrollmentId: number): Promise<CertificateView> {
   return apiRequest<CertificateView>(`/me/enrollments/${enrollmentId}/certificate`);
+}
+
+export async function verifyCertificate(token: string): Promise<CertificateView> {
+  return apiRequest<CertificateView>(`/certificates/verify/${encodeURIComponent(token)}`);
 }
 
 export async function uploadAdminAsset(file: File): Promise<AdminUploadedAsset> {
@@ -786,5 +809,47 @@ export async function patchAdminCourseDayStatus(
   await apiRequest<void>(`/admin/course-days/${courseDayId}/status`, {
     method: "PATCH",
     body: JSON.stringify({ status }),
+  });
+}
+
+// ── Admin invitations ────────────────────────────────────────────────────────
+export type AdminInviteStatus = "pending" | "accepted" | "cancelled" | "expired";
+
+export type AdminInvitation = {
+  id: number;
+  email: string;
+  full_name: string;
+  token: string;
+  status: AdminInviteStatus;
+  expires_at: string;
+  created_at: string;
+};
+
+export async function fetchAdminInvitations(): Promise<AdminInvitation[]> {
+  return apiRequest<AdminInvitation[]>("/admin/invitations");
+}
+
+export async function createAdminInvitation(payload: {
+  email: string;
+  full_name: string;
+}): Promise<AdminInvitation> {
+  return apiRequest<AdminInvitation>("/admin/invitations", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function revokeAdminInvitation(id: number): Promise<AdminInvitation> {
+  return apiRequest<AdminInvitation>(`/admin/invitations/${id}/revoke`, { method: "POST" });
+}
+
+export async function fetchAdminInvitationByToken(token: string): Promise<AdminInvitation> {
+  return apiRequest<AdminInvitation>(`/invitations/admin/${token}`);
+}
+
+export async function acceptAdminInvitation(token: string, password: string): Promise<{ user: unknown }> {
+  return apiRequest<{ user: unknown }>(`/invitations/admin/${token}/accept`, {
+    method: "POST",
+    body: JSON.stringify({ password }),
   });
 }

@@ -87,6 +87,7 @@ import {
   fetchPublicSiteContent,
   type TrainerProfile,
 } from "../lib/siteContentApi";
+import { useToast } from "../toast/ToastContext";
 
 type DraftValues = {
   title: string;
@@ -98,6 +99,7 @@ type DraftValues = {
   reviews: string;
   currentPrice: string;
   originalPrice: string;
+  promoEndsAt: string;
   isFeaturedHome: boolean;
   homeFeatureRank: string;
   badges: MarketingBadge[];
@@ -116,6 +118,7 @@ type DraftValues = {
 type Feedback = {
   type: "success" | "error";
   message: string;
+  field?: string;
 };
 
 type UserDraft = {
@@ -164,29 +167,47 @@ type PaymentDraft = {
 type CatalogDisplayFilter = "all" | "featured";
 
 const marketingBadges: MarketingBadge[] = ["premium", "populaire"];
+const baseCategoryOptions = [
+  "Design graphique",
+  "No-Code & Tech",
+  "Intelligence artificielle",
+  "UI/UX Design",
+  "Branding",
+  "Marketing digital",
+  "Motion design",
+  "Audiovisuel",
+  "Photographie",
+];
+const levelOptions = [
+  "Tous niveaux",
+  "Débutant",
+  "Intermédiaire",
+  "Avancé",
+  "Professionnel",
+];
 const formationFormatOptions: Array<{
   value: FormationFormat;
   label: string;
   subtitle: string;
-  image: string;
+  icon: ReactNode;
 }> = [
   {
     value: "live",
     label: "Live",
     subtitle: "Sessions animees en direct",
-    image: "/Microsoft_Office_Teams.webp",
+    icon: <FaVideo />,
   },
   {
     value: "ligne",
     label: "En ligne",
     subtitle: "Parcours classique a suivre a distance",
-    image: "/Flyers/Figma-Image.jpg",
+    icon: <FaLaptop />,
   },
   {
     value: "presentiel",
     label: "Presentiel",
     subtitle: "Cohorte accompagnee sur place",
-    image: "/banner_catalogue_formation.jpg",
+    icon: <FaMapMarkerAlt />,
   },
 ];
 const userRoles: UserRole[] = ["guest", "student", "teacher", "admin"];
@@ -195,6 +216,49 @@ const enrollmentStatuses: EnrollmentStatus[] = ["pending", "active", "suspended"
 const sessionStatuses: SessionStatus[] = ["planned", "open", "completed", "cancelled"];
 const orderStatuses: OrderStatus[] = ["pending", "paid", "partially_paid", "failed", "cancelled"];
 const paymentStatuses: PaymentStatus[] = ["pending", "late", "confirmed", "failed", "cancelled"];
+
+class FormationDraftError extends Error {
+  field: keyof DraftValues | "slug";
+
+  constructor(message: string, field: keyof DraftValues | "slug") {
+    super(message);
+    this.name = "FormationDraftError";
+    this.field = field;
+  }
+}
+
+function normalizeOptionLabel(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function normalizeOptionKey(value: string) {
+  return normalizeOptionLabel(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("fr");
+}
+
+function resolveOptionValue(value: string, options: string[]) {
+  const label = normalizeOptionLabel(value);
+
+  if (!label) {
+    return "";
+  }
+
+  const key = normalizeOptionKey(label);
+  return options.find((option) => normalizeOptionKey(option) === key) ?? label;
+}
+
+function hasEquivalentOption(options: string[], value: string) {
+  const label = normalizeOptionLabel(value);
+
+  if (!label) {
+    return false;
+  }
+
+  const key = normalizeOptionKey(label);
+  return options.some((option) => normalizeOptionKey(option) === key);
+}
 
 function badgeIcon(badge: string) {
   if (badge === "premium") {
@@ -313,6 +377,10 @@ function trimValue(value: string | null | undefined) {
   return (value ?? "").trim();
 }
 
+function stripModuleTitlePrefix(value: string | null | undefined) {
+  return trimValue(value).replace(/^module\s*\d+\s*[-:–—]\s*/i, "");
+}
+
 function updateItemAtIndex<T>(items: T[], index: number, nextItem: T) {
   return items.map((item, itemIndex) => (itemIndex === index ? nextItem : item));
 }
@@ -377,7 +445,7 @@ function normalizeProjects(projects: FormationProject[]) {
 
 function normalizeModules(modules: FormationModule[]) {
   return modules.reduce<FormationModule[]>((accumulator, module) => {
-    const title = trimValue(module.title);
+    const title = stripModuleTitlePrefix(module.title);
     const summary = trimValue(module.summary);
     const duration = trimValue(module.duration);
     const lessons = normalizeStringList(module.lessons ?? []);
@@ -450,8 +518,8 @@ function FormatPicker({
             className={`fe-format-card${isActive ? " is-active" : ""}`}
             onClick={() => onChange(option.value)}
           >
-            <span className="fe-format-card__media">
-              <img src={option.image} alt="" />
+            <span className={`fe-format-card__icon fe-format-card__icon--${option.value}`}>
+              {option.icon}
             </span>
             <span className="fe-format-card__copy">
               <strong>{option.label}</strong>
@@ -713,13 +781,21 @@ function ModuleEditor({
                     <span>Titre du module</span>
                     <input
                       type="text"
-                      placeholder="Ex : Module 1 - Fondations et methode"
+                      placeholder="Ex : Fondations et methode"
                       value={module.title}
                       onChange={(event) =>
                         onChange(
                           updateItemAtIndex(modules, index, {
                             ...module,
                             title: event.target.value,
+                          }),
+                        )
+                      }
+                      onBlur={() =>
+                        onChange(
+                          updateItemAtIndex(modules, index, {
+                            ...module,
+                            title: stripModuleTitlePrefix(module.title),
                           }),
                         )
                       }
@@ -1127,6 +1203,7 @@ function buildDraftFromFormation(formation: AdminFormation): DraftValues {
     reviews: formation.reviews.toString(),
     currentPrice: formation.current_price_amount.toString(),
     originalPrice: formation.original_price_amount?.toString() ?? "",
+    promoEndsAt: formation.promo_ends_at ?? "",
     isFeaturedHome: formation.is_featured_home,
     homeFeatureRank: formation.home_feature_rank.toString(),
     badges: formation.badges.filter(
@@ -1146,7 +1223,7 @@ function buildDraftFromFormation(formation: AdminFormation): DraftValues {
     })),
     audienceText: formation.audience_text,
     modules: formation.modules.map((module) => ({
-      title: module.title,
+      title: stripModuleTitlePrefix(module.title),
       summary: module.summary ?? "",
       duration: module.duration ?? "",
       lessons: [...module.lessons],
@@ -1169,6 +1246,7 @@ function emptyCreateDraft(): DraftValues {
     reviews: "0",
     currentPrice: "",
     originalPrice: "",
+    promoEndsAt: "",
     isFeaturedHome: false,
     homeFeatureRank: "100",
     badges: [],
@@ -1201,6 +1279,7 @@ function emptySessionCreateDraft(): SessionCreateDraft {
 
 function buildPayloadFromDraft(
   draft: DraftValues,
+  categoryOptions: string[] = [],
 ): { payload: Omit<AdminFormationCreatePayload, "slug">; currentPrice: number } {
   const rating = Number.parseFloat(draft.rating);
   const reviews = Number.parseInt(draft.reviews, 10);
@@ -1208,42 +1287,47 @@ function buildPayloadFromDraft(
   const originalPrice = draft.originalPrice.trim()
     ? Number.parseInt(draft.originalPrice, 10)
     : null;
+  const promoEndsAt = draft.promoEndsAt.trim() || null;
   const homeFeatureRank = Number.parseInt(draft.homeFeatureRank, 10);
 
   if (!draft.title.trim()) {
-    throw new Error("Le titre ne peut pas etre vide.");
+    throw new FormationDraftError("Le titre ne peut pas etre vide.", "title");
   }
 
   if (!draft.category.trim()) {
-    throw new Error("La categorie ne peut pas etre vide.");
+    throw new FormationDraftError("La categorie ne peut pas etre vide.", "category");
   }
 
   if (!draft.level.trim()) {
-    throw new Error("Le niveau ne peut pas etre vide.");
+    throw new FormationDraftError("Le niveau ne peut pas etre vide.", "level");
   }
 
   if (!draft.image.trim()) {
-    throw new Error("L'image ne peut pas etre vide.");
+    throw new FormationDraftError("L'image ne peut pas etre vide.", "image");
   }
 
   if (!Number.isFinite(rating) || !isValidRating(rating)) {
-    throw new Error("La note doit etre comprise entre 0 et 5, par pas de 0.5.");
+    throw new FormationDraftError("La note doit etre comprise entre 0 et 5, par pas de 0.5.", "rating");
   }
 
   if (!Number.isInteger(reviews) || reviews < 0) {
-    throw new Error("Le nombre d'avis doit etre un entier positif ou nul.");
+    throw new FormationDraftError("Le nombre d'avis doit etre un entier positif ou nul.", "reviews");
   }
 
   if (!Number.isInteger(currentPrice) || currentPrice < 0) {
-    throw new Error("Le prix actuel doit etre un entier positif.");
+    throw new FormationDraftError("Le prix actuel doit etre un entier positif.", "currentPrice");
   }
 
   if (originalPrice !== null && (!Number.isInteger(originalPrice) || originalPrice < currentPrice)) {
-    throw new Error("Le prix barre doit etre vide ou superieur ou egal au prix actuel.");
+    throw new FormationDraftError("Le prix barre doit etre vide ou superieur ou egal au prix actuel.", "originalPrice");
+  }
+
+  if (promoEndsAt && originalPrice === null) {
+    throw new FormationDraftError("Ajoute un prix barre avant de definir une date limite de promo.", "promoEndsAt");
   }
 
   if (!Number.isInteger(homeFeatureRank) || homeFeatureRank < 0) {
-    throw new Error("L'ordre d'affichage accueil doit etre un entier positif ou nul.");
+    throw new FormationDraftError("L'ordre d'affichage accueil doit etre un entier positif ou nul.", "homeFeatureRank");
   }
 
   const included = normalizeStringList(draft.included);
@@ -1251,12 +1335,13 @@ function buildPayloadFromDraft(
   const projects = normalizeProjects(draft.projects);
   const modules = normalizeModules(draft.modules);
   const faqs = normalizeFaqs(draft.faqs);
+  const category = resolveOptionValue(draft.category, categoryOptions);
 
   return {
     currentPrice,
     payload: {
       title: trimValue(draft.title),
-      category: trimValue(draft.category),
+      category,
       level: trimValue(draft.level),
       image: trimValue(draft.image),
       format_type: draft.formatType,
@@ -1264,6 +1349,7 @@ function buildPayloadFromDraft(
       reviews,
       current_price_amount: currentPrice,
       original_price_amount: originalPrice,
+      promo_ends_at: promoEndsAt,
       is_featured_home: draft.isFeaturedHome,
       home_feature_rank: homeFeatureRank,
       badges: draft.badges,
@@ -1279,6 +1365,22 @@ function buildPayloadFromDraft(
       faqs,
     },
   };
+}
+
+function scrollFormationEditorToError(field?: string) {
+  window.setTimeout(() => {
+    const target = field
+      ? document.querySelector<HTMLElement>(`[data-field="${field}"]`)
+      : document.querySelector<HTMLElement>(".admin-feedback--error");
+
+    if (!target) {
+      return;
+    }
+
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    const focusable = target.querySelector<HTMLElement>("input, select, textarea, button");
+    focusable?.focus({ preventScroll: true });
+  }, 80);
 }
 
 function buildUserDraft(user: AdminUser): UserDraft {
@@ -1437,6 +1539,7 @@ function FormationDetailFields({
 }
 
 export default function DashboardPage() {
+  const { success, error: toastError } = useToast();
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [formations, setFormations] = useState<AdminFormation[]>([]);
   const [sessions, setSessions] = useState<AdminOnsiteSession[]>([]);
@@ -1456,11 +1559,7 @@ export default function DashboardPage() {
     emptySessionCreateDraft,
   );
   const [feedbackBySlug, setFeedbackBySlug] = useState<Record<string, Feedback>>({});
-  const [userFeedbackById, setUserFeedbackById] = useState<Record<number, Feedback>>({});
   const [sessionFeedbackById, setSessionFeedbackById] = useState<Record<number, Feedback>>({});
-  const [enrollmentFeedbackById, setEnrollmentFeedbackById] = useState<Record<number, Feedback>>({});
-  const [orderFeedbackById, setOrderFeedbackById] = useState<Record<number, Feedback>>({});
-  const [paymentFeedbackById, setPaymentFeedbackById] = useState<Record<number, Feedback>>({});
   const [createFeedback, setCreateFeedback] = useState<Feedback | null>(null);
   const [createSessionFeedback, setCreateSessionFeedback] = useState<Feedback | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1488,6 +1587,29 @@ export default function DashboardPage() {
     () => formations.filter((formation) => formation.is_featured_home).length,
     [formations],
   );
+  const categoryOptions = useMemo(() => {
+    const options = new Map<string, string>();
+    const addOption = (value: string) => {
+      const label = normalizeOptionLabel(value);
+
+      if (!label) {
+        return;
+      }
+
+      const key = normalizeOptionKey(label);
+
+      if (!options.has(key)) {
+        options.set(key, label);
+      }
+    };
+
+    baseCategoryOptions.forEach(addOption);
+    formations.forEach((formation) => addOption(formation.category));
+
+    return Array.from(options.values()).sort((left, right) =>
+      left.localeCompare(right, "fr", { sensitivity: "base" }),
+    );
+  }, [formations]);
 
   const visibleFormations = useMemo(() => {
     if (catalogDisplayFilter === "featured") {
@@ -1676,14 +1798,6 @@ export default function DashboardPage() {
         [field]: value,
       },
     }));
-    setUserFeedbackById((current) => {
-      if (!(userId in current)) {
-        return current;
-      }
-      const next = { ...current };
-      delete next[userId];
-      return next;
-    });
   };
 
   const syncSessionDraft = (
@@ -1716,14 +1830,6 @@ export default function DashboardPage() {
         status,
       },
     }));
-    setEnrollmentFeedbackById((current) => {
-      if (!(enrollmentId in current)) {
-        return current;
-      }
-      const next = { ...current };
-      delete next[enrollmentId];
-      return next;
-    });
   };
 
   const syncEnrollmentSessionDraft = (enrollmentId: number, sessionId: number | null) => {
@@ -1734,14 +1840,6 @@ export default function DashboardPage() {
         sessionId,
       },
     }));
-    setEnrollmentFeedbackById((current) => {
-      if (!(enrollmentId in current)) {
-        return current;
-      }
-      const next = { ...current };
-      delete next[enrollmentId];
-      return next;
-    });
   };
 
   const syncOrderDraft = (orderId: number, status: OrderStatus) => {
@@ -1752,14 +1850,6 @@ export default function DashboardPage() {
         status,
       },
     }));
-    setOrderFeedbackById((current) => {
-      if (!(orderId in current)) {
-        return current;
-      }
-      const next = { ...current };
-      delete next[orderId];
-      return next;
-    });
   };
 
   const syncPaymentDraft = (
@@ -1774,14 +1864,6 @@ export default function DashboardPage() {
         [field]: value,
       },
     }));
-    setPaymentFeedbackById((current) => {
-      if (!(paymentId in current)) {
-        return current;
-      }
-      const next = { ...current };
-      delete next[paymentId];
-      return next;
-    });
   };
 
   const openCreateFormationEditor = () => {
@@ -1867,7 +1949,7 @@ export default function DashboardPage() {
     const draft = drafts[formation.slug];
 
     try {
-      const { payload, currentPrice } = buildPayloadFromDraft(draft);
+      const { payload, currentPrice } = buildPayloadFromDraft(draft, categoryOptions);
       setSavingSlug(formation.slug);
 
       const updated = await updateAdminFormation(formation.slug, payload);
@@ -1895,6 +1977,7 @@ export default function DashboardPage() {
       await refreshOverview();
       return true;
     } catch (error) {
+      const field = error instanceof FormationDraftError ? error.field : undefined;
       setFeedbackBySlug((current) => ({
         ...current,
         [formation.slug]: {
@@ -1903,8 +1986,10 @@ export default function DashboardPage() {
             error instanceof Error
               ? error.message
             : "Echec de sauvegarde. Reessaie quand l'API admin est disponible.",
+          field,
         },
       }));
+      scrollFormationEditorToError(field);
       return false;
     } finally {
       setSavingSlug(null);
@@ -1918,7 +2003,7 @@ export default function DashboardPage() {
         throw new Error("Le titre doit permettre de generer un slug valide.");
       }
 
-      const { payload, currentPrice } = buildPayloadFromDraft(createDraft);
+      const { payload, currentPrice } = buildPayloadFromDraft(createDraft, categoryOptions);
       setIsCreating(true);
 
       const created = await createAdminFormation({
@@ -1943,13 +2028,16 @@ export default function DashboardPage() {
       await refreshOverview();
       return true;
     } catch (error) {
+      const field = error instanceof FormationDraftError ? error.field : undefined;
       setCreateFeedback({
         type: "error",
         message:
           error instanceof Error
             ? error.message
             : "Impossible de creer la formation pour le moment.",
+        field,
       });
+      scrollFormationEditorToError(field);
       return false;
     } finally {
       setIsCreating(false);
@@ -1971,10 +2059,7 @@ export default function DashboardPage() {
       payload.status = draft.status;
     }
     if (Object.keys(payload).length === 0) {
-      setUserFeedbackById((current) => ({
-        ...current,
-        [user.id]: { type: "success", message: "Aucun changement a enregistrer." },
-      }));
+      success("Aucun changement à enregistrer.");
       return;
     }
 
@@ -1993,18 +2078,9 @@ export default function DashboardPage() {
           refreshedEnrollments.map((enrollment) => [enrollment.id, buildEnrollmentDraft(enrollment)]),
         ),
       );
-      setUserFeedbackById((current) => ({
-        ...current,
-        [user.id]: { type: "success", message: "Utilisateur mis a jour." },
-      }));
+      success("Utilisateur mis à jour.");
     } catch (error) {
-      setUserFeedbackById((current) => ({
-        ...current,
-        [user.id]: {
-          type: "error",
-          message: error instanceof Error ? error.message : "Echec de mise a jour utilisateur.",
-        },
-      }));
+      toastError(error instanceof Error ? error.message : "Échec de mise à jour utilisateur.");
     } finally {
       setSavingUserId(null);
     }
@@ -2019,10 +2095,7 @@ export default function DashboardPage() {
     const statusChanged = draft.status !== enrollment.status;
     const sessionChanged = draft.sessionId !== (enrollment.session_id ?? null);
     if (!statusChanged && !sessionChanged) {
-      setEnrollmentFeedbackById((current) => ({
-        ...current,
-        [enrollment.id]: { type: "success", message: "Aucun changement a enregistrer." },
-      }));
+      success("Aucun changement à enregistrer.");
       return;
     }
 
@@ -2044,18 +2117,9 @@ export default function DashboardPage() {
         ...current,
         [updated.id]: buildEnrollmentDraft(updated),
       }));
-      setEnrollmentFeedbackById((current) => ({
-        ...current,
-        [enrollment.id]: { type: "success", message: "Inscription mise a jour." },
-      }));
+      success("Inscription mise à jour.");
     } catch (error) {
-      setEnrollmentFeedbackById((current) => ({
-        ...current,
-        [enrollment.id]: {
-          type: "error",
-          message: error instanceof Error ? error.message : "Echec de mise a jour inscription.",
-        },
-      }));
+      toastError(error instanceof Error ? error.message : "Échec de mise à jour inscription.");
     } finally {
       setSavingEnrollmentId(null);
     }
@@ -2207,10 +2271,7 @@ export default function DashboardPage() {
     }
     const payload: AdminOrderUpdatePayload = { status: draft.status };
     if (draft.status === order.status) {
-      setOrderFeedbackById((current) => ({
-        ...current,
-        [order.id]: { type: "success", message: "Aucun changement a enregistrer." },
-      }));
+      success("Aucun changement à enregistrer.");
       return;
     }
     try {
@@ -2229,18 +2290,9 @@ export default function DashboardPage() {
         ),
       );
       await refreshOverview();
-      setOrderFeedbackById((current) => ({
-        ...current,
-        [order.id]: { type: "success", message: "Commande mise a jour." },
-      }));
+      success("Commande mise à jour.");
     } catch (error) {
-      setOrderFeedbackById((current) => ({
-        ...current,
-        [order.id]: {
-          type: "error",
-          message: error instanceof Error ? error.message : "Echec de mise a jour commande.",
-        },
-      }));
+      toastError(error instanceof Error ? error.message : "Échec de mise à jour commande.");
     } finally {
       setSavingOrderId(null);
     }
@@ -2259,10 +2311,7 @@ export default function DashboardPage() {
       payload.status = draft.status;
     }
     if (Object.keys(payload).length === 0) {
-      setPaymentFeedbackById((current) => ({
-        ...current,
-        [payment.id]: { type: "success", message: "Aucun changement a enregistrer." },
-      }));
+      success("Aucun changement à enregistrer.");
       return;
     }
     try {
@@ -2285,18 +2334,9 @@ export default function DashboardPage() {
         ),
       );
       await refreshOverview();
-      setPaymentFeedbackById((current) => ({
-        ...current,
-        [payment.id]: { type: "success", message: "Paiement mis a jour." },
-      }));
+      success("Paiement mis à jour.");
     } catch (error) {
-      setPaymentFeedbackById((current) => ({
-        ...current,
-        [payment.id]: {
-          type: "error",
-          message: error instanceof Error ? error.message : "Echec de mise a jour paiement.",
-        },
-      }));
+      toastError(error instanceof Error ? error.message : "Échec de mise à jour paiement.");
     } finally {
       setSavingPaymentId(null);
     }
@@ -2322,18 +2362,9 @@ export default function DashboardPage() {
           refreshedEnrollments.map((enrollment) => [enrollment.id, buildEnrollmentDraft(enrollment)]),
         ),
       );
-      setPaymentFeedbackById((current) => ({
-        ...current,
-        [payment.id]: { type: "success", message: "Relance envoyee." },
-      }));
+      success("Relance envoyée.");
     } catch (error) {
-      setPaymentFeedbackById((current) => ({
-        ...current,
-        [payment.id]: {
-          type: "error",
-          message: error instanceof Error ? error.message : "Echec d'envoi de relance.",
-        },
-      }));
+      toastError(error instanceof Error ? error.message : "Échec d'envoi de relance.");
     } finally {
       setRemindingPaymentId(null);
     }
@@ -2392,20 +2423,20 @@ export default function DashboardPage() {
     syncUserDraft,
     savingUserId,
     handleSaveUser,
-    userFeedbackById,
+    userFeedbackById: {},
     enrollmentDrafts,
     enrollmentStatuses,
     syncEnrollmentDraft,
     syncEnrollmentSessionDraft,
     savingEnrollmentId,
     handleSaveEnrollment,
-    enrollmentFeedbackById,
+    enrollmentFeedbackById: {},
     orderDrafts,
     orderStatuses,
     syncOrderDraft,
     savingOrderId,
     handleSaveOrder,
-    orderFeedbackById,
+    orderFeedbackById: {},
     paymentDrafts,
     paymentStatuses,
     syncPaymentDraft,
@@ -2413,8 +2444,12 @@ export default function DashboardPage() {
     remindingPaymentId,
     handleSavePayment,
     handleSendPaymentReminder,
-    paymentFeedbackById,
+    paymentFeedbackById: {},
   };
+  const formationErrorField =
+    formationEditorFeedback?.type === "error" ? formationEditorFeedback.field : undefined;
+  const formationFieldClass = (field: keyof DraftValues | "slug") =>
+    formationErrorField === field ? " is-invalid" : "";
 
   return (
     <>
@@ -2451,7 +2486,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="fe-fields">
-                  <label className="admin-field fe-span-full">
+                  <label className={`admin-field fe-span-full${formationFieldClass("title")}`} data-field="title">
                     <span>Titre de la formation</span>
                     <input
                       type="text"
@@ -2465,35 +2500,49 @@ export default function DashboardPage() {
                     />
                   </label>
 
-                  <label className="admin-field">
+                  <label className={`admin-field${formationFieldClass("category")}`} data-field="category">
                     <span>Catégorie</span>
-                    <input
-                      type="text"
-                      placeholder="Ex : Design graphique"
-                      value={formationEditorDraft.category}
+                    <select
+                      value={resolveOptionValue(formationEditorDraft.category, categoryOptions)}
                       onChange={(e) =>
                         formationEditorState.mode === "create"
                           ? syncCreateDraft("category", e.target.value)
                           : syncDraft(formationEditorState.slug, "category", e.target.value)
                       }
-                    />
+                    >
+                      <option value="">— Choisir une catégorie —</option>
+                      {!hasEquivalentOption(categoryOptions, formationEditorDraft.category) && formationEditorDraft.category ? (
+                        <option value={formationEditorDraft.category}>{formationEditorDraft.category}</option>
+                      ) : null}
+                      {categoryOptions.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
                   </label>
 
-                  <label className="admin-field">
+                  <label className={`admin-field${formationFieldClass("level")}`} data-field="level">
                     <span>Niveau</span>
-                    <input
-                      type="text"
-                      placeholder="Ex : Débutant"
+                    <select
                       value={formationEditorDraft.level}
                       onChange={(e) =>
                         formationEditorState.mode === "create"
                           ? syncCreateDraft("level", e.target.value)
                           : syncDraft(formationEditorState.slug, "level", e.target.value)
                       }
-                    />
+                    >
+                      <option value="">— Choisir un niveau —</option>
+                      {!levelOptions.includes(formationEditorDraft.level) && formationEditorDraft.level ? (
+                        <option value={formationEditorDraft.level}>{formationEditorDraft.level}</option>
+                      ) : null}
+                      {levelOptions.map((level) => (
+                        <option key={level} value={level}>{level}</option>
+                      ))}
+                    </select>
                   </label>
 
-          <label className="admin-field">
+          <label className="admin-field fe-span-full" data-field="formatType">
             <span>Format</span>
             <FormatPicker
               value={formationEditorDraft.formatType}
@@ -2516,7 +2565,7 @@ export default function DashboardPage() {
           </label>
 
                   {/* Cover upload — full width */}
-                  <div className="fe-span-full">
+                  <div className={`fe-span-full${formationFieldClass("image")}`} data-field="image">
                     <p className="fe-field-label">Image / Cover</p>
                     <CoverUploadZone
                       value={formationEditorDraft.image}
@@ -2541,7 +2590,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="fe-fields">
-                  <label className="admin-field">
+                  <label className={`admin-field${formationFieldClass("currentPrice")}`} data-field="currentPrice">
                     <span>Prix actuel (FCFA)</span>
                     <input
                       type="number" min="0" step="1"
@@ -2555,7 +2604,7 @@ export default function DashboardPage() {
                     />
                   </label>
 
-                  <label className="admin-field">
+                  <label className={`admin-field${formationFieldClass("originalPrice")}`} data-field="originalPrice">
                     <span>Prix barré (FCFA)</span>
                     <input
                       type="number" min="0" step="1"
@@ -2569,7 +2618,20 @@ export default function DashboardPage() {
                     />
                   </label>
 
-                  <label className="admin-field">
+                  <label className={`admin-field${formationFieldClass("promoEndsAt")}`} data-field="promoEndsAt">
+                    <span>Date limite promo</span>
+                    <input
+                      type="date"
+                      value={formationEditorDraft.promoEndsAt}
+                      onChange={(e) =>
+                        formationEditorState.mode === "create"
+                          ? syncCreateDraft("promoEndsAt", e.target.value)
+                          : syncDraft(formationEditorState.slug, "promoEndsAt", e.target.value)
+                      }
+                    />
+                  </label>
+
+                  <label className={`admin-field${formationFieldClass("rating")}`} data-field="rating">
                     <span>Note (/ 5)</span>
                     <input
                       type="number" min="0" max="5" step="0.5"
@@ -2582,7 +2644,7 @@ export default function DashboardPage() {
                     />
                   </label>
 
-                  <label className="admin-field">
+                  <label className={`admin-field${formationFieldClass("reviews")}`} data-field="reviews">
                     <span>Nombre d'avis</span>
                     <input
                       type="number" min="0" step="1"
@@ -2610,7 +2672,7 @@ export default function DashboardPage() {
                     </select>
                   </label>
 
-                  <label className="admin-field">
+                  <label className={`admin-field${formationFieldClass("homeFeatureRank")}`} data-field="homeFeatureRank">
                     <span>Ordre accueil</span>
                     <input
                       type="number" min="0" step="1"
@@ -2649,7 +2711,10 @@ export default function DashboardPage() {
                 </div>
 
                 {formationEditorFeedback && (
-                  <p className={`admin-feedback admin-feedback--${formationEditorFeedback.type}`}>
+                  <p
+                    className={`admin-feedback admin-feedback--${formationEditorFeedback.type} fe-feedback`}
+                    role={formationEditorFeedback.type === "error" ? "alert" : "status"}
+                  >
                     {formationEditorFeedback.message}
                   </p>
                 )}
@@ -2746,11 +2811,14 @@ export default function DashboardPage() {
                         ? `${Number.parseInt(formationEditorDraft.currentPrice || "0", 10).toLocaleString("fr-FR")} FCFA`
                         : "Prix à définir"}
                     </strong>
-                    {formationEditorDraft.originalPrice && (
+                  {formationEditorDraft.originalPrice && (
                       <small>
                         {Number.parseInt(formationEditorDraft.originalPrice || "0", 10).toLocaleString("fr-FR")} FCFA
                       </small>
                     )}
+                    {formationEditorDraft.originalPrice && formationEditorDraft.promoEndsAt ? (
+                      <em>Promo jusqu'au {new Date(`${formationEditorDraft.promoEndsAt}T00:00:00`).toLocaleDateString("fr-FR")}</em>
+                    ) : null}
                   </div>
                   {formationEditorDraft.badges.length > 0 && (
                     <div className="fe-preview__badges">
@@ -3207,20 +3275,38 @@ export default function DashboardPage() {
 
                 <label className="admin-field">
                   <span>Categorie</span>
-                  <input
-                    type="text"
-                    value={createDraft.category}
+                  <select
+                    value={resolveOptionValue(createDraft.category, categoryOptions)}
                     onChange={(event) => syncCreateDraft("category", event.target.value)}
-                  />
+                  >
+                    <option value="">— Choisir une catégorie —</option>
+                    {!hasEquivalentOption(categoryOptions, createDraft.category) && createDraft.category ? (
+                      <option value={createDraft.category}>{createDraft.category}</option>
+                    ) : null}
+                    {categoryOptions.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label className="admin-field">
                   <span>Niveau</span>
-                  <input
-                    type="text"
+                  <select
                     value={createDraft.level}
                     onChange={(event) => syncCreateDraft("level", event.target.value)}
-                  />
+                  >
+                    <option value="">— Choisir un niveau —</option>
+                    {!levelOptions.includes(createDraft.level) && createDraft.level ? (
+                      <option value={createDraft.level}>{createDraft.level}</option>
+                    ) : null}
+                    {levelOptions.map((level) => (
+                      <option key={level} value={level}>
+                        {level}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label className="admin-field">
@@ -3460,24 +3546,42 @@ export default function DashboardPage() {
 
                         <label className="admin-field">
                           <span>Categorie</span>
-                          <input
-                            type="text"
-                            value={draft?.category ?? ""}
+                          <select
+                            value={resolveOptionValue(draft?.category ?? "", categoryOptions)}
                             onChange={(event) =>
                               syncDraft(formation.slug, "category", event.target.value)
                             }
-                          />
+                          >
+                            <option value="">— Choisir une catégorie —</option>
+                            {draft?.category && !hasEquivalentOption(categoryOptions, draft.category) ? (
+                              <option value={draft.category}>{draft.category}</option>
+                            ) : null}
+                            {categoryOptions.map((category) => (
+                              <option key={category} value={category}>
+                                {category}
+                              </option>
+                            ))}
+                          </select>
                         </label>
 
                         <label className="admin-field">
                           <span>Niveau</span>
-                          <input
-                            type="text"
+                          <select
                             value={draft?.level ?? ""}
                             onChange={(event) =>
                               syncDraft(formation.slug, "level", event.target.value)
                             }
-                          />
+                          >
+                            <option value="">— Choisir un niveau —</option>
+                            {draft?.level && !levelOptions.includes(draft.level) ? (
+                              <option value={draft.level}>{draft.level}</option>
+                            ) : null}
+                            {levelOptions.map((level) => (
+                              <option key={level} value={level}>
+                                {level}
+                              </option>
+                            ))}
+                          </select>
                         </label>
 
                         <label className="admin-field">

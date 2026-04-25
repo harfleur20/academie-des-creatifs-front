@@ -216,7 +216,7 @@
 }
 
 .team-founder__card-check {
-  color: var(--team-teal);
+  color: #1f2352;
   flex-shrink: 0;
   margin-top: 2px;
   font-size: 0.78rem;

@@ -126,6 +126,7 @@ class FormationCatalogItem(BaseModel):
     current_price_label: str
     original_price_amount: int | None = Field(default=None, ge=0)
     original_price_label: str | None = None
+    promo_ends_at: date | None = None
     price_currency: str
     allow_installments: bool
     is_featured_home: bool
@@ -154,6 +155,7 @@ class AdminFormationBase(BaseModel):
     reviews: int | None = Field(default=None, ge=0)
     current_price_amount: int | None = Field(default=None, ge=0)
     original_price_amount: int | None = Field(default=None, ge=0)
+    promo_ends_at: date | None = None
     is_featured_home: bool | None = None
     home_feature_rank: int | None = Field(default=None, ge=0)
     badges: list[MarketingBadge] | None = None
@@ -237,6 +239,8 @@ class AdminFormationCreate(AdminFormationBase):
             and self.original_price_amount < self.current_price_amount
         ):
             raise ValueError("Le prix barre ne peut pas etre inferieur au prix actuel.")
+        if self.promo_ends_at is not None and self.original_price_amount is None:
+            raise ValueError("La date limite promo necessite un prix barre.")
         return self
 
 
@@ -253,6 +257,7 @@ class AdminFormationUpdate(AdminFormationBase):
             and self.reviews is None
             and self.current_price_amount is None
             and self.original_price_amount is None
+            and self.promo_ends_at is None
             and self.is_featured_home is None
             and self.home_feature_rank is None
             and self.badges is None

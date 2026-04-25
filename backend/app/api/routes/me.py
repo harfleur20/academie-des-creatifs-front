@@ -42,6 +42,7 @@ from app.schemas.commerce import (
     AssignmentSubmitPayload,
     AttemptStatus,
     CertificateView,
+    DismissNotificationsRequest,
     EnrollmentProgress,
     EnrollmentView,
     LessonKey,
@@ -69,6 +70,10 @@ from app.schemas.commerce import (
 from app.schemas.teacher import StudentLiveEventView
 from app.services.badge import (
     compute_enrollment_badge_progress,
+)
+from app.services.certificates import (
+    build_certificate_view,
+    get_certificate_ineligibility_reason,
 )
 from app.services.catalog import format_fcfa
 from app.services.commerce import (
@@ -131,6 +136,18 @@ def read_my_notifications(
     current_user: UserRecord = Depends(get_current_user),
 ) -> list[NotificationView]:
     return list_user_notifications(db, current_user)
+
+
+@router.post("/notifications/dismiss", status_code=status.HTTP_204_NO_CONTENT)
+def dismiss_my_notifications(
+    payload: DismissNotificationsRequest,
+    db: Session = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+) -> None:
+    existing = set(current_user.dismissed_notification_ids or [])
+    merged = list(existing | set(payload.ids))
+    current_user.dismissed_notification_ids = merged
+    db.commit()
 
 
 @router.get("/sessions", response_model=list[StudentSessionView])
@@ -636,44 +653,17 @@ def read_enrollment_certificate(
     db: Session = Depends(get_db),
     current_user: UserRecord = Depends(get_current_user),
 ) -> CertificateView:
-    from datetime import date as date_type
     enrollment = _get_enrollment_or_404(db, enrollment_id, current_user.id)
-
-    # Eligibility check
-    if enrollment.dashboard_type == "classic":
-        prog = _build_progress(db, enrollment)
-        if prog.progress_pct < 100:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Certificat non disponible : parcours incomplet.",
-            )
-    else:
-        if enrollment.status != "completed":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Certificat non disponible : parcours non validé.",
-            )
-
     formation = db.scalar(select(FormationRecord).where(FormationRecord.id == enrollment.formation_id))
-    mentor_name = formation.mentor_name if formation else ""
-    level = formation.level if formation else ""
 
-    today = date_type.today()
-    issued_date = today.strftime("%d %B %Y").lstrip("0")
-    certificate_number = f"AC-{today.year}-{enrollment_id:05d}"
+    ineligibility_reason = get_certificate_ineligibility_reason(db, enrollment, formation)
+    if ineligibility_reason:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=ineligibility_reason,
+        )
 
-    return CertificateView(
-        enrollment_id=enrollment_id,
-        certificate_number=certificate_number,
-        student_name=current_user.full_name,
-        formation_title=enrollment.formation_title,
-        format_type=enrollment.format_type,
-        dashboard_type=enrollment.dashboard_type,
-        mentor_name=mentor_name,
-        level=level,
-        session_label=formation.session_label if formation else "",
-        issued_date=issued_date,
-    )
+    return build_certificate_view(db, enrollment, current_user, formation)
 
 
 @router.get("/orders", response_model=list[StudentOrderGroupView])

@@ -1,37 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Check, ChevronRight, Info, Trash2 } from "lucide-react";
-import { fetchNotifications, type NotificationItem } from "../lib/commerceApi";
-
-const READ_STORAGE_KEY = "notif_read_ids";
-const DISMISSED_STORAGE_KEY = "notif_dismissed_ids";
-
-function getStoredIds(key: string): Set<string> {
-  try {
-    const value = JSON.parse(localStorage.getItem(key) ?? "[]");
-    return Array.isArray(value)
-      ? new Set(value.filter((id): id is string => typeof id === "string"))
-      : new Set();
-  }
-  catch { return new Set(); }
-}
-
-function saveStoredIds(key: string, ids: Set<string>) {
-  localStorage.setItem(key, JSON.stringify([...ids]));
-}
-
-function getReadIds(): Set<string> {
-  return getStoredIds(READ_STORAGE_KEY);
-}
-function saveReadIds(ids: Set<string>) {
-  saveStoredIds(READ_STORAGE_KEY, ids);
-}
-function getDismissedIds(): Set<string> {
-  return getStoredIds(DISMISSED_STORAGE_KEY);
-}
-function saveDismissedIds(ids: Set<string>) {
-  saveStoredIds(DISMISSED_STORAGE_KEY, ids);
-}
+import { useAuth } from "../auth/AuthContext";
+import { dismissNotificationsRemote, fetchNotifications, type NotificationItem } from "../lib/commerceApi";
+import {
+  dismissNotifications,
+  getNotificationDismissedIds,
+  getNotificationReadIds,
+  getNotificationStateScope,
+  markNotificationsRead,
+  subscribeToNotificationState,
+} from "../lib/notificationState";
 
 function toneIcon(tone: string) {
   if (tone === "success") return <Check size={13} />;
@@ -63,15 +42,35 @@ function NotifDropdown({
   onUnreadCountChange: (count: number) => void;
 }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const notificationScope = getNotificationStateScope(user);
   const [items, setItems] = useState<NotificationItem[]>([]);
-  const [readIds, setReadIds] = useState<Set<string>>(getReadIds);
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(getDismissedIds);
+  const [readIds, setReadIds] = useState<Set<string>>(() =>
+    getNotificationReadIds(notificationScope),
+  );
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() =>
+    getNotificationDismissedIds(notificationScope),
+  );
   const [loading, setLoading] = useState(true);
   const ref = useRef<HTMLDivElement>(null);
+
+  const syncNotificationState = useCallback(() => {
+    setReadIds(getNotificationReadIds(notificationScope));
+    setDismissedIds(getNotificationDismissedIds(notificationScope));
+  }, [notificationScope]);
 
   useEffect(() => {
     fetchNotifications().then(setItems).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    syncNotificationState();
+  }, [syncNotificationState]);
+
+  useEffect(() => subscribeToNotificationState(notificationScope, syncNotificationState), [
+    notificationScope,
+    syncNotificationState,
+  ]);
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -89,22 +88,21 @@ function NotifDropdown({
   }, [loading, onUnreadCountChange, unread.length]);
 
   function markAll() {
-    const next = new Set([...readIds, ...visibleItems.map((n) => n.id)]);
-    setReadIds(next); saveReadIds(next);
+    markNotificationsRead(notificationScope, visibleItems.map((item) => item.id));
+    syncNotificationState();
   }
   function markOne(id: string) {
-    const next = new Set(readIds); next.add(id);
-    setReadIds(next); saveReadIds(next);
+    markNotificationsRead(notificationScope, [id]);
+    syncNotificationState();
   }
   function clearNotifications() {
     if (visibleItems.length === 0) return;
 
     const visibleIds = visibleItems.map((n) => n.id);
-    const nextDismissed = new Set([...dismissedIds, ...visibleIds]);
-    const nextRead = new Set([...readIds, ...visibleIds]);
-    setDismissedIds(nextDismissed); saveDismissedIds(nextDismissed);
-    setReadIds(nextRead); saveReadIds(nextRead);
+    dismissNotifications(notificationScope, visibleIds);
+    syncNotificationState();
     onUnreadCountChange(0);
+    dismissNotificationsRemote(visibleIds).catch(() => {});
   }
 
   return (
@@ -193,20 +191,27 @@ interface NotifBellProps {
 }
 
 export default function NotifBell({ allNotifPath, className = "dsh-topbar__icon-btn" }: NotifBellProps) {
+  const { user } = useAuth();
+  const notificationScope = getNotificationStateScope(user);
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const refreshCount = useCallback(() => {
     fetchNotifications()
       .then((items) => {
-        const readIds = getReadIds();
-        const dismissedIds = getDismissedIds();
+        const readIds = getNotificationReadIds(notificationScope);
+        const dismissedIds = getNotificationDismissedIds(notificationScope);
         setUnreadCount(items.filter((n) => !readIds.has(n.id) && !dismissedIds.has(n.id)).length);
       })
       .catch(() => {});
-  }, []);
+  }, [notificationScope]);
 
   useEffect(() => { refreshCount(); }, [refreshCount]);
+
+  useEffect(() => subscribeToNotificationState(notificationScope, refreshCount), [
+    notificationScope,
+    refreshCount,
+  ]);
 
   function handleClose() {
     setOpen(false);

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useToast } from "../../toast/ToastContext";
 import {
   ExternalLink, FileText, Image, Link2, Plus, Trash2, Upload, Video, X,
 } from "lucide-react";
@@ -60,7 +61,7 @@ export default function TeacherResourcesPage() {
   const [isLoading, setIsLoading]                 = useState(true);
   const [showForm, setShowForm]                   = useState(false);
   const [saving, setSaving]                       = useState(false);
-  const [error, setError]                         = useState("");
+  const { success, error: toastError } = useToast();
 
   // form state
   const [title, setTitle]               = useState("");
@@ -81,7 +82,7 @@ export default function TeacherResourcesPage() {
         setSessions(o.sessions);
         if (o.sessions.length > 0) setSelectedSessionId(o.sessions[0].id);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
+      .catch((e) => toastError(e instanceof Error ? e.message : "Erreur de chargement."))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -105,7 +106,6 @@ export default function TeacherResourcesPage() {
   function resetForm() {
     setTitle(""); setUrl(""); setPublishedAt(""); setResourceType("link");
     setUploadState("idle"); setUploadedUrl(""); setUploadedName("");
-    setError("");
   }
 
   function handleTypeChange(t: ResourceType) {
@@ -119,12 +119,11 @@ export default function TeacherResourcesPage() {
 
     const maxBytes = MAX_SIZES[resourceType] ?? 0;
     if (file.size > maxBytes) {
-      setError(`Fichier trop volumineux. Limite : ${MAX_LABELS[resourceType]}.`);
+      toastError(`Fichier trop volumineux. Limite : ${MAX_LABELS[resourceType]}.`);
       e.target.value = "";
       return;
     }
 
-    setError("");
     setUploadState("uploading");
     setUploadProgress(0);
 
@@ -143,7 +142,7 @@ export default function TeacherResourcesPage() {
     } catch (err) {
       clearInterval(progressInterval);
       setUploadState("error");
-      setError(err instanceof Error ? err.message : "Erreur lors de l'upload.");
+      toastError(err instanceof Error ? err.message : "Erreur lors de l'upload.");
     }
 
     e.target.value = "";
@@ -151,17 +150,17 @@ export default function TeacherResourcesPage() {
 
   async function handleCreate() {
     if (!selectedSessionId || !title.trim()) {
-      setError("Titre requis.");
+      toastError("Titre requis.");
       return;
     }
 
     const finalUrl = resourceType === "link" ? url.trim() : uploadedUrl;
     if (!finalUrl) {
-      setError(resourceType === "link" ? "URL requise." : "Veuillez uploader un fichier.");
+      toastError(resourceType === "link" ? "URL requise." : "Veuillez uploader un fichier.");
       return;
     }
 
-    setSaving(true); setError("");
+    setSaving(true);
     try {
       const resource = await createResource(selectedSessionId, {
         title: title.trim(),
@@ -173,8 +172,9 @@ export default function TeacherResourcesPage() {
       setResources((prev) => [resource, ...prev]);
       setShowForm(false);
       resetForm();
+      success("Ressource ajoutée.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur.");
+      toastError(e instanceof Error ? e.message : "Erreur lors de l'ajout de la ressource.");
     } finally {
       setSaving(false);
     }
@@ -223,8 +223,6 @@ export default function TeacherResourcesPage() {
           </button>
         </div>
       )}
-
-      {error && <p className="dsh-error">{error}</p>}
 
       {/* ── Create form ── */}
       {showForm && (
@@ -358,7 +356,7 @@ export default function TeacherResourcesPage() {
                 <button
                   type="button"
                   className="res-upload-btn res-upload-btn--error"
-                  onClick={() => { setUploadState("idle"); setError(""); fileInputRef.current?.click(); }}
+                  onClick={() => { setUploadState("idle"); fileInputRef.current?.click(); }}
                 >
                   <Upload size={22} />
                   <span>Réessayer l'upload</span>

@@ -246,17 +246,30 @@ class NotificationView(BaseModel):
     action_path: str | None = None
 
 
+class DismissNotificationsRequest(BaseModel):
+    ids: list[str]
+
+
 class CertificateView(BaseModel):
     enrollment_id: int
     certificate_number: str
+    verification_token: str | None = None
+    verification_path: str | None = None
+    verification_url: str | None = None
+    share_path: str | None = None
+    share_url: str | None = None
+    share_image_url: str | None = None
     student_name: str
+    student_code: str | None = None
     formation_title: str
+    formation_duration: str | None = None
     format_type: str
     dashboard_type: str
     mentor_name: str
     level: str
     session_label: str
     issued_date: str
+    is_valid: bool = True
 
 
 # ── Student quiz schemas ───────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useToast } from "../../toast/ToastContext";
 import {
   BookOpen, ChevronDown, ChevronRight, FileText, Link2, Plus,
   Trash2, Video, Image, X, HelpCircle, ClipboardList, FolderOpen, Wand2,
@@ -65,7 +66,7 @@ export default function TeacherCoursesPage() {
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [courses, setCourses]                   = useState<CourseView[]>([]);
   const [isLoading, setIsLoading]               = useState(true);
-  const [error, setError]                       = useState("");
+  const { success, error: toastError } = useToast();
 
   // Course creation form
   const [showCourseForm, setShowCourseForm]     = useState(false);
@@ -104,7 +105,7 @@ export default function TeacherCoursesPage() {
         setSessions(o.sessions);
         if (o.sessions.length > 0) setSelectedSessionId(o.sessions[0].id);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Erreur"))
+      .catch((e) => toastError(e instanceof Error ? e.message : "Erreur de chargement."))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -128,17 +129,15 @@ export default function TeacherCoursesPage() {
     setAiCourseChapterCount(3);
     setAiCourseLessonsPerChapter(3);
     setPendingCourseDraft(null);
-    setError("");
   }
 
   async function handleGenerateCourseDraft() {
     if (!selectedSessionId) return;
     if (!aiCourseDocument && !aiCourseTopic.trim()) {
-      setError("Indiquez le sujet du cours à générer.");
+      toastError("Indiquez le sujet du cours à générer.");
       return;
     }
     setAiGeneratingCourse(true);
-    setError("");
     try {
       const commonPayload = {
         session_id: selectedSessionId,
@@ -157,15 +156,15 @@ export default function TeacherCoursesPage() {
       setCourseTitle(draft.title);
       setCourseDesc(draft.description);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Impossible de générer le cours.");
+      toastError(e instanceof Error ? e.message : "Impossible de générer le cours.");
     } finally {
       setAiGeneratingCourse(false);
     }
   }
 
   async function handleCreateCourse() {
-    if (!selectedSessionId || !courseTitle.trim()) { setError("Titre requis."); return; }
-    setSavingCourse(true); setError("");
+    if (!selectedSessionId || !courseTitle.trim()) { toastError("Titre requis."); return; }
+    setSavingCourse(true);
     try {
       const course = await createCourse(selectedSessionId, { title: courseTitle.trim(), description: courseDesc.trim() });
       let createdCourse = course;
@@ -205,7 +204,8 @@ export default function TeacherCoursesPage() {
         openedChapterIds.forEach((id) => next.add(id));
         return next;
       });
-    } catch (e) { setError(e instanceof Error ? e.message : "Erreur."); }
+      success("Cours créé.");
+    } catch (e) { toastError(e instanceof Error ? e.message : "Erreur lors de la création du cours."); }
     finally { setSavingCourse(false); }
   }
 
@@ -233,8 +233,8 @@ export default function TeacherCoursesPage() {
   }
 
   async function handleSaveLesson() {
-    if (!lessonForm || !lessonForm.title.trim()) { setError("Titre requis."); return; }
-    setSavingLesson(true); setError("");
+    if (!lessonForm || !lessonForm.title.trim()) { toastError("Titre requis."); return; }
+    setSavingLesson(true);
     try {
       const lesson = await createLesson(lessonForm.chapterId, {
         title: lessonForm.title.trim(),
@@ -255,7 +255,8 @@ export default function TeacherCoursesPage() {
         ),
       })));
       setLessonForm(null);
-    } catch (e) { setError(e instanceof Error ? e.message : "Erreur."); }
+      success("Leçon ajoutée.");
+    } catch (e) { toastError(e instanceof Error ? e.message : "Erreur lors de l'ajout de la leçon."); }
     finally { setSavingLesson(false); }
   }
 
@@ -308,14 +309,12 @@ export default function TeacherCoursesPage() {
             </select>
           </label>
           <button type="button" className="dsh-btn dsh-btn--primary"
-            onClick={() => { if (showCourseForm) resetCourseForm(); setShowCourseForm((v) => !v); setError(""); }}>
+            onClick={() => { if (showCourseForm) resetCourseForm(); setShowCourseForm((v) => !v); }}>
             {showCourseForm ? <X size={15} /> : <Plus size={15} />}
             {showCourseForm ? "Annuler" : "Nouveau cours"}
           </button>
         </div>
       )}
-
-      {error && <p className="dsh-error">{error}</p>}
 
       {/* ── New course form ── */}
       {showCourseForm && (
@@ -629,8 +628,6 @@ export default function TeacherCoursesPage() {
                 </label>
               )}
             </div>
-
-            {error && <p className="dsh-error" style={{ padding: "0 1.5rem" }}>{error}</p>}
 
             <div className="dsh-modal__footer">
               <button type="button" className="dsh-btn dsh-btn--ghost" onClick={() => setLessonForm(null)}>Annuler</button>

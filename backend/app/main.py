@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
+from app.api.routes.certificates import public_router as public_certificates_router
 from app.core.config import settings
 from app.db.seed import seed_database
 from app.db.session import SessionLocal, database_has_schema, verify_database_connection
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
         }
 
     app.mount("/uploads", StaticFiles(directory=str(uploads_root)), name="uploads")
+    app.include_router(public_certificates_router)
     app.include_router(api_router, prefix=settings.api_prefix)
     return app
 

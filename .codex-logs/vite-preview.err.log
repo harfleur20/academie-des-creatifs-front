@@ -1,0 +1,328 @@
+[2m16:24:01[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mAn empty string ("") was passed to the src attribute. This may cause the browser to download the whole page again over the network. To fix this, either do not render the element at all or pass null to src instead of an empty string.
+[2m16:24:22[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mReact does not recognize the `classNamealt` prop on a DOM element. If you intentionally want it to appear in the DOM as a custom attribute, spell it as lowercase `classnamealt` instead. If you accidentally passed it from a parent component, remove it from the DOM element.
+[2m16:24:23[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+
+[31m[PARSE_ERROR] Error:[0m Unexpected token
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/pages/CertificatePage.tsx:224:58 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m224 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m<[0m[38;5;249mi[0m[38;5;249mm[0m[38;5;249mg[0m[38;5;249m [0m[38;5;249ms[0m[38;5;249mr[0m[38;5;249mc[0m[38;5;249m=[0m[38;5;249m"[0m[38;5;249m/[0m[38;5;249ma[0m[38;5;249ms[0m[38;5;249ms[0m[38;5;249me[0m[38;5;249mt[0m[38;5;249ms[0m[38;5;249m/[0m[38;5;249mg[0m[38;5;249mo[0m[38;5;249ml[0m[38;5;249md[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mB[0m[38;5;249ma[0m[38;5;249md[0m[38;5;249mg[0m[38;5;249me[0m[38;5;249m.[0m[38;5;249mp[0m[38;5;249mn[0m[38;5;249mg[0m[38;5;249m"[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249ml[0m[38;5;249ma[0m[38;5;249ms[0m[38;5;249ms[0m[38;5;249mN[0m[38;5;249ma[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249m=[0malt[38;5;249m=[0m[38;5;249m"[0m[38;5;249m"[0m[38;5;249m [0m[38;5;249m/[0m[38;5;249m>[0m
+ [38;5;240m    │[0m                                                          ─┬─  
+ [38;5;240m    │[0m                                                           ╰─── 
+[38;5;246m─────╯[0m
+[39m
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/pages/CertificatePage.tsx[39m
+      at transformWithOxc (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:3720:19)
+      at TransformPluginContext.transform (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:3788:26)
+      at EnvironmentPluginContainer.transform (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:30048:51)
+      at async loadAndTransform (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:24177:26)
+      at async viteTransformMiddleware (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:24986:20)
+[2m16:24:23[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/pages/CertificatePage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m16:30:44[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+
+[31m[PARSE_ERROR] Error:[0m Unexpected token
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m src/pages/CertificatePage.tsx:224:22 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m224 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m<[0m[38;5;249mi[0m[38;5;249mm[0m[38;5;249mg[0m[38;5;249m [0m[38;5;249ms[0m[38;5;249mr[0m[38;5;249mc[0m[38;5;249m=[0m/[38;5;249mg[0m[38;5;249mo[0m[38;5;249ml[0m[38;5;249md[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mB[0m[38;5;249ma[0m[38;5;249md[0m[38;5;249mg[0m[38;5;249me[0m[38;5;249m.[0m[38;5;249mp[0m[38;5;249mn[0m[38;5;249mg[0m[38;5;249m"[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249ml[0m[38;5;249ma[0m[38;5;249ms[0m[38;5;249ms[0m[38;5;249mN[0m[38;5;249ma[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249m=[0m[38;5;249m"[0m[38;5;249mg[0m[38;5;249mo[0m[38;5;249ml[0m[38;5;249md[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249m_[0m[38;5;249mb[0m[38;5;249ma[0m[38;5;249md[0m[38;5;249mg[0m[38;5;249me[0m[38;5;249m"[0m[38;5;249m [0m[38;5;249ma[0m[38;5;249ml[0m[38;5;249mt[0m[38;5;249m=[0m[38;5;249m"[0m[38;5;249m"[0m[38;5;249m [0m[38;5;249m/[0m[38;5;249m>[0m
+ [38;5;240m    │[0m                      ┬  
+ [38;5;240m    │[0m                      ╰── 
+[38;5;246m─────╯[0m
+[39m
+  Plugin: [35mvite:oxc[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/pages/CertificatePage.tsx[39m
+      at transformWithOxc (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:3720:19)
+      at TransformPluginContext.transform (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:3788:26)
+      at EnvironmentPluginContainer.transform (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:30048:51)
+      at async loadAndTransform (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:24177:26)
+      at async viteTransformMiddleware (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:24986:20)
+[2m16:30:44[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/pages/CertificatePage.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[33m[vite:css][postcss] It looks like you didn't end your @import statement correctly. Child nodes are attached to it.
+1  |  @import url(https://fonts.googleapis.com/css?family=Libre+Barcode+39+Extended:regular)
+   |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2  |  
+   |  ^
+3  |  /* ══════════════════════════════════════════
+   |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+4  |     CERTIFICATE PAGE
+   |  ^^^^^^^^^^^^^^^^^^^
+5  |  ══════════════════════════════════════════ */
+   |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+6  |  .cert-page {
+   |  ^^^^^^^^^^^^
+7  |    width: 100%;
+   |  ^^^^^^^^^^^^^^
+8  |    max-width: none;
+   |  ^^^^^^^^^^^^^^^^^^
+9  |    min-height: 100vh;
+   |  ^^^^^^^^^^^^^^^^^^^^
+10 |    margin: 0;
+   |  ^^^^^^^^^^^^
+11 |    padding: 0.8rem 1.2rem 2.2rem;
+   |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+12 |    background:
+   |  ^^^^^^^^^^^^^
+13 |      radial-gradient(circle at 18% 15%, rgba(28, 132, 128, 0.1), transparent 34%),
+   |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+14 |      #f9fafb;
+   |  ^^^^^^^^^^^^
+15 |  }
+   |  ^[39m
+[2m17:35:42[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css:427:3: Unknown word line-height[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css[39m:427:2
+[33m  425 |    font-size: 1.55rem;
+  426 |    margin
+  427 |    line-height: 1;
+      |    ^
+  428 |    font-weight: 900;
+  429 |    letter-spacing: 0;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m17:35:42[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/certificate.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m17:35:42[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css:427:3: Unknown word line-height[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css[39m:427:2
+[33m  425 |    font-size: 1.55rem;
+  426 |    margin
+  427 |    line-height: 1;
+      |    ^
+  428 |    font-weight: 900;
+  429 |    letter-spacing: 0;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m17:35:42[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/certificate.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m18:09:36[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css:456:3: Unknown word font-weight[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css[39m:456:2
+[33m  454 |    line-height: 0.86;
+  455 |    z
+  456 |    font-weight: 400;
+      |    ^
+  457 |  }
+  458 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m18:09:36[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css:456:3: Unknown word font-weight[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css[39m:456:2
+[33m  454 |    line-height: 0.86;
+  455 |    z
+  456 |    font-weight: 400;
+      |    ^
+  457 |  }
+  458 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m18:09:36[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/certificate.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m18:09:36[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/certificate.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m18:12:33[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css:444:3: Unknown word color[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css[39m:444:2
+[33m  442 |    margin-top: 20px;
+  443 |    mar
+  444 |    color: #0b3a45;
+      |    ^
+  445 |    font-size: 1.12rem;
+  446 |    line-height: 1.2;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m18:12:33[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/certificate.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m18:12:33[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css:444:3: Unknown word color[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css[39m:444:2
+[33m  442 |    margin-top: 20px;
+  443 |    mar
+  444 |    color: #0b3a45;
+      |    ^
+  445 |    font-size: 1.12rem;
+  446 |    line-height: 1.2;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m18:12:33[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/certificate.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m19:29:57[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css:444:3: Unknown word color[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css[39m:444:2
+[33m  442 |    margin-top: -10px;
+  443 |    mar
+  444 |    color: #0b3a45;
+      |    ^
+  445 |    font-size: 1.12rem;
+  446 |    line-height: 1.2;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m19:29:57[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css:444:3: Unknown word color[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css[39m:444:2
+[33m  442 |    margin-top: -10px;
+  443 |    mar
+  444 |    color: #0b3a45;
+      |    ^
+  445 |    font-size: 1.12rem;
+  446 |    line-height: 1.2;[39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m19:29:57[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/certificate.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m19:29:57[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/certificate.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m19:51:05[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css:348:3: Unknown word object-fit[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css[39m:348:2
+[33m  346 |    height: 100%;
+  347 |    margin
+  348 |    object-fit: contain;
+      |    ^
+  349 |  }
+  350 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m19:51:05[22m [31m[1m[vite][22m[39m [31mInternal server error: [postcss] C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css:348:3: Unknown word object-fit[39m
+  Plugin: [35mvite:css[39m
+  File: [36mC:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/src/styles/certificate.css[39m:348:2
+[33m  346 |    height: 100%;
+  347 |    margin
+  348 |    object-fit: contain;
+      |    ^
+  349 |  }
+  350 |  [39m
+      at Input.error (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\input.js:135:16)
+      at Parser.unknownWord (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:595:22)
+      at Parser.decl (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:236:16)
+      at Parser.other (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:401:18)
+      at Parser.parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parser.js:472:16)
+      at parse (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\parse.js:11:12)
+      at new LazyResult (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\lazy-result.js:165:16)
+      at Processor.process (C:\Users\harfl\OneDrive\Desktop\AcademieCreatif-Vrai_siteweb\frontend\node_modules\postcss\lib\processor.js:53:14)
+      at runPostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20945:66)
+      at async compilePostCSS (file:///C:/Users/harfl/OneDrive/Desktop/AcademieCreatif-Vrai_siteweb/frontend/node_modules/vite/dist/node/chunks/node.js:20929:6)
+[2m19:51:05[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/certificate.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m19:51:05[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[vite] Failed to reload /src/styles/certificate.css. This could be due to syntax errors or importing non-existent modules. (see errors above)
+[2m20:11:00[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mInvalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+[2m20:11:00[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mError handled by React Router default ErrorBoundary: TypeError: Cannot read properties of null (reading 'useCallback')
+    at exports.useCallback (http://127.0.0.1:5174/node_modules/.vite/deps/react.js?v=8ea585e9:701:30)
+    at Z (http://127.0.0.1:5174/node_modules/.vite/deps/react-to-print.js?v=8a290b09:297:38)
+    at CertificateDocument (http://127.0.0.1:5174/src/pages/CertificatePage.tsx?t=1776967857726:78:22)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:12868:12)
+    at renderWithHooks (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:4213:19)
+    at updateFunctionComponent (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:5569:16)
+    at beginWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:6140:20)
+    at runWithFiberInDEV (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:851:66)
+    at performUnitOfWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:8429:92)
+    at workLoopSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:8325:37)
+[2m20:11:00[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mInvalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+[2m20:11:00[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mError handled by React Router default ErrorBoundary: TypeError: Cannot read properties of null (reading 'useCallback')
+    at exports.useCallback (http://127.0.0.1:5174/node_modules/.vite/deps/react.js?v=8ea585e9:701:30)
+    at Z (http://127.0.0.1:5174/node_modules/.vite/deps/react-to-print.js?v=8a290b09:297:38)
+    at CertificateDocument (http://127.0.0.1:5174/src/pages/CertificatePage.tsx?t=1776967857726:78:22)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:12868:12)
+    at renderWithHooks (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:4213:19)
+    at updateFunctionComponent (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:5569:16)
+    at beginWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:6140:20)
+    at runWithFiberInDEV (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:851:66)
+    at performUnitOfWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:8429:92)
+    at workLoopSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:8325:37)
+[2m20:11:00[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mTypeError: Cannot read properties of null (reading 'useCallback')
+    at exports.useCallback (http://127.0.0.1:5174/node_modules/.vite/deps/react.js?v=8ea585e9:701:30)
+    at Z (http://127.0.0.1:5174/node_modules/.vite/deps/react-to-print.js?v=8a290b09:297:38)
+    at CertificateDocument (http://127.0.0.1:5174/src/pages/CertificatePage.tsx?t=1776967857726:78:22)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:12868:12)
+    at renderWithHooks (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:4213:19)
+    at updateFunctionComponent (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:5569:16)
+    at beginWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:6140:20)
+    at runWithFiberInDEV (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:851:66)
+    at performUnitOfWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:8429:92)
+    at workLoopSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:8325:37)
+
+The above error occurred in the <CertificateDocument> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, RenderErrorBoundary.
+
+[2m20:11:00[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mReact Router caught the following error during render TypeError: Cannot read properties of null (reading 'useCallback')
+    at exports.useCallback (http://127.0.0.1:5174/node_modules/.vite/deps/react.js?v=8ea585e9:701:30)
+    at Z (http://127.0.0.1:5174/node_modules/.vite/deps/react-to-print.js?v=8a290b09:297:38)
+    at CertificateDocument (http://127.0.0.1:5174/src/pages/CertificatePage.tsx?t=1776967857726:78:22)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:12868:12)
+    at renderWithHooks (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:4213:19)
+    at updateFunctionComponent (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:5569:16)
+    at beginWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:6140:20)
+    at runWithFiberInDEV (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:851:66)
+    at performUnitOfWork (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:8429:92)
+    at workLoopSync (http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f84d369:8325:37)

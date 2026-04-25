@@ -21,16 +21,21 @@ const FormationsPage = lazy(() => import("./pages/FormationsPage"));
 const HomePage = lazy(() => import("./pages/HomePage"));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
+const MessagesPage = lazy(() => import("./pages/MessagesPage"));
 const AboutPage = lazy(() => import("./pages/AboutPage"));
 const BoutiquePage = lazy(() => import("./pages/BoutiquePage"));
 const TeamPage = lazy(() => import("./pages/TeamPage"));
 const BlogPage = lazy(() => import("./pages/BlogPage"));
 const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
+const ProgrammesPage = lazy(() => import("./pages/ProgrammesPage"));
 const StudentClassicWorkspacePage = lazy(() => import("./pages/StudentClassicWorkspacePage"));
 const StudentGuidedWorkspacePage = lazy(() => import("./pages/StudentGuidedWorkspacePage"));
 const CertificatePage = lazy(() => import("./pages/CertificatePage"));
+const CertificatePreviewPage = lazy(() => import("./pages/CertificatePreviewPage"));
+const CertificateVerificationPage = lazy(() => import("./pages/CertificateVerificationPage"));
 const TeacherSessionPage = lazy(() => import("./pages/TeacherSessionPage"));
 const TeacherInvitationPage = lazy(() => import("./pages/TeacherInvitationPage"));
+const AdminInvitationPage = lazy(() => import("./pages/AdminInvitationPage"));
 const LiveRoomPage = lazy(() => import("./pages/LiveRoomPage"));
 
 const TeacherOverviewPage = lazy(() => import("./pages/teacher/TeacherOverviewPage"));
@@ -59,6 +64,7 @@ const PublicHelpPage = lazy(() => import("./pages/PublicHelpPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 
 const AdminBlogPage = lazy(() => import("./pages/admin/AdminBlogPage"));
+const AdminProgrammesPage = lazy(() => import("./pages/admin/AdminProgrammesPage"));
 const AdminCataloguePage = lazy(() => import("./pages/admin/AdminCataloguePage"));
 const AdminEnrollmentsPage = lazy(() => import("./pages/admin/AdminEnrollmentsPage"));
 const AdminOverviewPage = lazy(() => import("./pages/admin/AdminOverviewPage"));
@@ -78,6 +84,9 @@ const AdminSiteBannierePage = lazy(() =>
 );
 const AdminSiteThemePage = lazy(() =>
   import("./pages/admin/AdminSitePage").then((module) => ({ default: module.AdminSiteThemePage })),
+);
+const AdminSiteContentPage = lazy(() =>
+  import("./pages/admin/AdminSitePage").then((module) => ({ default: module.AdminSiteContentPage })),
 );
 
 function routePage(element: ReactNode) {
@@ -111,6 +120,7 @@ export const router = createBrowserRouter([
               { path: "profil", element: routePage(<AdminProfilePage />) },
               { path: "aide", element: routePage(<HelpPage />) },
               { path: "notifications", element: routePage(<NotificationsPage />) },
+              { path: "messages", element: routePage(<MessagesPage />) },
               {
                 path: "site",
                 element: routePage(<AdminSitePage />),
@@ -119,6 +129,8 @@ export const router = createBrowserRouter([
                   { path: "general", element: routePage(<AdminSiteGeneralPage />) },
                   { path: "banniere", element: routePage(<AdminSiteBannierePage />) },
                   { path: "theme", element: routePage(<AdminSiteThemePage />) },
+                  { path: "sections", element: routePage(<AdminSiteContentPage />) },
+                  { path: "programmes", element: routePage(<AdminProgrammesPage />) },
                 ],
               },
             ],
@@ -151,6 +163,7 @@ export const router = createBrowserRouter([
           { path: "profil", element: routePage(<TeacherProfilePage />) },
           { path: "aide", element: routePage(<HelpPage />) },
           { path: "notifications", element: routePage(<NotificationsPage />) },
+          { path: "messages", element: routePage(<MessagesPage />) },
         ],
       },
     ],
@@ -177,6 +190,7 @@ export const router = createBrowserRouter([
           { path: "profil", element: routePage(<StudentProfilePage />) },
           { path: "aide", element: routePage(<HelpPage />) },
           { path: "notifications", element: routePage(<NotificationsPage />) },
+          { path: "messages", element: routePage(<MessagesPage />) },
           { path: "favoris", element: routePage(<FavoritesPage />) },
           { path: "classic/:enrollmentId", element: routePage(<StudentClassicWorkspacePage />) },
           { path: "guided/:enrollmentId", element: routePage(<StudentGuidedWorkspacePage />) },
@@ -206,15 +220,19 @@ export const router = createBrowserRouter([
       { path: "blog", element: routePage(<BlogPage />) },
       { path: "blog/:slug", element: routePage(<BlogPostPage />) },
       { path: "diagnostic", element: routePage(<DiagnosticPage />) },
+      { path: "certificats/apercu", element: routePage(<CertificatePreviewPage />) },
+      { path: "certificats/verifier/:token", element: routePage(<CertificateVerificationPage />) },
       { path: "aide", element: routePage(<PublicHelpPage />) },
       { path: "formations", element: routePage(<FormationsPage />) },
       { path: "formations/:slug", element: routePage(<FormationDetailPage />) },
+      { path: "programmes", element: routePage(<ProgrammesPage />) },
       {
         element: <ProtectedRoute />,
         children: [
           { path: "espace", element: routePage(<AccountRedirectPage />) },
           { path: "favoris", element: routePage(<FavoritesPage />) },
           { path: "notifications", element: routePage(<NotificationsPage />) },
+          { path: "messages", element: routePage(<MessagesPage />) },
           { path: "parametres", element: routePage(<SettingsPage />) },
           {
             element: <ProtectedRoute allowedRoles={["student", "guest"]} />,
@@ -226,6 +244,7 @@ export const router = createBrowserRouter([
         ],
       },
       { path: "invitation/enseignant/:token", element: routePage(<TeacherInvitationPage />) },
+      { path: "invitation/admin/:token", element: routePage(<AdminInvitationPage />) },
       { path: "login", element: routePage(<AuthPage mode="login" />) },
       { path: "register", element: routePage(<AuthPage mode="register" />) },
       { path: "forgot-password", element: routePage(<ForgotPasswordPage />) },

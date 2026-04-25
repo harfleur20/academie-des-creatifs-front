@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useToast } from "../../toast/ToastContext";
 import { Link, useNavigate } from "react-router-dom";
 import {
   BookOpen,
@@ -143,6 +144,7 @@ function TeacherIllustration() {
 export default function TeacherOverviewPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { success, error: toastError } = useToast();
   const [overview, setOverview] = useState<TeacherOverview | null>(null);
   const [performance, setPerformance] = useState<TeacherPerformanceOverview | null>(null);
   const [formations, setFormations] = useState<TeacherFormationItem[]>([]);
@@ -150,7 +152,7 @@ export default function TeacherOverviewPage() {
   const [expandedFormation, setExpandedFormation] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPerformanceLoading, setIsPerformanceLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   const [liveEventsBySession, setLiveEventsBySession] = useState<Record<number, LiveEvent[]>>({});
   const [expandedLiveSession, setExpandedLiveSession] = useState<number | null>(null);
@@ -159,7 +161,6 @@ export default function TeacherOverviewPage() {
   const [eventDraft, setEventDraft] = useState({ title: "", scheduled_at: "", duration_minutes: "90" });
   const [editingEvent, setEditingEvent] = useState<LiveEvent | null>(null);
   const [savingEvent, setSavingEvent] = useState(false);
-  const [liveEventError, setLiveEventError] = useState("");
 
   useEffect(() => {
     Promise.all([fetchTeacherOverview(), fetchMyFormations()])
@@ -167,7 +168,7 @@ export default function TeacherOverviewPage() {
         setOverview(ov);
         setFormations(fms);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Erreur de chargement."))
+      .catch((e) => setLoadError(e instanceof Error ? e.message : "Erreur de chargement."))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -200,14 +201,12 @@ export default function TeacherOverviewPage() {
       setExpandedLiveSession(sessionId);
       setSelectedCalDate(null);
       setEditingEvent(null);
-      setLiveEventError("");
       void loadLiveEvents(sessionId);
     }
   };
 
   const handleSaveEvent = async (sessionId: number) => {
     setSavingEvent(true);
-    setLiveEventError("");
     try {
       const payload: LiveEventCreatePayload = {
         title: eventDraft.title.trim(),
@@ -216,8 +215,10 @@ export default function TeacherOverviewPage() {
       };
       if (editingEvent) {
         await updateLiveEvent(editingEvent.id, payload);
+        success("Séance mise à jour.");
       } else {
         await createLiveEvent(sessionId, payload);
+        success("Séance ajoutée.");
       }
       setEventDraft({ title: "", scheduled_at: "", duration_minutes: "90" });
       setEditingEvent(null);
@@ -225,16 +226,21 @@ export default function TeacherOverviewPage() {
       const events = await fetchSessionLiveEvents(sessionId);
       setLiveEventsBySession((prev) => ({ ...prev, [sessionId]: events }));
     } catch (err: unknown) {
-      setLiveEventError(err instanceof Error ? err.message : "Erreur lors de la sauvegarde de la séance.");
+      toastError(err instanceof Error ? err.message : "Erreur lors de la sauvegarde de la séance.");
     } finally {
       setSavingEvent(false);
     }
   };
 
   const handleDeleteEvent = async (eventId: number, sessionId: number) => {
-    await deleteLiveEvent(eventId);
-    const events = await fetchSessionLiveEvents(sessionId);
-    setLiveEventsBySession((prev) => ({ ...prev, [sessionId]: events }));
+    try {
+      await deleteLiveEvent(eventId);
+      const events = await fetchSessionLiveEvents(sessionId);
+      setLiveEventsBySession((prev) => ({ ...prev, [sessionId]: events }));
+      success("Séance supprimée.");
+    } catch {
+      toastError("Erreur lors de la suppression.");
+    }
   };
 
   const toggleFormation = (id: number) => {
@@ -470,7 +476,6 @@ export default function TeacherOverviewPage() {
                                             </button>
                                           )}
                                         </div>
-                                        {liveEventError && <p className="admin-feedback admin-feedback--error">{liveEventError}</p>}
                                       </div>
 
                                       {selectedCalDate && (

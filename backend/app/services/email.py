@@ -417,3 +417,17 @@ def send_payment_reminder(
         ]
     )
     send_email(to, subject, html, text)
+
+
+def send_admin_invitation_email(to: str, name: str, token: str) -> None:
+    link = f"{settings.frontend_url}/invitation/admin/{token}"
+    content = "\n".join([
+        _h1("Invitation administrateur"),
+        _p(f"Bonjour {name}, vous avez été invité à rejoindre l'équipe d'administration de l'<strong>Académie des Créatifs</strong>."),
+        _p("Ce lien est valable <strong>7 jours</strong>. Cliquez ci-dessous pour définir votre mot de passe et accéder à votre espace."),
+        _btn("Accepter l'invitation", link),
+        _p(f"Ou copiez ce lien : {link}", muted=True),
+    ])
+    html = _wrap(content, preview=f"Invitation administrateur — {name}")
+    text = f"Bonjour {name},\n\nVous êtes invité à devenir administrateur.\nLien : {link}\n\n— Académie des Créatifs"
+    send_email(to, f"Invitation administrateur — Académie des Créatifs", html, text)

@@ -1,7 +1,8 @@
-import { BadgeCheck, MessageCircleMore, UserRound } from "lucide-react";
+import { MessageCircleMore, UserRound } from "lucide-react";
 
 import type { AssignedTeacher } from "../lib/commerceApi";
 import UserAvatar from "./UserAvatar";
+import VerifiedBadge from "./VerifiedBadge";
 
 type AssignedTeacherCardProps = {
   teacher: AssignedTeacher | null | undefined;
@@ -49,9 +50,7 @@ export default function AssignedTeacherCard({
         <span className="workspace-teacher-card__label">Votre enseignant assigne est :</span>
         <span className="workspace-teacher-card__name-row">
           <strong title={teacherName}>{teacherName}</strong>
-          <span className="workspace-teacher-card__verified" aria-label="Enseignant verifie" title="Enseignant verifie">
-            <BadgeCheck size={11} />
-          </span>
+          <VerifiedBadge size={13} />
         </span>
         <span className="workspace-teacher-card__code">
           {teacherCode}

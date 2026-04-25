@@ -494,6 +494,15 @@ header#navbar img {
   line-height: 1;
 }
 
+.icon-action-btn .dsh-topbar__notif-badge {
+  top: -4px;
+  right: -4px;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.18rem;
+  font-size: 0.64rem;
+}
+
 .menu-toggle {
   display: none;
   border: 0;
@@ -2456,6 +2465,31 @@ header#navbar img {
   justify-content: center;
 }
 
+/* ── Carousel auto-scroll témoignages ── */
+.tmg-carousel-wrapper {
+  overflow: hidden;
+  width: 100%;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+}
+
+.tmg-carousel-track {
+  display: flex;
+  gap: 2rem;
+  width: max-content;
+  animation: tmg-scroll 32s linear infinite;
+  padding-top: 0.5rem;
+}
+
+.tmg-carousel-track:hover {
+  animation-play-state: paused;
+}
+
+@keyframes tmg-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
 .tmg-list-card {
   display: flex;
   gap: 2rem;
@@ -2469,6 +2503,7 @@ header#navbar img {
   border-radius: 10px;
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
   padding: 2rem;
+  padding-top: 5.75rem;
   width: 355px;
   display: flex;
   flex-direction: column;
@@ -2480,7 +2515,7 @@ header#navbar img {
   font-size: 0.9rem;
   color: #333;
   line-height: 1.5;
-  margin-top: 1rem;
+  margin-top: 0;
 }
 
 .quotation-marks {
@@ -2488,13 +2523,15 @@ header#navbar img {
   color: #1c8480;
   background-color: var(--couleur-vert-clair);
   position: absolute;
-  width: 40px;
-  height: 40px;
+  top: 1.5rem;
+  left: 1.5rem;
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
-  top: -15px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .details-auteur-container {
@@ -2504,10 +2541,14 @@ header#navbar img {
 }
 
 .details-auteur-gauche img {
-  width: 50px;
-  height: 50px;
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  min-height: 56px;
   border-radius: 50%;
   object-fit: cover;
+  object-position: center;
+  display: block;
 }
 
 .details-auteur-texte-droit h4 {
@@ -2520,6 +2561,12 @@ header#navbar img {
   margin: 0 0 0.25rem;
   font-size: 0.7rem;
   color: #333;
+}
+
+.details-auteur-texte-droit p:last-child {
+  font-size: 0.65rem;
+  color: #888;
+  font-style: italic;
 }
 
 #bg-progres {
@@ -7598,4 +7645,161 @@ header#navbar img {
   .home-blog__grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Section Formateurs ──────────────────────────────── */
+#formateur {
+  padding: 5rem 1.5rem;
+  background: #f8fafc;
+}
+
+.trainers-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.trainers-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.trainers-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--couleur-accent, #18a7a3);
+  margin-bottom: 0.75rem;
+}
+
+.trainers-header h2 {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 800;
+  color: var(--couleur-principale, #1f2559);
+  margin: 0;
+}
+
+.trainers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.75rem;
+}
+
+.trainer-card {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.07);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.trainer-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.13);
+}
+
+.trainer-card__img {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+}
+
+.trainer-card__img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.trainer-card:hover .trainer-card__img img {
+  transform: scale(1.04);
+}
+
+.trainer-card__body {
+  padding: 1.25rem;
+}
+
+.trainer-card__body h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--couleur-principale, #1f2559);
+  margin: 0 0 0.3rem;
+}
+
+.trainer-card__role {
+  font-size: 0.82rem;
+  color: var(--couleur-accent, #18a7a3);
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+}
+
+.trainer-card__label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* ── Admin: Compteurs grid ───────────────────────────── */
+.adm-counters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.adm-counter-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  padding: 1rem 1rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.adm-counter-item .adm-form-field--full {
+  grid-column: 1 / -1;
+}
+
+.adm-counter-item__del {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+}
+
+/* ── Admin: wide thumb for slide images ─────────────── */
+.adm-section-item__thumb--wide {
+  width: 140px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+/* ── Admin: checkbox field layout ───────────────────── */
+.adm-form-field--checkbox {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 0.5rem;
+}
+
+.adm-form-field--checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+/* ── Admin: code badge ───────────────────────────────── */
+.adm-code {
+  font-family: monospace;
+  font-size: 0.75rem;
+  background: #f3f4f6;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  color: #374151;
 }

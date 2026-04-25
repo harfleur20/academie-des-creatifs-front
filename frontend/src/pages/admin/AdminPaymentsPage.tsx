@@ -59,7 +59,6 @@ export default function AdminPaymentsPage() {
     remindingPaymentId,
     handleSavePayment,
     handleSendPaymentReminder,
-    paymentFeedbackById,
   } = useAdminDashboard();
 
   const [search, setSearch] = useState("");
@@ -195,7 +194,6 @@ export default function AdminPaymentsPage() {
               <tbody>
                 {paginated.length ? paginated.map((payment) => {
                   const draft = paymentDrafts[payment.id];
-                  const feedback = paymentFeedbackById[payment.id];
                   const isSaving = savingPaymentId === payment.id;
                   const isReminding = remindingPaymentId === payment.id;
 
@@ -290,11 +288,6 @@ export default function AdminPaymentsPage() {
                           >
                             {isReminding ? "…" : <FaBell />}
                           </button>
-                          {feedback && (
-                            <span className={`adm-feedback adm-feedback--${feedback.type}`}>
-                              {feedback.message}
-                            </span>
-                          )}
                         </div>
                       </td>
                     </tr>

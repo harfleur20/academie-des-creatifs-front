@@ -7,6 +7,7 @@ import {
   FaExclamationTriangle,
   FaGraduationCap,
   FaMapMarkedAlt,
+  FaTrashAlt,
 } from "react-icons/fa";
 
 import { useAuth } from "../auth/AuthContext";
@@ -16,6 +17,14 @@ import {
   type NotificationItem,
   type NotificationTone,
 } from "../lib/commerceApi";
+import {
+  dismissNotifications,
+  getNotificationDismissedIds,
+  getNotificationReadIds,
+  getNotificationStateScope,
+  markNotificationsRead,
+  subscribeToNotificationState,
+} from "../lib/notificationState";
 
 function getToneIcon(tone: NotificationTone) {
   if (tone === "success") {
@@ -102,9 +111,30 @@ function formatNotificationDate(value: string) {
 
 export default function NotificationsPage() {
   const { user } = useAuth();
+  const notificationScope = getNotificationStateScope(user);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [readIds, setReadIds] = useState<Set<string>>(() =>
+    getNotificationReadIds(notificationScope),
+  );
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() =>
+    getNotificationDismissedIds(notificationScope),
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    setReadIds(getNotificationReadIds(notificationScope));
+    setDismissedIds(getNotificationDismissedIds(notificationScope));
+  }, [notificationScope]);
+
+  useEffect(
+    () =>
+      subscribeToNotificationState(notificationScope, () => {
+        setReadIds(getNotificationReadIds(notificationScope));
+        setDismissedIds(getNotificationDismissedIds(notificationScope));
+      }),
+    [notificationScope],
+  );
 
   useEffect(() => {
     fetchNotifications()
@@ -123,6 +153,15 @@ export default function NotificationsPage() {
       });
   }, []);
 
+  const visibleNotifications = useMemo(
+    () => notifications.filter((notification) => !dismissedIds.has(notification.id)),
+    [dismissedIds, notifications],
+  );
+  const unreadCount = useMemo(
+    () => visibleNotifications.filter((notification) => !readIds.has(notification.id)).length,
+    [readIds, visibleNotifications],
+  );
+
   const intro = useMemo(() => {
     if (user?.role === "admin") {
       return "Suivez ici les paiements en attente, les commandes a surveiller et les points d'attention de l'administration.";
@@ -134,6 +173,29 @@ export default function NotificationsPage() {
 
     return "Retrouvez ici vos paiements, vos acces de formation, vos rappels de session et les informations importantes liees a votre progression.";
   }, [user?.role]);
+
+  function handleMarkAll() {
+    if (visibleNotifications.length === 0) {
+      return;
+    }
+    markNotificationsRead(
+      notificationScope,
+      visibleNotifications.map((notification) => notification.id),
+    );
+    setReadIds(getNotificationReadIds(notificationScope));
+  }
+
+  function handleClearAll() {
+    if (visibleNotifications.length === 0) {
+      return;
+    }
+    dismissNotifications(
+      notificationScope,
+      visibleNotifications.map((notification) => notification.id),
+    );
+    setReadIds(getNotificationReadIds(notificationScope));
+    setDismissedIds(getNotificationDismissedIds(notificationScope));
+  }
 
   if (isLoading) {
     return (
@@ -153,6 +215,20 @@ export default function NotificationsPage() {
         <p className="eyebrow">Notifications</p>
         <h1>Vos rappels et alertes, sans bruit inutile.</h1>
         <p className="page-intro">{intro}</p>
+        <div className="notifications-hero__actions">
+          {unreadCount > 0 ? (
+            <button type="button" className="button button--secondary" onClick={handleMarkAll}>
+              <FaCheckCircle />
+              Tout marquer lu
+            </button>
+          ) : null}
+          {visibleNotifications.length > 0 ? (
+            <button type="button" className="button button--ghost-danger" onClick={handleClearAll}>
+              <FaTrashAlt />
+              Vider
+            </button>
+          ) : null}
+        </div>
       </section>
 
       {errorMessage ? (
@@ -161,9 +237,9 @@ export default function NotificationsPage() {
         </div>
       ) : null}
 
-      {notifications.length > 0 ? (
+      {visibleNotifications.length > 0 ? (
         <section className="notifications-list">
-          {notifications.map((notification) => (
+          {visibleNotifications.map((notification) => (
             <article
               className={`notification-card notification-card--${notification.tone}`}
               key={notification.id}
@@ -182,7 +258,14 @@ export default function NotificationsPage() {
                 <h2>{notification.title}</h2>
                 <p>{notification.message}</p>
                 {notification.action_label && notification.action_path ? (
-                  <Link className="notification-card__action" to={notification.action_path}>
+                  <Link
+                    className="notification-card__action"
+                    to={notification.action_path}
+                    onClick={() => {
+                      markNotificationsRead(notificationScope, [notification.id]);
+                      setReadIds(getNotificationReadIds(notificationScope));
+                    }}
+                  >
                     {notification.action_label}
                   </Link>
                 ) : null}

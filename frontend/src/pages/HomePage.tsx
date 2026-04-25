@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ComponentType, type ReactNode, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { IconType } from "react-icons";
 import "./accordeon.css";
@@ -60,6 +60,7 @@ import {
 import {
   EMPTY_SITE_CONTENT,
   fetchPublicSiteContent,
+  type HeroSlideItem,
   type SiteContent,
 } from "../lib/siteContentApi";
 import { useToast } from "../toast/ToastContext";
@@ -447,6 +448,39 @@ const heroCounters = [
   },
 ];
 
+const COUNTER_ICON_MAP: Record<string, ComponentType> = {
+  graduation: LuGraduationCap,
+  lightning: HiOutlineLightningBolt,
+  gauge: LuCircleGauge,
+  check: RiFileCheckLine,
+  trophy: HiTrophy,
+  users: MdOutlineGroup,
+  rocket: FaRocket,
+};
+
+function mapSlideItem(item: HeroSlideItem): HeroSlide {
+  return {
+    eyebrow: item.eyebrow,
+    navLabel: item.navLabel,
+    title: item.titleEmphasis ? (
+      <>{item.title} <span>{item.titleEmphasis}</span></>
+    ) : (
+      item.title
+    ),
+    description: item.description,
+    image: item.image,
+    imagePosition: item.imagePosition || "center center",
+    actions: [
+      ...(item.cta1Label
+        ? [{ label: item.cta1Label, to: item.cta1Url, variant: "primary" as const, external: item.cta1External }]
+        : []),
+      ...(item.cta2Label
+        ? [{ label: item.cta2Label, to: item.cta2Url, variant: "secondary" as const, external: item.cta2External }]
+        : []),
+    ],
+  };
+}
+
 export default function HomePage() {
   const statsRef = useRef<HTMLDivElement | null>(null);
   const { user } = useAuth();
@@ -502,7 +536,23 @@ export default function HomePage() {
   const videos = siteContent.videos;
   const testimonials = siteContent.testimonials;
   const badgeLevels = siteContent.badge_levels;
-  const activeSlide = heroSlides[activeSlideIndex];
+  const slides = siteContent.hero_slides.length > 0
+    ? siteContent.hero_slides.map(mapSlideItem)
+    : heroSlides;
+
+  type CounterItem = { value: string; copy: string; icon: ComponentType };
+  const counters: CounterItem[] = siteContent.hero_counters.length > 0
+    ? siteContent.hero_counters.map((c) => ({
+        value: c.value,
+        copy: c.copy,
+        icon: (COUNTER_ICON_MAP[c.icon] ?? LuGraduationCap) as ComponentType,
+      }))
+    : heroCounters;
+
+  const slidesRef = useRef(slides);
+  slidesRef.current = slides;
+
+  const activeSlide = slides[activeSlideIndex] ?? slides[0];
   const albumPageCount = Math.max(
     1,
     Math.ceil(albumItems.length / albumItemsPerPage),
@@ -683,7 +733,7 @@ export default function HomePage() {
     }
 
     const slideInterval = window.setInterval(() => {
-      setActiveSlideIndex((current) => (current + 1) % heroSlides.length);
+      setActiveSlideIndex((current) => (current + 1) % slidesRef.current.length);
     }, 6500);
 
     return () => {
@@ -720,12 +770,12 @@ export default function HomePage() {
 
   const goToPreviousSlide = () => {
     setActiveSlideIndex((current) =>
-      current === 0 ? heroSlides.length - 1 : current - 1,
+      current === 0 ? slides.length - 1 : current - 1,
     );
   };
 
   const goToNextSlide = () => {
-    setActiveSlideIndex((current) => (current + 1) % heroSlides.length);
+    setActiveSlideIndex((current) => (current + 1) % slides.length);
   };
 
   const goToPreviousAlbum = () => {
@@ -750,7 +800,7 @@ export default function HomePage() {
     <div className="ecommerce-home">
       <section id="hero" aria-label="Présentation de l'Académie des Créatifs">
         <div className="hero-slider__backdrop" aria-hidden="true">
-          {heroSlides.map((slide, index) => (
+          {slides.map((slide, index) => (
             <div
               key={slide.navLabel}
               className={`hero-slider__image ${index === activeSlideIndex ? "is-active" : ""}`}
@@ -770,7 +820,7 @@ export default function HomePage() {
               className="hero-slider__rail"
               aria-label="Navigation du slider"
             >
-              {heroSlides.map((slide, index) => (
+              {slides.map((slide, index) => (
                 <button
                   key={slide.navLabel}
                   aria-label={`Afficher le slide ${index + 1}: ${slide.navLabel}`}
@@ -858,8 +908,8 @@ export default function HomePage() {
 
       <section id="hero-counters" aria-label="Quelques chiffres clés">
         <div className="hero-counters__container" ref={statsRef}>
-          {heroCounters.map((stat) => {
-            const Icon = stat.icon;
+          {counters.map((stat) => {
+            const Icon = stat.icon as ComponentType;
 
             return (
               <article className="hero-counter" key={stat.value}>
@@ -953,10 +1003,10 @@ export default function HomePage() {
               aider à vous surpasser, apprendre avec les meilleurs et compétir
               avec les autres membres de la communauté créative.
             </p>
-            <a className="btn-prog" href="/#form-en-ligne">
+            <Link className="btn-prog" to="/programmes">
               <FaBolt />
               en savoir plus sur nos programmes
-            </a>
+            </Link>
           </div>
 
           <div className="banniere-cote-droite">
@@ -1436,10 +1486,10 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="t-list-container">
-            <div className="tmg-list-card">
-              {testimonials.map((testimonial) => (
-                <article className="temoignage-carte" key={testimonial.name}>
+          <div className="tmg-carousel-wrapper">
+            <div className="tmg-carousel-track">
+              {[...testimonials, ...testimonials].map((testimonial, idx) => (
+                <article className="temoignage-carte" key={idx}>
                   <div className="quotation-marks">
                     <FaQuoteLeft />
                   </div>

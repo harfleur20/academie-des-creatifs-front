@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import MessagingBell from "../components/MessagingBell";
 import NotifBell from "../components/NotifBell";
 import {
   ArrowLeft,
@@ -13,6 +14,7 @@ import {
   HelpCircle,
   LayoutDashboard,
   LogOut,
+  MessageCircle,
   Newspaper,
   TrendingUp,
   Search,
@@ -78,12 +80,19 @@ const navItems: NavItem[] = [
     icon: <Newspaper size={16} />,
   },
   {
+    to: "/admin/messages",
+    label: "Messages",
+    icon: <MessageCircle size={16} />,
+  },
+  {
     label: "Paramètres",
     icon: <Globe size={16} />,
     children: [
       { to: "/admin/site/general", label: "Général" },
       { to: "/admin/site/banniere", label: "Bannière" },
       { to: "/admin/site/theme", label: "Thème & couleurs" },
+      { to: "/admin/site/sections", label: "Sections du site" },
+      { to: "/admin/site/programmes", label: "Programmes" },
       { to: "/admin/roles", label: "Administrateurs & rôles" },
     ],
   },
@@ -241,6 +250,7 @@ export default function AdminLayout() {
 
           <div className="adm-topbar__right">
             {/* Notification bell */}
+            <MessagingBell to="/admin/messages" className="adm-topbar__notif-btn" />
             <NotifBell allNotifPath="/admin/notifications" className="adm-topbar__notif-btn" />
 
             {/* User menu */}

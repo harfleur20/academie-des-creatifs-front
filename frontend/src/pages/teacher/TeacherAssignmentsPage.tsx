@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useToast } from "../../toast/ToastContext";
 import { CheckCircle, Clock, MessageSquare, Plus, Trash2, Users, Wand2 } from "lucide-react";
 import AssignmentConversationPanel from "../../components/AssignmentConversationPanel";
 import {
@@ -48,7 +49,7 @@ export default function TeacherAssignmentsPage() {
   const [showForm, setShowForm] = useState(false);
   const [creationMode, setCreationMode] = useState<AssignmentCreationMode>("manual");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const { success, error: toastError } = useToast();
   const [reviewScores, setReviewScores] = useState<Record<number, string>>({});
   const [aiTopic, setAiTopic] = useState("");
   const [aiLevel, setAiLevel] = useState("");
@@ -78,7 +79,7 @@ export default function TeacherAssignmentsPage() {
         setSessions(overview.sessions);
         if (overview.sessions.length > 0) setSelectedSessionId(overview.sessions[0].id);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Erreur"))
+      .catch((err) => toastError(err instanceof Error ? err.message : "Erreur de chargement."))
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -96,7 +97,7 @@ export default function TeacherAssignmentsPage() {
         setCourseDays(dayRows);
         setSelectedCourseDayId(dayRows[0]?.id ?? null);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Impossible de charger les devoirs."));
+      .catch((err) => toastError(err instanceof Error ? err.message : "Impossible de charger les devoirs."));
   }, [selectedSessionId]);
 
   function resetAssignmentForm() {
@@ -109,17 +110,15 @@ export default function TeacherAssignmentsPage() {
     setAiLevel("");
     setAiObjectives("");
     setAiDurationDays(7);
-    setError("");
   }
 
   async function handleGenerateAssignmentDraft() {
     if (!selectedSessionId) return;
     if (!aiTopic.trim()) {
-      setError("Indiquez le sujet du devoir à générer.");
+      toastError("Indiquez le sujet du devoir à générer.");
       return;
     }
     setAiGenerating(true);
-    setError("");
     try {
       const draft = await generateAssignmentDraft({
         session_id: selectedSessionId,
@@ -140,7 +139,7 @@ export default function TeacherAssignmentsPage() {
         setDueDate(toDateTimeLocal(deadline));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de générer le devoir.");
+      toastError(err instanceof Error ? err.message : "Impossible de générer le devoir.");
     } finally {
       setAiGenerating(false);
     }
@@ -148,11 +147,10 @@ export default function TeacherAssignmentsPage() {
 
   async function handleCreate() {
     if (!selectedSessionId || !title.trim() || !dueDate) {
-      setError("Titre et date limite requis.");
+      toastError("Titre et date limite requis.");
       return;
     }
     setSaving(true);
-    setError("");
     try {
       const assignment = await createAssignment(selectedSessionId, {
         title: title.trim(),
@@ -164,8 +162,9 @@ export default function TeacherAssignmentsPage() {
       setAssignments((prev) => [...prev, assignment]);
       setShowForm(false);
       resetAssignmentForm();
+      success("Devoir créé.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur.");
+      toastError(err instanceof Error ? err.message : "Erreur lors de la création du devoir.");
     } finally {
       setSaving(false);
     }
@@ -194,7 +193,7 @@ export default function TeacherAssignmentsPage() {
     const rawScore = reviewScores[submissionId]?.trim().replace(",", ".");
     const score = rawScore ? Number(rawScore) : null;
     if (score !== null && (!Number.isFinite(score) || score < 0 || score > 20)) {
-      setError("La note doit être comprise entre 0 et 20.");
+      toastError("La note doit être comprise entre 0 et 20.");
       return;
     }
     const updated = await markSubmissionReviewed(
@@ -311,8 +310,6 @@ export default function TeacherAssignmentsPage() {
           </button>
         </div>
       ) : null}
-
-      {error ? <p className="dsh-error">{error}</p> : null}
 
       {showForm ? (
         <div className="dsh-form-card">

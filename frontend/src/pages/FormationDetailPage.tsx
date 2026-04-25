@@ -149,6 +149,10 @@ function getCourseBadgeLabel(badge: string) {
   return "Promo";
 }
 
+function stripModuleTitlePrefix(value: string) {
+  return value.trim().replace(/^module\s*\d+\s*[-:–—]\s*/i, "");
+}
+
 function DetailAccordion({
   items,
   openIndex,
@@ -165,7 +169,9 @@ function DetailAccordion({
         const body = "question" in item ? item.answer : item.summary;
         const lessons = "lessons" in item ? item.lessons : null;
         const label =
-          "question" in item ? item.question : item.title.replace(" - ", " : ");
+          "question" in item
+            ? item.question
+            : `Module ${index + 1} : ${stripModuleTitlePrefix(item.title)}`;
 
         return (
           <article
