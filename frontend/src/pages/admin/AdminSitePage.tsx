@@ -20,6 +20,8 @@ import {
   type HeroCounterItem,
   type BadgeLevelItem,
   type TrainerProfile,
+  type VideoItem,
+  normalizeVideos,
 } from "../../lib/siteContentApi";
 
 const siteTabs = [
@@ -488,7 +490,7 @@ function emptyTrainer(): TrainerDraft {
 export function AdminSiteContentPage() {
   const [testimonials, setTestimonials] = useState<TestimonialDraft[]>([]);
   const [albumItems, setAlbumItems] = useState<AlbumItem[]>([]);
-  const [videos, setVideos] = useState<string[]>([]);
+  const [videos, setVideos] = useState<VideoItem[]>([]);
   const [heroSlides, setHeroSlides] = useState<HeroSlideDraft[]>([]);
   const [heroCounters, setHeroCounters] = useState<HeroCounterItem[]>([]);
   const [badgeLevels, setBadgeLevels] = useState<BadgeDraft[]>([]);
@@ -497,6 +499,7 @@ export function AdminSiteContentPage() {
   const [saving, setSaving] = useState<SectionKey | null>(null);
   const { success, error: toastError } = useToast();
   const [newVideoUrl, setNewVideoUrl] = useState("");
+  const [newVideoThumb, setNewVideoThumb] = useState("");
   const [newAlbumUrl, setNewAlbumUrl] = useState("");
   const [newAlbumTitle, setNewAlbumTitle] = useState("");
   const [uploadingImg, setUploadingImg] = useState(false);
@@ -506,7 +509,7 @@ export function AdminSiteContentPage() {
       .then((data) => {
         setTestimonials(data.testimonials);
         setAlbumItems(data.album_items);
-        setVideos(data.videos);
+        setVideos(normalizeVideos(data.videos as unknown[]));
         setHeroSlides(data.hero_slides.length > 0 ? data.hero_slides : DEFAULT_HERO_SLIDE_ITEMS);
         setHeroCounters(data.hero_counters.length > 0 ? data.hero_counters : DEFAULT_HERO_COUNTER_ITEMS);
         setBadgeLevels(data.badge_levels);
@@ -691,17 +694,23 @@ export function AdminSiteContentPage() {
             </button>
           </div>
         </div>
-        <div className="adm-sections-add-row">
+        <div className="adm-sections-add-row" style={{ flexDirection: "column", alignItems: "stretch", gap: "0.5rem" }}>
           <input type="text" placeholder="URL de la vidéo (YouTube embed…)" value={newVideoUrl} onChange={(e) => setNewVideoUrl(e.target.value)} className="adm-sections-input" />
-          <button type="button" className="adm-btn adm-btn--primary" disabled={!newVideoUrl.trim()} onClick={() => { setVideos((v) => [...v, newVideoUrl.trim()]); setNewVideoUrl(""); }}>
-            <FaPlus /> Ajouter
-          </button>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <input type="text" placeholder="Image de prévisualisation (URL) — optionnel" value={newVideoThumb} onChange={(e) => setNewVideoThumb(e.target.value)} className="adm-sections-input" style={{ flex: 1 }} />
+            <button type="button" className="adm-btn adm-btn--primary" disabled={!newVideoUrl.trim()} onClick={() => { setVideos((v) => [...v, { url: newVideoUrl.trim(), thumbnail: newVideoThumb.trim() || undefined }]); setNewVideoUrl(""); setNewVideoThumb(""); }}>
+              <FaPlus /> Ajouter
+            </button>
+          </div>
         </div>
         <div className="adm-sections-list">
           {videos.length === 0 && <p className="adm-empty">Aucune vidéo.</p>}
-          {videos.map((url, i) => (
+          {videos.map((video, i) => (
             <div key={i} className="adm-section-item adm-section-item--video">
-              <span className="adm-section-item__url">{url}</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", flex: 1, minWidth: 0 }}>
+                <span className="adm-section-item__url">{video.url}</span>
+                {video.thumbnail && <span style={{ fontSize: "0.78rem", color: "#666" }}>🖼 {video.thumbnail}</span>}
+              </div>
               <button type="button" className="adm-icon-btn adm-icon-btn--danger" onClick={() => setVideos((v) => v.filter((_, j) => j !== i))}><FaTrash /></button>
             </div>
           ))}

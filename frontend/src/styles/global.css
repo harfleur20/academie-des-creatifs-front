@@ -22252,10 +22252,22 @@ button.button--disabled:disabled {
 @media (max-width: 600px) {
   .prog-footer__inner {
     grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .prog-footer__nav a,
+  .prog-footer__nav button {
+    text-align: center;
+  }
+  .prog-footer__nav ul {
+    align-items: center;
+  }
+  .prog-footer__whatsapp {
+    margin: 0.75rem auto 0;
   }
   .prog-footer__bottom {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
   }
 }
 

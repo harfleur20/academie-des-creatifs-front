@@ -71,11 +71,16 @@ export type ProgrammeConfig = {
   ctaPath: string;
 };
 
+export type VideoItem = {
+  url: string;
+  thumbnail?: string;
+};
+
 export type SiteContent = {
   hero_slides: HeroSlideItem[];
   hero_counters: HeroCounterItem[];
   album_items: AlbumItem[];
-  videos: string[];
+  videos: VideoItem[];
   testimonials: TestimonialItem[];
   badge_levels: BadgeLevelItem[];
   trainers: TrainerProfile[];
@@ -152,6 +157,12 @@ export const DEFAULT_HERO_COUNTER_ITEMS: HeroCounterItem[] = [
   { value: "5", copy: "étapes pour cadrer un parcours de progression utile et concret.", icon: "check" },
 ];
 
+export function normalizeVideos(raw: unknown[]): VideoItem[] {
+  return raw.map((v) =>
+    typeof v === "string" ? { url: v } : (v as VideoItem),
+  );
+}
+
 export const EMPTY_SITE_CONTENT: SiteContent = {
   hero_slides: [],
   hero_counters: [],
@@ -164,5 +175,6 @@ export const EMPTY_SITE_CONTENT: SiteContent = {
 };
 
 export async function fetchPublicSiteContent(): Promise<SiteContent> {
-  return apiRequest<SiteContent>("/site-content");
+  const data = await apiRequest<SiteContent & { videos: unknown[] }>("/site-content");
+  return { ...data, videos: normalizeVideos(data.videos ?? []) };
 }

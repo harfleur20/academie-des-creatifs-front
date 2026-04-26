@@ -1,5 +1,6 @@
 import { type ComponentType, type ReactNode, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import VideoCard from "../components/VideoCard";
 import type { IconType } from "react-icons";
 import "./accordeon.css";
 import {
@@ -513,6 +514,7 @@ export default function HomePage() {
       : 3,
   );
   const [activeAlbumPage, setActiveAlbumPage] = useState(0);
+  const videoTrackRef = useRef<HTMLDivElement | null>(null);
 
   const toggle = (index: number) => {
     setActiveIndex((current) => (current === index ? null : index));
@@ -561,6 +563,18 @@ export default function HomePage() {
     activeAlbumPage * albumItemsPerPage,
     activeAlbumPage * albumItemsPerPage + albumItemsPerPage,
   );
+
+  const scrollVideoCarousel = (direction: "prev" | "next") => {
+    const track = videoTrackRef.current;
+    if (!track) {
+      return;
+    }
+
+    track.scrollBy({
+      left: direction === "next" ? track.clientWidth : -track.clientWidth,
+      behavior: "smooth",
+    });
+  };
 
   const handleProtectedAction = (slug: string, action: "cart" | "favorite") => {
     if (!user) {
@@ -971,7 +985,7 @@ export default function HomePage() {
                       <div className="academy-accordion__content">
                         <div className="academy-accordion__content-inner">
                           <div className="academy-accordion__content-line" />
-                          <p>{item.content}</p>
+                          <p className="academy-accordion__text">{item.content}</p>
                         </div>
                       </div>
                     </div>
@@ -1005,7 +1019,7 @@ export default function HomePage() {
             </p>
             <Link className="btn-prog" to="/programmes">
               <FaBolt />
-              en savoir plus sur nos programmes
+              en savoir plus
             </Link>
           </div>
 
@@ -1448,30 +1462,44 @@ export default function HomePage() {
       </section>
 
       <section id="instant-video">
-        <div className="video-container">
-          <div className="partie-haut-video">
-            <div className="section-icon">
-              <FaPlayCircle />
-            </div>
-            <h2>Quelques moments vidéo lors de formations en présentiel</h2>
-            <p>
-              Les formations dispensées sont à 90% pratiques pour une meilleure
-              compréhension.
+        <div className="vid-inner">
+          <div className="vid-head">
+            <span className="vid-eyebrow">Formations en présentiel</span>
+            <h2 className="vid-title">
+              Quelques moments<br />
+              <em>en formation</em>
+            </h2>
+            <p className="vid-sub">
+              Les formations dispensées sont à 90% pratiques pour une meilleure compréhension.
             </p>
           </div>
 
-          <div className="partie-bas-video">
-            {videos.map((videoUrl, index) => (
-              <div className="video-item youtube-short" key={videoUrl}>
-                <iframe
-                  src={videoUrl}
-                  title={`Vidéo ${index + 1} - Académie des Créatifs`}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  loading="lazy"
-                />
-              </div>
-            ))}
+          <div className="vid-carousel" aria-label="Vidéos de formation">
+            <button
+              type="button"
+              className="vid-carousel__nav vid-carousel__nav--prev"
+              onClick={() => scrollVideoCarousel("prev")}
+              aria-label="Vidéos précédentes"
+            >
+              <FaChevronLeft />
+            </button>
+
+            <div className="vid-track" ref={videoTrackRef}>
+              {videos.map((video) => (
+                <div className="vid-slide" key={video.url}>
+                  <VideoCard url={video.url} thumbnail={video.thumbnail} />
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              className="vid-carousel__nav vid-carousel__nav--next"
+              onClick={() => scrollVideoCarousel("next")}
+              aria-label="Vidéos suivantes"
+            >
+              <FaChevronRight />
+            </button>
           </div>
         </div>
       </section>
