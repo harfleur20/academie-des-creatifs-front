@@ -538,6 +538,18 @@
 }
 @media (max-width: 560px) {
   .blog-grid { grid-template-columns: 1fr; }
+
+  .blog-post-share {
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+  }
+
+  .blog-post-share__btn {
+    width: 32px;
+    height: 32px;
+    font-size: 0.82rem;
+    flex-shrink: 0;
+  }
 }
 
 /* ── Blog Post Detail ─────────────────────────────────── */

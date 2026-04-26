@@ -17387,6 +17387,19 @@ button.button--disabled:disabled {
   animation: ai-chat-slide-up 0.22s ease;
 }
 
+@media (max-width: 768px) {
+  body:has(.ai-chat-fab.is-open)::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    background: rgba(0, 0, 0, 0.25);
+    z-index: 998;
+    pointer-events: none;
+  }
+}
+
 @keyframes ai-chat-slide-up {
   from {
     opacity: 0;

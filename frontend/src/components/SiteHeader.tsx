@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   ShoppingCart,
   Heart,
+  Bell,
   Settings,
   HelpCircle,
   LogOut,
@@ -231,9 +232,6 @@ export default function SiteHeader() {
                       type="button"
                       onClick={() => handleSectionNavigation(item.sectionId)}
                     >
-                      <span className="nav-links__item-index">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
                       <span className="nav-links__item-label">{item.label}</span>
                       <span className="nav-links__item-arrow" aria-hidden="true">
                         <FaChevronRight />
@@ -245,9 +243,6 @@ export default function SiteHeader() {
                       to={item.to}
                       onClick={closeMenu}
                     >
-                      <span className="nav-links__item-index">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
                       <span className="nav-links__item-label">{item.label}</span>
                       <span className="nav-links__item-arrow" aria-hidden="true">
                         <FaChevronRight />
@@ -258,31 +253,16 @@ export default function SiteHeader() {
               ))}
             </ul>
 
-            <div className="nav-links__footer">
-              {user ? (
-                <>
-                  {user.role !== "guest" && (
-                    <Link className="nav-links__action nav-links__action--primary" to={user.dashboard_path} onClick={closeMenu}>
-                      Mon espace
-                    </Link>
-                  )}
-                  <button
-                    className="nav-links__action nav-links__action--ghost"
-                    type="button"
-                    onClick={() => void handleLogout()}
-                  >
-                    Deconnexion
-                  </button>
-                </>
-              ) : (
+            {!user && (
+              <div className="nav-links__footer">
                 <Link className="nav-links__action nav-links__action--primary" to="/login" onClick={closeMenu}>
                   <span className="icon">
                     <FaBolt />
                     Se connecter
                   </span>
                 </Link>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </nav>
 
@@ -290,7 +270,7 @@ export default function SiteHeader() {
           {canAccessCommerce ? (
             <Link
               aria-label="Voir le panier"
-              className="btn-link cart-btn"
+              className={`btn-link cart-btn${user ? " cart-btn--hide-mobile" : ""}`}
               to="/panier"
               onClick={closeMenu}
             >
@@ -304,7 +284,7 @@ export default function SiteHeader() {
           ) : (
             <button
               aria-label="Achats indisponibles pour ce compte"
-              className="btn-link cart-btn"
+              className={`btn-link cart-btn${user ? " cart-btn--hide-mobile" : ""}`}
               type="button"
               onClick={() => {
                 closeMenu();
@@ -367,16 +347,22 @@ export default function SiteHeader() {
                       {user.role === "admin" ? "Administration" : user.role === "teacher" ? "Espace enseignant" : "Mon espace"}
                     </Link>
                   )}
-                  {user.role === "student" && (
+                  {canUseCommerce(user) && (
                     <Link className="profile-menu__link" to="/panier" onClick={() => setIsProfileOpen(false)}>
                       <span className="profile-menu__link-icon"><ShoppingCart size={15} /></span>
                       Mon panier
+                      {cartCount > 0 && <span className="profile-menu__link-badge">{cartCount}</span>}
                     </Link>
                   )}
-                  {user.role === "student" && (
+                  <Link className="profile-menu__link" to="/notifications" onClick={() => setIsProfileOpen(false)}>
+                    <span className="profile-menu__link-icon"><Bell size={15} /></span>
+                    Notifications
+                  </Link>
+                  {canUseCommerce(user) && (
                     <Link className="profile-menu__link" to="/favoris" onClick={() => setIsProfileOpen(false)}>
                       <span className="profile-menu__link-icon"><Heart size={15} /></span>
-                      Mes favoris
+                      Mes souhaits
+                      {favoritesCount > 0 && <span className="profile-menu__link-badge">{favoritesCount}</span>}
                     </Link>
                   )}
                   <Link className="profile-menu__link" to="/parametres" onClick={() => setIsProfileOpen(false)}>
